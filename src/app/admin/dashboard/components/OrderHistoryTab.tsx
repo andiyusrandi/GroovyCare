@@ -82,6 +82,11 @@ export default function OrderHistoryTab({
   const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(null);
   const [activeDropdownOrderId, setActiveDropdownOrderId] = useState<string | null>(null);
 
+  // Multi-select & Bulk delete state
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+
   const handleCancel = async (orderId: string) => {
     const reason = prompt("Masukkan alasan pembatalan pesanan (stok dan kredit akan dikembalikan):");
     if (reason !== null) {
@@ -106,6 +111,46 @@ export default function OrderHistoryTab({
 
     return matchesSearch && matchesStatus;
   });
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allFilteredIds = filteredOrders.map((o) => o.id);
+      setSelectedOrderIds((prev) => Array.from(new Set([...prev, ...allFilteredIds])));
+    } else {
+      const allFilteredIds = new Set(filteredOrders.map((o) => o.id));
+      setSelectedOrderIds((prev) => prev.filter((id) => !allFilteredIds.has(id)));
+    }
+  };
+
+  const handleSelectOne = (orderId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedOrderIds((prev) => [...prev, orderId]);
+    } else {
+      setSelectedOrderIds((prev) => prev.filter((id) => id !== orderId));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedOrderIds.length === 0) return;
+    if (
+      confirm(
+        `Apakah Anda yakin ingin menghapus ${selectedOrderIds.length} pesanan yang ditandai secara permanen?`
+      )
+    ) {
+      setIsDeletingBulk(true);
+      try {
+        for (const id of selectedOrderIds) {
+          await onDeleteOrder(id);
+        }
+        setSelectedOrderIds([]);
+      } catch (err) {
+        console.error(err);
+        alert("Terjadi kesalahan saat menghapus pesanan.");
+      } finally {
+        setIsDeletingBulk(false);
+      }
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -137,6 +182,12 @@ export default function OrderHistoryTab({
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
             Rejected
+          </span>
+        );
+      case "CANCELLED":
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-50 text-red-700 border border-red-200">
+            Dibatalkan Mitra
           </span>
         );
       default:
@@ -192,6 +243,27 @@ export default function OrderHistoryTab({
           />
         </div>
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (isSelectionMode) {
+                setIsSelectionMode(false);
+                setSelectedOrderIds([]);
+              } else {
+                setIsSelectionMode(true);
+              }
+            }}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-1.5 ${
+              isSelectionMode
+                ? "bg-red-50 text-red-700 border-red-200"
+                : "bg-surface-container-low text-on-surface-variant border-outline-variant/30 hover:bg-slate-100"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">
+              {isSelectionMode ? "close" : "checklist"}
+            </span>
+            <span>{isSelectionMode ? "Selesai Tandai" : "Opsi Tandai"}</span>
+          </button>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -202,10 +274,39 @@ export default function OrderHistoryTab({
             <option value="PENDING_SHIPPING">Proses Logistik (Packing)</option>
             <option value="SHIPPED">Sedang Dikirim</option>
             <option value="DELIVERED">✓ Diterima</option>
-            <option value="REJECTED">Ditolak</option>
+            <option value="CANCELLED">Dibatalkan Mitra</option>
+            <option value="REJECTED">Ditolak Admin</option>
           </select>
         </div>
       </div>
+
+      {/* Bulk Delete Banner Action (Hanya tampil saat isSelectionMode dan ada yang ditandai) */}
+      {isSelectionMode && selectedOrderIds.length > 0 && (
+        <div className="bg-rose-50 border border-rose-200 p-4 rounded-2xl flex items-center justify-between gap-4 text-xs shadow-sm animate-fadeIn">
+          <div className="flex items-center gap-2 text-rose-950 font-bold">
+            <span className="material-symbols-outlined text-red-600 text-lg">check_box</span>
+            <span>{selectedOrderIds.length} pesanan ditandai</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedOrderIds([])}
+              className="px-3.5 py-1.5 bg-white border border-rose-200 text-rose-800 font-bold rounded-xl hover:bg-rose-100 transition-colors cursor-pointer text-xs"
+            >
+              Batal Pilih
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={isDeletingBulk}
+              className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5 text-xs disabled:opacity-50 border-none"
+            >
+              <span className="material-symbols-outlined text-[16px]">delete</span>
+              {isDeletingBulk ? "Menghapus..." : `Hapus ${selectedOrderIds.length} Pesanan`}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Table */}
       <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-3xl overflow-hidden shadow-sm">
@@ -213,27 +314,57 @@ export default function OrderHistoryTab({
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead className="bg-surface-container-low border-b border-outline-variant/30 text-on-surface-variant font-bold">
               <tr>
-                <th className="px-6 py-3.5 uppercase tracking-wider text-[10px] whitespace-nowrap w-44">No. Pesanan / Tanggal</th>
-                <th className="px-6 py-3.5 uppercase tracking-wider text-[10px] whitespace-nowrap min-w-[200px]">Mitra Apotek</th>
-                <th className="px-6 py-3.5 uppercase tracking-wider text-[10px] whitespace-nowrap w-36 text-center">Metode Pembayaran</th>
-                <th className="px-6 py-3.5 uppercase tracking-wider text-[10px] whitespace-nowrap text-right w-32">Total IDR</th>
-                <th className="px-6 py-3.5 uppercase tracking-wider text-[10px] whitespace-nowrap text-center w-36">Status Pembayaran</th>
-                <th className="px-6 py-3.5 uppercase tracking-wider text-[10px] whitespace-nowrap text-center w-36">Status Logistik</th>
-                <th className="px-6 py-3.5 text-center text-[10px] whitespace-nowrap w-52">Aksi</th>
+                {isSelectionMode && (
+                  <th className="px-4 py-3.5 text-center w-12">
+                    <input
+                      type="checkbox"
+                      checked={
+                        filteredOrders.length > 0 &&
+                        filteredOrders.every((o) => selectedOrderIds.includes(o.id))
+                      }
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer accent-primary"
+                    />
+                  </th>
+                )}
+                <th className="px-5 py-3.5 uppercase tracking-wider text-[10px] whitespace-nowrap w-44">No. Pesanan / Tanggal</th>
+                <th className="px-5 py-3.5 uppercase tracking-wider text-[10px] whitespace-nowrap min-w-[200px]">Mitra Apotek</th>
+                <th className="px-5 py-3.5 uppercase tracking-wider text-[10px] whitespace-nowrap w-36 text-center">Metode Pembayaran</th>
+                <th className="px-5 py-3.5 uppercase tracking-wider text-[10px] whitespace-nowrap text-right w-32">Total IDR</th>
+                <th className="px-5 py-3.5 uppercase tracking-wider text-[10px] whitespace-nowrap text-center w-36">Status Pembayaran</th>
+                <th className="px-5 py-3.5 uppercase tracking-wider text-[10px] whitespace-nowrap text-center w-36">Status Logistik</th>
+                <th className="px-5 py-3.5 text-center text-[10px] whitespace-nowrap w-52">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10 text-on-surface">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant font-semibold">
+                  <td colSpan={isSelectionMode ? 8 : 7} className="px-6 py-12 text-center text-on-surface-variant font-semibold">
                     Tidak ditemukan data riwayat order yang cocok.
                   </td>
                 </tr>
               ) : (
                 filteredOrders.map((order) => {
                   const { total } = calculateOrderTotals(order);
+                  const isChecked = selectedOrderIds.includes(order.id);
+
                   return (
-                    <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr
+                      key={order.id}
+                      className={`transition-colors ${
+                        isChecked ? "bg-primary/5" : "hover:bg-slate-50/50"
+                      }`}
+                    >
+                      {isSelectionMode && (
+                        <td className="px-4 py-4 text-center w-12" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => handleSelectOne(order.id, e.target.checked)}
+                            className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer accent-primary"
+                          />
+                        </td>
+                      )}
                       <td className="px-6 py-4 font-mono whitespace-nowrap">
                         <span className="font-extrabold text-slate-800 block">{order.orderNumber}</span>
                         <span className="text-[10px] text-on-surface-variant/60">{new Date(order.createdAt).toLocaleDateString("id-ID")}</span>

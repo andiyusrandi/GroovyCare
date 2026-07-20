@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 interface Batch {
   id: string;
@@ -144,11 +144,13 @@ export default function ProductCatalog({
     return true;
   });
 
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    if (sortBy === "low-to-high") return a.price - b.price;
-    if (sortBy === "high-to-low") return b.price - a.price;
-    return 0;
-  });
+  const sortedProducts = useMemo(() => {
+    return [...filteredProducts].sort((a, b) => {
+      if (sortBy === "low-to-high") return a.price - b.price;
+      if (sortBy === "high-to-low") return b.price - a.price;
+      return 0;
+    });
+  }, [filteredProducts, sortBy]);
 
   // Mobile Chip Filtering
   const chips = [
@@ -161,7 +163,7 @@ export default function ProductCatalog({
   ];
 
   const currentChipObj = chips.find(c => c.label === activeChip) || chips[0];
-  const finalFilteredProducts = sortedProducts.filter(currentChipObj.filter);
+  const finalFilteredProducts = useMemo(() => sortedProducts.filter(currentChipObj.filter), [sortedProducts, currentChipObj]);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12 font-sans">
@@ -333,9 +335,9 @@ export default function ProductCatalog({
                                 {golongan === "PSIKOTROPIKA" && (
                                   <span className="bg-blue-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">Psikotropika</span>
                                 )}
-                                {(p.name.includes("Amoxicillin") || p.code.includes("AMX")) && (
-                                  <span className="bg-primary-container text-white text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                    <span className="material-symbols-outlined text-[10px]">ac_unit</span> CC
+                                {(p.category === "COLD_CHAIN" || p.category?.toLowerCase() === "cold chain" || p.name.toLowerCase().includes("amoxicillin") || p.name.toLowerCase().includes("insulin") || p.name.toLowerCase().includes("vaccine") || p.code.includes("AMX")) && (
+                                  <span className="bg-sky-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                                    <span className="material-symbols-outlined text-[10px]">ac_unit</span> Cold Chain (2°C - 8°C)
                                   </span>
                                 )}
                               </div>
@@ -437,150 +439,178 @@ export default function ProductCatalog({
       {/* ========================================================================= */}
       {/* 2. MOBILE VIEW: Search, Category Chips & Responsive Product Grid         */}
       {/* ========================================================================= */}
-      <div className="block md:hidden space-y-4 px-2">
+      {/* ========================================================================= */}
+      {/* 2. MOBILE VIEW: Modern E-Commerce Medicine Catalog                        */}
+      {/* ========================================================================= */}
+      <div className="block md:hidden space-y-4 px-1 pb-16">
         {/* Sticky Search & Chips Container */}
-        <div className="space-y-4 bg-surface py-2 sticky top-16 z-25">
+        <div className="space-y-3 bg-white/90 backdrop-blur-md p-3 rounded-2xl border border-slate-200/60 shadow-xs sticky top-16 z-20">
           {/* Mobile Search Bar */}
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-              <span className="material-symbols-outlined text-outline text-lg">search</span>
-            </div>
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3.5 top-2.5 text-slate-400 text-lg">search</span>
             <input
-              className="w-full h-11 pl-10 pr-4 bg-surface-container-low rounded-xl border border-outline-variant/20 focus:ring-2 focus:ring-primary/20 font-sans text-xs text-on-surface placeholder:text-outline-variant outline-none"
-              placeholder="Search medicine, devices..."
+              className="w-full h-10 pl-10 pr-4 bg-slate-100/80 rounded-xl border border-slate-200/50 font-sans text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none"
+              placeholder="Cari nama obat, zat aktif, pabrik..."
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 border-none bg-transparent cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            )}
           </div>
 
           {/* Category Chips Scroll */}
-          <div className="flex gap-2 overflow-x-auto hide-scrollbar -mx-4 px-4 pb-1">
-            {chips.map((c) => (
-              <button
-                key={c.label}
-                onClick={() => setActiveChip(c.label)}
-                className={`whitespace-nowrap px-4 py-2 rounded-full font-sans text-[10px] font-bold transition-all cursor-pointer border-none ${
-                  activeChip === c.label
-                    ? "bg-primary text-white"
-                    : "bg-surface-container-highest text-on-surface-variant"
-                }`}
-              >
-                {c.label === "Cold Chain" ? (
-                  <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[12px]">ac_unit</span> Cold Chain
-                  </span>
-                ) : (
-                  c.label
-                )}
-              </button>
-            ))}
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar -mx-3 px-3 pb-0.5">
+            {chips.map((c) => {
+              const isActive = activeChip === c.label;
+              return (
+                <button
+                  key={c.label}
+                  type="button"
+                  onClick={() => setActiveChip(c.label)}
+                  className={`whitespace-nowrap px-3.5 py-1.5 rounded-full font-sans text-[10px] font-bold transition-all cursor-pointer border-none flex items-center gap-1 ${
+                    isActive
+                      ? "bg-slate-900 text-white shadow-sm shadow-slate-900/20 scale-105"
+                      : "bg-slate-100/90 text-slate-600 hover:bg-slate-200/80"
+                  }`}
+                >
+                  {c.label === "Cold Chain" ? (
+                    <>
+                      <span className="material-symbols-outlined text-[13px] text-blue-400">ac_unit</span>
+                      <span>Cold Chain</span>
+                    </>
+                  ) : c.label === "Ethical" ? (
+                    <>
+                      <span className="material-symbols-outlined text-[13px] text-rose-500">prescriptions</span>
+                      <span>Obat Keras</span>
+                    </>
+                  ) : c.label === "OTC" ? (
+                    <>
+                      <span className="material-symbols-outlined text-[13px] text-emerald-500">medication</span>
+                      <span>Bebas / OTC</span>
+                    </>
+                  ) : (
+                    <span>{c.label}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Product Cards Grid */}
-        <div className="grid grid-cols-2 gap-3 mt-4">
+        {/* Product Cards Grid (2 Columns Mobile) */}
+        <div className="grid grid-cols-2 gap-3 mt-3">
           {finalFilteredProducts.length === 0 ? (
-            <div className="col-span-2 text-center py-12 text-on-surface-variant italic text-xs">
-              Tidak ada produk obat yang cocok.
+            <div className="col-span-2 text-center py-12 bg-white rounded-3xl border border-slate-200/60 p-6 space-y-2">
+              <span className="material-symbols-outlined text-4xl text-slate-300">search_off</span>
+              <p className="text-xs font-bold text-slate-700">Tidak ada produk ditemukan</p>
+              <p className="text-[10px] text-slate-400">Coba ubah kata kunci atau kata filter obat Anda.</p>
             </div>
           ) : (
             finalFilteredProducts.map((p) => {
               const isOutOfStock = p.totalStock <= 0;
               const isLowStock = p.totalStock > 0 && p.totalStock <= 5;
               const mfg = getProductManufacturer(p);
-              const isColdChain = p.name.toLowerCase().includes("amoxicillin") || p.name.toLowerCase().includes("vaccine") || p.code.toLowerCase().includes("amx");
-              const isNew = p.name.toLowerCase().includes("thermometer") || p.name.toLowerCase().includes("sanmol");
-              const isVerified = !isNew;
+              const golongan = getProductGolongan(p);
+              const isColdChain =
+                p.name.toLowerCase().includes("amoxicillin") ||
+                p.name.toLowerCase().includes("vaccine") ||
+                p.code.toLowerCase().includes("amx") ||
+                p.category.toLowerCase().includes("cold chain");
 
               return (
                 <div 
                   key={p.id} 
-                  className="bg-surface-container-lowest rounded-2xl p-3 shadow-sm border border-surface-container-highest flex flex-col group transition-all duration-200 hover:shadow-md active:scale-[0.98]"
+                  className="bg-white rounded-2xl p-3 shadow-xs border border-slate-200/70 flex flex-col justify-between group transition-all duration-200 hover:shadow-md active:scale-[0.98] relative overflow-hidden"
                 >
-                  {/* Visual Image Area */}
-                  <div className="relative aspect-square rounded-xl bg-surface-container-low overflow-hidden mb-3 flex items-center justify-center border border-outline-variant/10">
-                    <img 
-                      className="w-full h-full object-cover mix-blend-multiply opacity-90" 
-                      alt={p.name}
-                      src={getProductImageUrl(p)}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "https://lh3.googleusercontent.com/aida-public/AB6AXuBVwwWGNG9klmFlTxE7qRJlM1a7CWQA41HcodSrxAo5yyi2kDDxkKfVY-ZKWSidodMppE_pXoP_mQCrcx9gRPdHjb967dBVWUoFL5AFRR5c_Jl2dQgOsaFvIFY5EDsB4KhW6Yp97g7uZJaWqjHlKz4J8OY4vHoN93-nWI0lZZOj7DhkS8ZaO6mCejJMLHI-yHbtaiqlkdO0f2skoMG2UQD7cf0ywd87rynYVJHts51V9wTivLcGooleoOrenqnrUzra16cONC2_49Y";
-                      }}
-                    />
-                    
-                    {/* Cold Chain Badge (top left) */}
-                    {isColdChain && (
-                      <div className="absolute top-2 left-2 flex gap-1 z-10">
-                        <span className="material-symbols-outlined text-primary text-base bg-white/70 backdrop-blur-sm p-1 rounded-lg">ac_unit</span>
+                  {/* Visual Image & Badges Container */}
+                  <div>
+                    <div className="relative aspect-square rounded-xl bg-slate-50 overflow-hidden mb-2.5 flex items-center justify-center border border-slate-100">
+                      <img 
+                        className="w-full h-full object-contain p-2 mix-blend-multiply transition-transform duration-300 group-hover:scale-105" 
+                        alt={p.name}
+                        src={getProductImageUrl(p)}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "https://lh3.googleusercontent.com/aida-public/AB6AXuBVwwWGNG9klmFlTxE7qRJlM1a7CWQA41HcodSrxAo5yyi2kDDxkKfVY-ZKWSidodMppE_pXoP_mQCrcx9gRPdHjb967dBVWUoFL5AFRR5c_Jl2dQgOsaFvIFY5EDsB4KhW6Yp97g7uZJaWqjHlKz4J8OY4vHoN93-nWI0lZZOj7DhkS8ZaO6mCejJMLHI-yHbtaiqlkdO0f2skoMG2UQD7cf0ywd87rynYVJHts51V9wTivLcGooleoOrenqnrUzra16cONC2_49Y";
+                        }}
+                      />
+                      
+                      {/* Cold Chain Badge (top left) */}
+                      {isColdChain && (
+                        <div className="absolute top-1.5 left-1.5 bg-blue-50/90 backdrop-blur-xs border border-blue-200 text-blue-700 text-[8px] font-extrabold px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-xs">
+                          <span className="material-symbols-outlined text-[10px]">ac_unit</span>
+                          <span>2°-8°C</span>
+                        </div>
+                      )}
+                      
+                      {/* Golongan Badge (top right) */}
+                      <div className="absolute top-1.5 right-1.5">
+                        {golongan === "KERAS" ? (
+                          <span className="bg-rose-50 border border-rose-200 text-rose-700 text-[8px] font-extrabold px-1.5 py-0.5 rounded-md uppercase">
+                            Obat Keras
+                          </span>
+                        ) : (
+                          <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[8px] font-extrabold px-1.5 py-0.5 rounded-md uppercase">
+                            Bebas
+                          </span>
+                        )}
                       </div>
-                    )}
-                    
-                    {/* Status Badge (top right) */}
-                    {isVerified ? (
-                      <div className="absolute top-2 right-2 px-2 py-1 bg-primary/10 rounded-lg z-10">
-                        <p className="text-[8px] font-extrabold text-primary uppercase tracking-tighter">Verified</p>
-                      </div>
-                    ) : isNew ? (
-                      <div className="absolute top-2 right-2 px-2 py-1 bg-secondary-container/30 rounded-lg z-10">
-                        <p className="text-[8px] font-extrabold text-secondary uppercase tracking-tighter">New</p>
-                      </div>
-                    ) : null}
-                  </div>
+                    </div>
 
-                  {/* Product Details */}
-                  <div className="flex-grow flex flex-col justify-between">
-                    <div>
-                      <h3 className="font-heading font-bold text-xs text-on-surface line-clamp-1" title={p.name}>
-                        {p.name}
-                      </h3>
-                      <p className="text-[9px] text-outline font-bold uppercase tracking-wider mb-0.5">
+                    {/* Product Metadata Details */}
+                    <div className="space-y-1">
+                      <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider truncate">
                         {mfg}
                       </p>
-                      <p className="text-[9px] text-on-surface-variant font-medium mb-2">
+                      <h3 className="font-heading font-extrabold text-xs text-slate-900 line-clamp-2 leading-snug" title={p.name}>
+                        {p.name}
+                      </h3>
+                      <p className="text-[10px] text-slate-500 font-medium">
                         {p.unit}
                       </p>
                     </div>
-
-                    {/* Stock Status Dot */}
-                    <div className="flex items-center gap-1.5 mb-3">
-                      {isOutOfStock ? (
-                        <>
-                          <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
-                          <span className="text-[10px] font-bold text-error">Stok Habis</span>
-                        </>
-                      ) : isLowStock ? (
-                        <>
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]"></span>
-                          <span className="text-[10px] font-bold text-[#f59e0b]">Stok Terbatas</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse"></span>
-                          <span className="text-[10px] font-bold text-[#10b981]">Stok Tersedia</span>
-                        </>
-                      )}
-                    </div>
                   </div>
 
-                  {/* Actions / Price */}
-                  <div className="mt-auto pt-2 border-t border-outline-variant/10">
-                    <div className="mb-2">
-                      <p className="text-xs font-black text-primary font-mono">Rp {p.price.toLocaleString("id-ID")}</p>
-                      <p className="text-[9px] text-outline line-through font-mono">Rp {(p.price * 1.05).toLocaleString("id-ID")}</p>
+                  {/* Pricing & Stock Status Bottom Block */}
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-black text-slate-900 font-mono">Rp {p.price.toLocaleString("id-ID")}</p>
+                        <p className="text-[8px] text-slate-400 line-through font-mono">Rp {(p.price * 1.05).toLocaleString("id-ID")}</p>
+                      </div>
+
+                      {/* Stock Dot */}
+                      <div className="text-right">
+                        {isOutOfStock ? (
+                          <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md">Habis</span>
+                        ) : isLowStock ? (
+                          <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">Sisa {p.totalStock}</span>
+                        ) : (
+                          <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">Ada Stok</span>
+                        )}
+                      </div>
                     </div>
                     
+                    {/* Add to Cart Button */}
                     <button 
+                      type="button"
                       onClick={() => addToCartWithQty(p, 1)}
                       disabled={isOutOfStock || hasCdobWarning}
-                      className={`w-full h-9 font-sans font-bold text-[10px] rounded-xl flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer border-none ${
+                      className={`w-full h-8 font-sans font-bold text-[10px] rounded-xl flex items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer border-none shadow-xs ${
                         isOutOfStock || hasCdobWarning
-                          ? "bg-surface-container-low text-on-surface-variant/40 cursor-not-allowed opacity-50"
-                          : "bg-primary-container text-on-primary-container hover:opacity-95"
+                          ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
+                          : "bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/10"
                       }`}
                     >
-                      <span className="material-symbols-outlined text-sm">add</span>
-                      <span>Tambah</span>
+                      <span className="material-symbols-outlined text-sm">add_shopping_cart</span>
+                      <span>+ Tambah</span>
                     </button>
                   </div>
                 </div>
@@ -589,10 +619,12 @@ export default function ProductCatalog({
           )}
         </div>
 
-        {/* Empty State / Total count indicator */}
-        <div className="py-8 flex flex-col items-center text-center opacity-40">
-          <span className="material-symbols-outlined text-3xl mb-1.5">medication</span>
-          <p className="font-sans text-[10px] font-bold">Viewing {finalFilteredProducts.length} of {products.length} products</p>
+        {/* Counter Summary Bar */}
+        <div className="py-6 flex flex-col items-center text-center opacity-60">
+          <span className="material-symbols-outlined text-2xl text-slate-400 mb-1">medication</span>
+          <p className="font-sans text-[10px] font-bold text-slate-500">
+            Menampilkan {finalFilteredProducts.length} dari {products.length} produk obat
+          </p>
         </div>
       </div>
     </div>

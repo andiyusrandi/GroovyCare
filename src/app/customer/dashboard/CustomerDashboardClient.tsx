@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/app/actions/auth";
-import { checkoutOrder, confirmDelivery, uploadPaymentProof } from "@/app/actions/orders";
+import { checkoutOrder, confirmDelivery, uploadPaymentProof, cancelOrderByCustomer } from "@/app/actions/orders";
 import { getSnapToken, handlePaymentSuccess } from "@/app/actions/payment";
 import {
   ShoppingBag,
@@ -38,6 +38,7 @@ import {
 import dynamic from "next/dynamic";
 
 import Sidebar from "./components/Sidebar";
+import MobileBottomNav from "./components/MobileBottomNav";
 
 const DashboardOverview = dynamic(() => import("./components/DashboardOverview"), { ssr: false });
 const ProductCatalog = dynamic(() => import("./components/ProductCatalog"), { ssr: false });
@@ -52,6 +53,12 @@ const PurchaseHistoryView = dynamic(() => import("./components/PurchaseHistoryVi
 const DocumentCenterView = dynamic(() => import("./components/DocumentCenterView"), { ssr: false });
 const LegalityAndProfileView = dynamic(() => import("./components/LegalityAndProfileView"), { ssr: false });
 const SettingsView = dynamic(() => import("./components/SettingsView"), { ssr: false });
+import {
+  DashboardOverviewSkeleton,
+  ProductCatalogSkeleton,
+  PurchaseHistorySkeleton,
+  OrderStatusSkeleton,
+} from "./components/SkeletonLoader";
 import { updateMitraProfile } from "@/app/actions/mitra";
 import { useMobileBrowser } from "@/hooks/useMobileBrowser";
 
@@ -100,6 +107,7 @@ interface Order {
   shippingDate: Date | null;
   paymentProofUrl: string | null;
   paymentStatus: string;
+  paymentMethod?: string;
   items: OrderItem[];
   rejectionReason: string | null;
 }
@@ -166,6 +174,11 @@ export default function CustomerDashboardClient({
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [activeTab, setActiveTab] = useState<"dashboard" | "belanja" | "status" | "riwayat" | "tagihan" | "dokumen" | "legalitas" | "pengaturan" | "keranjang">("dashboard");
+  const [isLoadingTab, setIsLoadingTab] = useState(false);
+
+  const handleSwitchTab = (tab: any) => {
+    setActiveTab(tab);
+  };
   const [docSubTab, setDocSubTab] = useState<"sp" | "esign" | "do" | "faktur">("sp");
   const [legalSubTab, setLegalSubTab] = useState<"instansi" | "sipa" | "sia" | "profile">("instansi");
 
@@ -194,6 +207,34 @@ export default function CustomerDashboardClient({
   const [signatureDataUrl, setSignatureDataUrl] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"VA" | "TOP" | "INVOICE" | "COD">("VA");
   const [isVaModalOpen, setIsVaModalOpen] = useState(false);
+
+  // State Pembatalan Pesanan oleh Mitra
+  const [cancelingOrder, setCancelingOrder] = useState<any | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
+
+  async function handleCancelOrder() {
+    if (!cancelingOrder) return;
+    setIsSubmittingCancel(true);
+    try {
+      const res = await cancelOrderByCustomer(cancelingOrder.id, cancelReason);
+      if (res.success) {
+        alert(res.message);
+        setCancelingOrder(null);
+        setCancelReason("");
+        if (viewingDetailOrder && viewingDetailOrder.id === cancelingOrder.id) {
+          setViewingDetailOrder(null);
+        }
+        router.refresh();
+      } else {
+        alert(res.error || "Gagal membatalkan pesanan");
+      }
+    } catch (err: any) {
+      alert("Terjadi kesalahan: " + (err.message || err));
+    } finally {
+      setIsSubmittingCancel(false);
+    }
+  }
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
@@ -343,8 +384,6 @@ export default function CustomerDashboardClient({
     });
     setAddedProductInfo({ product, quantity: qty });
   }
-
-  const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   // Auto scroll to top when changing tab
   useEffect(() => {
@@ -750,9 +789,10 @@ export default function CustomerDashboardClient({
 
   notifications.sort((a, b) => b.timestamp - a.timestamp);
   const unreadCount = notifications.filter((n) => !readNotifIds.includes(n.id)).length;
-  const cartItemCount = cart.length;
-  const pendingPaymentCount = orders.filter(o => o.paymentStatus !== "PAID" && o.status !== "DELIVERED" && o.status !== "REJECTED").length;
-  const activeOrdersCount = orders.filter(o => o.status !== "DELIVERED" && o.status !== "REJECTED").length;
+  const cartItemCount = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
+  const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0), [cart]);
+  const pendingPaymentCount = useMemo(() => orders.filter(o => o.paymentStatus !== "PAID" && o.status !== "DELIVERED" && o.status !== "REJECTED").length, [orders]);
+  const activeOrdersCount = useMemo(() => orders.filter(o => o.status !== "DELIVERED" && o.status !== "REJECTED").length, [orders]);
 
   if (isMobileBrowser) {
     return (
@@ -840,7 +880,7 @@ export default function CustomerDashboardClient({
       {/* Sidebar Layout (Desktop) */}
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleSwitchTab}
         isCheckoutOpen={isCheckoutOpen}
         setIsCheckoutOpen={setIsCheckoutOpen}
         viewingDetailOrder={viewingDetailOrder}
@@ -882,7 +922,7 @@ export default function CustomerDashboardClient({
             ) : (
               <Menu className="md:hidden w-5 h-5 text-on-surface cursor-pointer" onClick={() => setIsMobileSidebarOpen(true)} />
             )}
-            <h2 className="font-heading font-bold text-lg text-primary">
+            <h2 className="font-heading font-extrabold text-sm sm:text-base md:text-lg text-primary">
               {viewingDetailOrder 
                 ? "Detail Pengiriman" 
                 : activeTab === "keranjang" 
@@ -1141,6 +1181,7 @@ export default function CustomerDashboardClient({
               order={viewingDetailOrder}
               setViewingDetailOrder={setViewingDetailOrder}
               setViewingFaktur={setViewingFaktur}
+              setCancelingOrder={setCancelingOrder}
               handleConfirmDelivery={(orderId) => {
                 setViewingReceiptReport(viewingDetailOrder);
               }}
@@ -1164,13 +1205,25 @@ export default function CustomerDashboardClient({
               handleCheckout={handleCheckout}
               setIsCheckoutOpen={setIsCheckoutOpen}
             />
+          ) : isLoadingTab ? (
+            activeTab === "dashboard" ? (
+              <DashboardOverviewSkeleton />
+            ) : activeTab === "belanja" ? (
+              <ProductCatalogSkeleton />
+            ) : activeTab === "riwayat" ? (
+              <PurchaseHistorySkeleton />
+            ) : activeTab === "status" ? (
+              <OrderStatusSkeleton />
+            ) : (
+              <DashboardOverviewSkeleton />
+            )
           ) : (
             <>
               {activeTab === "dashboard" && (
                 <DashboardOverview
                   institution={institution}
                   orders={orders}
-                  setActiveTab={setActiveTab}
+                  setActiveTab={handleSwitchTab}
                   setViewingDetailOrder={setViewingDetailOrder}
                   setViewingFaktur={setViewingFaktur}
                   handleConfirmDelivery={handleConfirmDelivery}
@@ -1634,6 +1687,7 @@ export default function CustomerDashboardClient({
               setCheckoutError={setCheckoutError}
               handleConfirmDelivery={handleConfirmDelivery}
               products={products}
+              setCancelingOrder={setCancelingOrder}
             />
           )}
 
@@ -1807,7 +1861,38 @@ export default function CustomerDashboardClient({
                             </div>
 
                             <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-                              {o.paymentStatus === "PENDING_VERIFICATION" ? (
+                              {o.paymentMethod === "TOP" ? (
+                                o.status === "PENDING_SHIPPING" || o.status === "SHIPPED" || o.status === "DELIVERED" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMidtransPay(o)}
+                                    className="w-full md:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary/95 shadow-md shadow-primary/10 cursor-pointer border-none"
+                                  >
+                                    <span className="material-symbols-outlined text-[16px] text-white">payments</span>
+                                    Lunasi TOP (VA/QRIS)
+                                  </button>
+                                ) : (
+                                  <div className="px-3.5 py-1.5 rounded-xl bg-blue-50 text-blue-900 border border-blue-200 font-bold flex items-center gap-1.5 text-xs">
+                                    <span className="material-symbols-outlined text-[16px] text-blue-700">account_balance</span>
+                                    <span>Potong Limit (Menunggu Pengiriman)</span>
+                                  </div>
+                                )
+                              ) : o.paymentMethod === "INVOICE" ? (
+                                isOverdue ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMidtransPay(o)}
+                                    className="w-full md:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary/95 shadow-md shadow-primary/10 cursor-pointer border-none animate-pulse"
+                                  >
+                                    <span className="material-symbols-outlined text-[16px] text-white">payments</span>
+                                    Bayar Sekarang (VA/QRIS)
+                                  </button>
+                                ) : (
+                                  <div className="px-3.5 py-1.5 rounded-xl bg-purple-50 text-purple-900 border border-purple-200 font-bold flex items-center gap-1.5 text-xs">
+                                    <span>Invoice Billing (Tempo Berjalan)</span>
+                                  </div>
+                                )
+                              ) : o.paymentStatus === "PENDING_VERIFICATION" ? (
                                 <span className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 font-bold flex items-center gap-1.5 animate-pulse">
                                   <Clock className="w-3.5 h-3.5" />
                                   Verifikasi Pembayaran...
@@ -1950,6 +2035,71 @@ export default function CustomerDashboardClient({
         institution={institution}
         user={user}
       />
+
+      {/* MODAL: BATALKAN PESANAN MITRA */}
+      {cancelingOrder && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm font-sans animate-fadeIn">
+          <div className="bg-white border border-outline-variant/30 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 relative">
+            <div className="flex justify-between items-center border-b border-outline-variant/20 pb-3">
+              <h3 className="text-sm font-heading font-extrabold text-foreground flex items-center gap-2">
+                <span className="material-symbols-outlined text-error text-[20px]">cancel</span>
+                Konfirmasi Pembatalan Pesanan
+              </h3>
+              <button
+                type="button"
+                onClick={() => setCancelingOrder(null)}
+                className="text-on-surface-variant hover:text-foreground text-xs font-bold border-none bg-transparent cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-on-surface-variant">
+              <p>
+                Anda akan membatalkan pesanan <strong className="font-mono text-foreground">{cancelingOrder.orderNumber}</strong>.
+              </p>
+              <div className="bg-red-50/70 border border-red-100 rounded-2xl p-3.5 space-y-1">
+                <p className="font-bold text-red-900 flex items-center gap-1">
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                  Perhatian Regulasi:
+                </p>
+                <p className="text-[11px] text-red-800 leading-relaxed">
+                  Pembatalan mandiri hanya dapat dilakukan selama pesanan berstatus <strong>PENDING_APPROVAL</strong> (belum diproses gudang PBF).
+                </p>
+              </div>
+
+              <div className="space-y-1 pt-1">
+                <label className="block text-[11px] font-bold text-foreground">Alasan Pembatalan (Opsional):</label>
+                <textarea
+                  rows={3}
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Contoh: Salah jumlah produk, perubahan kebutuhan apotek, dll."
+                  className="w-full p-3 border border-outline-variant/40 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setCancelingOrder(null)}
+                className="px-4 py-2.5 bg-surface-container-high hover:bg-surface-variant text-on-surface rounded-xl text-xs font-bold cursor-pointer border-none"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingCancel}
+                onClick={handleCancelOrder}
+                className="px-5 py-2.5 bg-error hover:bg-error/90 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer border-none flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isSubmittingCancel ? "Memproses..." : "Ya, Batalkan Pesanan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: UPLOAD PAYMENT PROOF */}
       {selectedOrderForPayment && (
@@ -2320,6 +2470,44 @@ export default function CustomerDashboardClient({
             ></div>
           </div>
         </div>
+      )}
+
+      {/* MOBILE FLOATING STICKY CART BAR (Tampil saat belanja & keranjang terisi) */}
+      {activeTab === "belanja" && cart.length > 0 && !isCheckoutOpen && !viewingDetailOrder && (
+        <div className="md:hidden fixed bottom-16 left-3 right-3 z-30 bg-slate-900 text-white rounded-2xl p-3 shadow-xl flex items-center justify-between animate-in slide-in-from-bottom duration-200 font-sans">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary/20 text-primary rounded-xl flex items-center justify-center font-bold text-sm relative">
+              <ShoppingCart className="w-5 h-5 text-white" />
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">
+                {cartItemCount}
+              </span>
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{cartItemCount} Obat Terpilih</p>
+              <p className="font-mono font-extrabold text-sm text-white">Rp {cartTotal.toLocaleString("id-ID")}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleSwitchTab("keranjang")}
+            className="px-4 py-2 bg-primary hover:bg-primary/95 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1 cursor-pointer border-none"
+          >
+            <span>Lanjut Ke SP</span>
+            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+          </button>
+        </div>
+      )}
+
+      {/* MOBILE BOTTOM NAVIGATION BAR (DOCK APP 5 TAB) */}
+      {!isCheckoutOpen && !viewingDetailOrder && (
+        <MobileBottomNav
+          activeTab={activeTab}
+          setActiveTab={handleSwitchTab}
+          cartItemCount={cartItemCount}
+          activeOrdersCount={orders.filter((o) => o.status === "PENDING_APPROVAL" || o.status === "PENDING_SHIPPING" || o.status === "SHIPPED").length}
+          setViewingDetailOrder={setViewingDetailOrder}
+          setIsCheckoutOpen={setIsCheckoutOpen}
+        />
       )}
 
       {/* Onboarding Tour Overlay */}

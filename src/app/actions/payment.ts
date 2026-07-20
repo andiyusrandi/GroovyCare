@@ -4,6 +4,7 @@ import midtransClient from "midtrans-client";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth-session";
 import { revalidatePath } from "next/cache";
+import { recalculateInstitutionDebt } from "@/app/actions/orders";
 
 const serverKey = process.env.MIDTRANS_SERVER_KEY || "";
 const clientKey = process.env.MIDTRANS_CLIENT_KEY || "";
@@ -45,8 +46,9 @@ export async function getSnapToken(orderId: string) {
       return { success: false, error: "Pesanan tidak ditemukan" };
     }
 
-    if (order.paymentMethod !== "VA") {
-      return { success: false, error: "Pesanan ini tidak menggunakan metode pembayaran Virtual Account" };
+    const allowedMethods = ["VA", "TOP", "INVOICE", "CREDIT"];
+    if (!allowedMethods.includes(order.paymentMethod)) {
+      return { success: false, error: `Metode pembayaran ${order.paymentMethod} tidak mendukung pelunasan via Payment Gateway` };
     }
 
     // Hitung Subtotal
@@ -137,12 +139,17 @@ export async function handlePaymentSuccess(orderId: string) {
       return { success: false, error: "Akses ditolak: Anda belum masuk" };
     }
 
-    await db.order.update({
+    const updatedOrder = await db.order.update({
       where: { id: orderId },
       data: { paymentStatus: "PAID" }
     });
 
+    if (updatedOrder.institutionId) {
+      await recalculateInstitutionDebt(db, updatedOrder.institutionId);
+    }
+
     revalidatePath("/customer/dashboard");
+    revalidatePath("/admin/dashboard");
     return { success: true };
   } catch (error: any) {
     console.error("Gagal memperbarui status pembayaran:", error);

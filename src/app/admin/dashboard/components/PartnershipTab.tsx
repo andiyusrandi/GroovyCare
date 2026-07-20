@@ -79,6 +79,7 @@ export default function PartnershipTab({
   onDeletePartner,
 }: PartnershipTabProps) {
   const [filter, setFilter] = useState<"all" | "pending" | "active">("all");
+  const [searchPartners, setSearchPartners] = useState<string>("");
   const [selectedDetailPartner, setSelectedDetailPartner] = useState<Partner | null>(null);
 
   // Drawer editable states
@@ -108,8 +109,19 @@ export default function PartnershipTab({
   }).length;
 
   const filteredPartners = partners.filter((p) => {
-    if (filter === "pending") return !p.isActive;
-    if (filter === "active") return p.isActive;
+    // Status filter
+    if (filter === "pending" && p.isActive) return false;
+    if (filter === "active" && !p.isActive) return false;
+    
+    // Search query filter
+    if (searchPartners.trim()) {
+      const q = searchPartners.toLowerCase();
+      const matchName = p.name.toLowerCase().includes(q);
+      const matchSia = p.siaNumber.toLowerCase().includes(q);
+      const matchAddr = p.address.toLowerCase().includes(q);
+      const matchApj = p.users.some(u => u.name.toLowerCase().includes(q) || (u.sipaNumber && u.sipaNumber.toLowerCase().includes(q)));
+      return matchName || matchSia || matchAddr || matchApj;
+    }
     return true;
   });
 
@@ -284,16 +296,16 @@ export default function PartnershipTab({
   }
 
   return (
-    <div className="space-y-8 animate-fadeIn relative">
+    <div className="space-y-6 animate-fadeIn font-sans relative">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200/60 shadow-xs">
         <div>
-          <h1 className="font-heading font-extrabold text-2xl text-on-surface">Manajemen Kemitraan</h1>
-          <p className="text-xs text-on-surface-variant font-medium mt-1">Verifikasi dokumen legalitas dan pengaturan plafon kredit mitra.</p>
+          <h1 className="font-heading font-extrabold text-xl md:text-2xl text-slate-900">Manajemen Kemitraan</h1>
+          <p className="text-xs text-slate-500 font-medium mt-1">Verifikasi dokumen legalitas sarana farmasi &amp; pengaturan plafon kredit limit.</p>
         </div>
         <button
           onClick={() => alert("Tambah mitra baru secara manual dapat dilakukan oleh Admin Utama.")}
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl font-bold text-xs shadow-md hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-2xl font-bold text-xs shadow-sm hover:brightness-110 active:scale-95 transition-all cursor-pointer border-none"
         >
           <span className="material-symbols-outlined text-[18px]">add</span>
           Tambah Mitra Baru
@@ -303,111 +315,101 @@ export default function PartnershipTab({
       {/* Statistics / Summary Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Stat Card 1 */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-outline-variant/20 hover:shadow-md transition-all group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-2 bg-secondary-container/20 rounded-lg text-secondary">
-              <span className="material-symbols-outlined">pending_actions</span>
+        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200/60 hover:shadow-md transition-all group">
+          <div className="flex justify-between items-start mb-3">
+            <div className="p-2.5 bg-amber-50 rounded-2xl text-amber-600 border border-amber-100">
+              <span className="material-symbols-outlined text-[22px]">pending_actions</span>
             </div>
-            <span className="text-[9px] font-bold text-secondary bg-secondary-container/10 px-1.5 py-0.5 rounded">+{pendingCount} Baru</span>
+            <span className="text-[10px] font-extrabold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">+{pendingCount} Baru</span>
           </div>
-          <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Menunggu Verifikasi</p>
-          <h3 className="font-heading font-extrabold text-xl text-on-surface mt-1">{pendingCount} Mitra</h3>
-          <div className="mt-4 h-1 w-full bg-surface-container rounded-full overflow-hidden">
-            <div className="h-full bg-secondary" style={{ width: `${partners.length > 0 ? (pendingCount / partners.length) * 100 : 0}%` }}></div>
-          </div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Menunggu Verifikasi</p>
+          <h3 className="font-heading font-extrabold text-2xl text-slate-900 mt-1">{pendingCount} <span className="text-xs font-bold text-slate-400 font-sans">Mitra</span></h3>
         </div>
 
         {/* Stat Card 2 */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-outline-variant/20 hover:shadow-md transition-all group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-2 bg-primary-container/20 rounded-lg text-primary">
-              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200/60 hover:shadow-md transition-all group">
+          <div className="flex justify-between items-start mb-3">
+            <div className="p-2.5 bg-emerald-50 rounded-2xl text-emerald-600 border border-emerald-100">
+              <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
             </div>
-            <span className="text-[9px] font-bold text-primary bg-primary-container/10 px-1.5 py-0.5 rounded">Aktif</span>
+            <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Aktif</span>
           </div>
-          <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Mitra Aktif</p>
-          <h3 className="font-heading font-extrabold text-xl text-on-surface mt-1">{activeCount} Mitra</h3>
-          <div className="mt-4 flex items-center gap-2">
-            <div className="flex -space-x-1.5">
-              <div className="w-5 h-5 rounded-full border border-white bg-slate-200 flex items-center justify-center text-[7px] font-bold">K24</div>
-              <div className="w-5 h-5 rounded-full border border-white bg-slate-350 flex items-center justify-center text-[7px] font-bold">KF</div>
-              <div className="w-5 h-5 rounded-full border border-white bg-slate-500 flex items-center justify-center text-[7px] font-bold">RX</div>
-            </div>
-            <span className="text-[9px] text-on-surface-variant font-bold">Terverifikasi CDOB</span>
-          </div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mitra Aktif</p>
+          <h3 className="font-heading font-extrabold text-2xl text-slate-900 mt-1">{activeCount} <span className="text-xs font-bold text-slate-400 font-sans">Mitra</span></h3>
         </div>
 
         {/* Stat Card 3 */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-outline-variant/20 hover:shadow-md transition-all group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-2 bg-tertiary-container/20 rounded-lg text-tertiary">
-              <span className="material-symbols-outlined">account_balance_wallet</span>
+        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200/60 hover:shadow-md transition-all group">
+          <div className="flex justify-between items-start mb-3">
+            <div className="p-2.5 bg-blue-50 rounded-2xl text-blue-600 border border-blue-100">
+              <span className="material-symbols-outlined text-[22px]">account_balance_wallet</span>
             </div>
           </div>
-          <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Limit Kredit Terpakai</p>
-          <h3 className="font-heading font-extrabold text-xl text-on-surface mt-1 font-mono">Rp {totalLimitUsed.toLocaleString("id-ID")}</h3>
-          <div className="mt-4 h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
-            <div className="h-full bg-tertiary w-[45%]"></div>
-          </div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Limit Kredit Terpakai</p>
+          <h3 className="font-heading font-extrabold text-xl text-slate-900 mt-1 font-mono">Rp {totalLimitUsed.toLocaleString("id-ID")}</h3>
         </div>
 
         {/* Stat Card 4 (Warning State) */}
-        <div className="bg-error-container/10 p-5 rounded-2xl shadow-sm border border-error/20 hover:shadow-md transition-all group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-2 bg-error-container rounded-lg text-error">
-              <span className="material-symbols-outlined">warning</span>
+        <div className="bg-white p-5 rounded-3xl shadow-xs border border-rose-200 hover:shadow-md transition-all group">
+          <div className="flex justify-between items-start mb-3">
+            <div className="p-2.5 bg-rose-50 rounded-2xl text-red-600 border border-rose-100">
+              <span className="material-symbols-outlined text-[22px]">warning</span>
             </div>
-            <span className="text-[9px] font-bold text-error font-extrabold uppercase">Urgent</span>
+            <span className="text-[10px] font-extrabold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full uppercase">Urgent</span>
           </div>
-          <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Izin/SIA Akan Kadaluwarsa</p>
-          <h3 className="font-heading font-extrabold text-xl text-error mt-1">{expiringSiaCount} Mitra</h3>
-          <button
-            onClick={() => alert("Sistem otomatis memicu warning banner pada dasbor mitra yang masa izinnya < 60 hari.")}
-            className="mt-3.5 w-full py-1 text-center text-[10px] font-bold text-error bg-error/5 rounded-lg hover:bg-error/10 transition-colors cursor-pointer"
-          >
-            Lihat Semua Peringatan
-          </button>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Izin/SIA Expired Soon</p>
+          <h3 className="font-heading font-extrabold text-2xl text-red-700 mt-1">{expiringSiaCount} <span className="text-xs font-bold text-red-500/80 font-sans">Mitra</span></h3>
         </div>
       </div>
 
       {/* Main Content Area: Filterable Table */}
-      <div className="bg-surface-container-lowest rounded-3xl shadow-sm border border-outline-variant/20 overflow-hidden">
-        <div className="px-6 py-5 border-b border-outline-variant/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-200/60 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+          {/* Segmented Filter Pills */}
+          <div className="inline-flex items-center gap-1 bg-slate-100/80 p-1 rounded-2xl border border-slate-200/50">
             <button
               onClick={() => setFilter("all")}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${filter === "all" ? "bg-primary text-white" : "text-on-surface-variant hover:bg-surface-container-high"
-                }`}
+              className={`px-4 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border-none ${
+                filter === "all" ? "bg-white text-primary shadow-xs" : "text-slate-500 hover:text-slate-800 bg-transparent"
+              }`}
             >
               Semua Mitra
             </button>
             <button
               onClick={() => setFilter("pending")}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${filter === "pending" ? "bg-primary text-white" : "text-on-surface-variant hover:bg-surface-container-high"
-                }`}
+              className={`px-4 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border-none ${
+                filter === "pending" ? "bg-white text-primary shadow-xs" : "text-slate-500 hover:text-slate-800 bg-transparent"
+              }`}
             >
               Menunggu ({pendingCount})
             </button>
             <button
               onClick={() => setFilter("active")}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${filter === "active" ? "bg-primary text-white" : "text-on-surface-variant hover:bg-surface-container-high"
-                }`}
+              className={`px-4 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border-none ${
+                filter === "active" ? "bg-white text-primary shadow-xs" : "text-slate-500 hover:text-slate-800 bg-transparent"
+              }`}
             >
               Aktif ({activeCount})
             </button>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => alert("Membuka filter lanjutan...")}
-              className="p-2 border border-outline-variant/30 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-all cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[20px]">filter_list</span>
-            </button>
+
+          <div className="flex items-center gap-2.5">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Cari Mitra / SIA / APJ..."
+                value={searchPartners}
+                onChange={(e) => setSearchPartners(e.target.value)}
+                className="pl-9 pr-3.5 py-1.5 bg-white border border-slate-200 rounded-2xl text-xs font-sans text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-primary w-full sm:w-60 shadow-xs"
+              />
+              <span className="material-symbols-outlined text-slate-400 text-[18px] absolute left-3 top-2 pointer-events-none">search</span>
+            </div>
             <button
               onClick={() => alert("Mengunduh daftar kemitraan format CSV...")}
-              className="p-2 border border-outline-variant/30 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-all cursor-pointer"
+              className="p-2 border border-slate-200 rounded-2xl text-slate-600 hover:bg-white bg-slate-50 transition-all cursor-pointer shrink-0 shadow-xs flex items-center justify-center"
+              title="Ekspor CSV"
             >
-              <span className="material-symbols-outlined text-[20px]">download</span>
+              <span className="material-symbols-outlined text-[18px]">download</span>
             </button>
           </div>
         </div>
@@ -416,12 +418,12 @@ export default function PartnershipTab({
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100/90 text-slate-500 font-extrabold text-[9px] uppercase tracking-wider">
-                <th className="px-6 py-4.5 font-extrabold">Nama Sarana / Mitra</th>
-                <th className="px-6 py-4.5 font-extrabold">Dokumen Izin / APJ</th>
-                <th className="px-6 py-4.5 text-right font-extrabold">Plafon Kredit</th>
-                <th className="px-6 py-4.5 font-extrabold">Tempo (TOP)</th>
-                <th className="px-6 py-4.5 font-extrabold">Status</th>
-                <th className="px-6 py-4.5 text-center font-extrabold">Aksi</th>
+                <th className="px-6 py-4.5 font-extrabold min-w-[220px]">Nama Sarana / Mitra</th>
+                <th className="px-6 py-4.5 font-extrabold w-48">Dokumen Izin / APJ</th>
+                <th className="px-6 py-4.5 text-right font-extrabold w-40">Plafon Kredit</th>
+                <th className="px-6 py-4.5 font-extrabold text-center w-28">Tempo (TOP)</th>
+                <th className="px-6 py-4.5 font-extrabold text-center w-36">Status</th>
+                <th className="px-6 py-4.5 text-center font-extrabold w-28">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100/70 text-slate-700">
@@ -448,6 +450,13 @@ export default function PartnershipTab({
                   typeColorStyles = "bg-blue-50 text-blue-600 border-blue-100/60";
                 }
 
+                // Parse clean short location/city from address string
+                const rawAddr = partner.address || "";
+                const cityMatch = rawAddr.match(/(Kab\/Kota|Kota|Kabupaten):\s*([^,]+)/i);
+                const shortCity = cityMatch 
+                  ? cityMatch[2].trim() 
+                  : rawAddr.split(",")[0].replace(/^Alamat:\s*/i, "").trim() || "Lokasi Apotek";
+
                 return (
                   <tr key={partner.id} className="hover:bg-slate-50/40 transition-colors group h-16">
                     <td className="px-6 py-3.5">
@@ -457,29 +466,32 @@ export default function PartnershipTab({
                         }`}>
                           <span className="material-symbols-outlined text-[20px]">{iconName}</span>
                         </div>
-                        <div className="space-y-0.5">
+                        <div className="space-y-0.5 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-extrabold text-slate-800 text-sm">{partner.name}</p>
-                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-extrabold border ${typeColorStyles}`}>
+                            <p className="font-extrabold text-slate-800 text-sm truncate max-w-[200px]" title={partner.name}>{partner.name}</p>
+                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-extrabold border shrink-0 ${typeColorStyles}`}>
                               {typeLabels[partner.type] || "Mitra"}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-400 max-w-[200px] truncate">{partner.address}</p>
+                          <p className="text-[10px] text-slate-400 max-w-[200px] truncate flex items-center gap-0.5" title={rawAddr}>
+                            <span className="material-symbols-outlined text-[12px] text-slate-350 shrink-0">location_on</span>
+                            <span className="truncate">{shortCity}</span>
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-3.5">
-                      <div className="space-y-1.5 text-[11px]">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-bold text-slate-700 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-150/80">{partner.siaNumber}</span>
+                      <div className="space-y-1 text-[11px]">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono font-bold text-slate-700 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-150/80 text-[10px]">{partner.siaNumber}</span>
                           <span className="text-[8px] font-extrabold bg-blue-50 text-blue-600 px-1 rounded uppercase tracking-wide">SIA</span>
                           {badgeStatus === "EXPIRED" && isSiaExpired && (
                             <span className="text-[8px] font-bold text-red-500 bg-red-50 px-1 rounded border border-red-100">EXPIRED</span>
                           )}
                         </div>
                         {user?.sipaNumber && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-slate-500 bg-slate-50/50 px-1.5 py-0.5 rounded border border-slate-100/80">{user.sipaNumber}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-mono text-slate-500 bg-slate-50/50 px-1.5 py-0.5 rounded border border-slate-100/80 text-[10px]">{user.sipaNumber}</span>
                             <span className="text-[8px] font-extrabold bg-indigo-50 text-indigo-600 px-1 rounded uppercase tracking-wide">SIPA</span>
                             {badgeStatus === "EXPIRED" && isSipaExpired && (
                               <span className="text-[8px] font-bold text-red-500 bg-red-50 px-1 rounded border border-red-100">EXPIRED</span>
@@ -488,7 +500,7 @@ export default function PartnershipTab({
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-3.5 text-right">
+                    <td className="px-6 py-3.5 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
                         <p className="font-extrabold text-slate-800 font-mono text-xs">
                           {partner.isActive ? `Rp ${partner.creditLimit.toLocaleString("id-ID")}` : "-"}
@@ -496,7 +508,7 @@ export default function PartnershipTab({
                         {partner.isActive && (
                           <button
                             onClick={() => handleOpenQuickEditLimit(partner)}
-                            className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-colors cursor-pointer flex items-center justify-center"
+                            className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-colors cursor-pointer flex items-center justify-center border-none bg-transparent"
                             title="Edit Limit Kredit & TOP"
                           >
                             <span className="material-symbols-outlined text-[15px]">edit</span>
@@ -509,30 +521,30 @@ export default function PartnershipTab({
                         </p>
                       )}
                     </td>
-                    <td className="px-6 py-3.5">
-                      <span className="inline-flex items-center px-2 py-0.5 bg-slate-50 text-slate-600 border border-slate-150/60 rounded-lg font-extrabold text-[10px]">
+                    <td className="px-6 py-3.5 text-center whitespace-nowrap">
+                      <span className="inline-flex items-center px-2.5 py-0.5 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg font-extrabold text-[10px]">
                         {partner.topDays} Hari
                       </span>
                     </td>
-                    <td className="px-6 py-3.5">
+                    <td className="px-6 py-3.5 text-center whitespace-nowrap">
                       {!partner.isActive ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-extrabold bg-amber-50 text-amber-600 border border-amber-200/70">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                           Menunggu Verifikasi
                         </span>
                       ) : isSiaExpired || isSipaExpired ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-extrabold bg-rose-50 text-red-600 border border-rose-200/70">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-extrabold bg-rose-50 text-red-600 border border-rose-200">
                           <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                          Diblokir
+                          Diblokir (Expired)
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-extrabold bg-emerald-50 text-emerald-600 border border-emerald-250/70">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                          Aktif
+                          Aktif (Terverifikasi)
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-3.5 text-center">
+                    <td className="px-6 py-3.5 text-center whitespace-nowrap">
                       <button
                         onClick={() => handleOpenDetail(partner)}
                         className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${

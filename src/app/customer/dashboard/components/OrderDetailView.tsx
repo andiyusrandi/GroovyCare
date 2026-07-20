@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { printCDOBDocument } from "@/lib/pdf-generator";
 
 interface OrderDetailViewProps {
@@ -7,6 +8,7 @@ interface OrderDetailViewProps {
   setViewingDetailOrder: (order: any) => void;
   setViewingFaktur: (order: any) => void;
   handleConfirmDelivery: (orderId: string) => void;
+  setCancelingOrder?: (order: any) => void;
 }
 
 export default function OrderDetailView({
@@ -14,15 +16,17 @@ export default function OrderDetailView({
   setViewingDetailOrder,
   setViewingFaktur,
   handleConfirmDelivery,
+  setCancelingOrder,
 }: OrderDetailViewProps) {
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const subtotal = order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
   const vat = Math.round(subtotal * 0.11);
-  const isColdChain = order.items.some((item: any) => 
+  const isColdChain = order.items.some((item: any) =>
     item.product?.category === "COLD_CHAIN" || item.product?.category?.toLowerCase() === "cold chain" ||
     item.product?.name?.toLowerCase().includes("insulin") || item.product?.code?.toLowerCase().includes("amx") ||
     item.product?.name?.toLowerCase().includes("vaccine")
   );
-  
+
   const addr = order.shippingAddress || "";
   const feeMatch = addr.match(/-\s*Rp\s*([0-9.,]+)/);
   let shippingFee = 0;
@@ -68,11 +72,11 @@ export default function OrderDetailView({
           </div>
           <div className="flex flex-wrap gap-2.5">
             <button
-              onClick={() => window.print()}
+              onClick={() => printCDOBDocument(order, "INVOICE")}
               className="flex items-center gap-1.5 px-4 py-2 border border-outline-variant/40 hover:bg-surface-container-low text-on-surface rounded-xl transition-colors text-xs font-bold shadow-sm cursor-pointer bg-white"
             >
               <span className="material-symbols-outlined text-[16px]">print</span>
-              Cetak Invoice
+              Cetak Invoice CDOB (PDF)
             </button>
             <button
               onClick={() => alert("Silakan hubungi tim IT PBF Online untuk bantuan sistem.")}
@@ -81,6 +85,16 @@ export default function OrderDetailView({
               <span className="material-symbols-outlined text-[16px]">help</span>
               Bantuan
             </button>
+            {order.status === "PENDING_APPROVAL" && setCancelingOrder && (
+              <button
+                type="button"
+                onClick={() => setCancelingOrder(order)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl text-xs font-bold border border-red-200 cursor-pointer transition-colors"
+              >
+                <span className="material-symbols-outlined text-[16px]">cancel</span>
+                Batalkan Pesanan
+              </button>
+            )}
             <button
               onClick={() => alert("Hubungi CS via Whatsapp: +62 812-3456-7890")}
               className="flex items-center gap-1.5 px-5 py-2 bg-primary hover:bg-primary/95 text-white rounded-xl text-xs font-bold shadow-md shadow-primary/10 cursor-pointer border-none"
@@ -143,9 +157,8 @@ export default function OrderDetailView({
                 className={`relative z-10 flex flex-col items-center w-36 transition-opacity ${order.spSignature ? "opacity-100" : "opacity-40"
                   }`}
               >
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center mb-2 shadow ${
-                  order.spSignature ? "bg-primary text-white" : "bg-surface-container-highest text-on-surface-variant"
-                }`}>
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center mb-2 shadow ${order.spSignature ? "bg-primary text-white" : "bg-surface-container-highest text-on-surface-variant"
+                  }`}>
                   {order.spSignature ? (
                     <span className="material-symbols-outlined text-sm">check</span>
                   ) : (
@@ -159,17 +172,16 @@ export default function OrderDetailView({
               {/* Step 3: Picking & Packing */}
               <div
                 className={`relative z-10 flex flex-col items-center w-36 transition-opacity ${order.status === "PENDING_SHIPPING" ||
-                    order.status === "SHIPPED" ||
-                    order.status === "DELIVERED"
-                    ? "opacity-100"
-                    : "opacity-45"
+                  order.status === "SHIPPED" ||
+                  order.status === "DELIVERED"
+                  ? "opacity-100"
+                  : "opacity-45"
                   }`}
               >
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center mb-2 shadow ${
-                  order.status === "PENDING_SHIPPING" || order.status === "SHIPPED" || order.status === "DELIVERED"
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center mb-2 shadow ${order.status === "PENDING_SHIPPING" || order.status === "SHIPPED" || order.status === "DELIVERED"
                     ? "bg-primary text-white"
                     : "bg-surface-container-highest text-on-surface-variant"
-                }`}>
+                  }`}>
                   {order.status === "PENDING_SHIPPING" || order.status === "SHIPPED" || order.status === "DELIVERED" ? (
                     <span className="material-symbols-outlined text-sm">check</span>
                   ) : (
@@ -183,16 +195,16 @@ export default function OrderDetailView({
               {/* Step 4: Dalam Pengiriman */}
               <div
                 className={`relative z-10 flex flex-col items-center w-36 transition-opacity ${order.status === "SHIPPED" || order.status === "DELIVERED"
-                    ? "opacity-100"
-                    : "opacity-45"
+                  ? "opacity-100"
+                  : "opacity-45"
                   }`}
               >
                 <div
                   className={`w-9 h-9 rounded-full flex items-center justify-center mb-2 shadow ${order.status === "SHIPPED"
-                      ? "bg-primary text-white ring-4 ring-primary/20 animate-pulse"
-                      : order.status === "DELIVERED"
-                        ? "bg-primary text-white"
-                        : "bg-surface-container-highest text-on-surface-variant"
+                    ? "bg-primary text-white ring-4 ring-primary/20 animate-pulse"
+                    : order.status === "DELIVERED"
+                      ? "bg-primary text-white"
+                      : "bg-surface-container-highest text-on-surface-variant"
                     }`}
                 >
                   <span className="material-symbols-outlined text-sm">local_shipping</span>
@@ -215,8 +227,8 @@ export default function OrderDetailView({
               >
                 <div
                   className={`w-9 h-9 rounded-full flex items-center justify-center mb-2 shadow ${order.status === "DELIVERED"
-                      ? "bg-primary text-white"
-                      : "bg-surface-container-highest text-on-surface-variant"
+                    ? "bg-primary text-white"
+                    : "bg-surface-container-highest text-on-surface-variant"
                     }`}
                 >
                   <span className="material-symbols-outlined text-sm">task_alt</span>
@@ -506,33 +518,32 @@ export default function OrderDetailView({
       {/* ========================================================================= */}
       {/* 2. MOBILE VIEW: Live Tracking Delivery Page                               */}
       {/* ========================================================================= */}
-      <div className="block md:hidden space-y-6 px-1 pb-32">
+      <div className="block md:hidden space-y-6 px-1 pb-10">
         {/* Status Overview Card */}
         <section className="bg-white p-4 rounded-2xl shadow-sm border border-outline-variant/30">
           <div className="flex justify-between items-center mb-2">
             <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Status Pengiriman</span>
-            <span className={`px-3 py-1 rounded-full text-[9px] font-bold ${
-              isDelivered 
-                ? "bg-[#ecfdf5] text-[#10b981]" 
-                : isShipped 
-                  ? "bg-[#ecfdf5] text-[#10b981] animate-pulse" 
+            <span className={`px-3 py-1 rounded-full text-[9px] font-bold ${isDelivered
+                ? "bg-[#ecfdf5] text-[#10b981]"
+                : isShipped
+                  ? "bg-[#ecfdf5] text-[#10b981] animate-pulse"
                   : "bg-orange-50 text-orange-600"
-            }`}>
+              }`}>
               {isDelivered ? "Selesai" : isShipped ? "Sedang Dikirim" : isRejected ? "Ditolak" : "Diproses PBF"}
             </span>
           </div>
           <p className="font-heading font-black text-sm text-primary">
-            {isDelivered 
-              ? "Paket Telah Tiba" 
-              : isShipped 
-                ? "Estimasi Tiba: 14:20 WIB" 
+            {isDelivered
+              ? "Paket Telah Tiba"
+              : isShipped
+                ? "Estimasi Tiba: 14:20 WIB"
                 : "Sedang Diproses di Gudang"}
           </p>
           <p className="text-[10px] text-on-surface-variant font-medium mt-1">
-            {isDelivered 
-              ? "Pesanan obat telah diterima dan ditandatangani oleh APJ." 
-              : isShipped 
-                ? "Driver sedang dalam perjalanan menuju lokasi apotek Anda." 
+            {isDelivered
+              ? "Pesanan obat telah diterima dan ditandatangani oleh APJ."
+              : isShipped
+                ? "Driver sedang dalam perjalanan menuju lokasi apotek Anda."
                 : "Pesanan Anda sedang diverifikasi standar FEFO oleh petugas gudang."}
           </p>
         </section>
@@ -542,9 +553,9 @@ export default function OrderDetailView({
           <div className="relative">
             {/* Progress Line Background */}
             <div className="absolute top-3 left-[12.5%] right-[12.5%] h-0.5 bg-surface-container-highest z-0" />
-            
+
             {/* Progress Line Active */}
-            <div 
+            <div
               className="absolute top-3 left-[12.5%] h-0.5 bg-primary z-0 transition-all duration-500"
               style={{
                 width: isDelivered
@@ -568,9 +579,8 @@ export default function OrderDetailView({
 
               {/* Step 2: Dikemas */}
               <div className="flex flex-col items-center w-1/4">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-2 shadow-sm text-white ${
-                  isPendingShipping || isShipped || isDelivered ? "bg-primary" : "bg-surface-container-highest text-on-surface-variant/40"
-                }`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-2 shadow-sm text-white ${isPendingShipping || isShipped || isDelivered ? "bg-primary" : "bg-surface-container-highest text-on-surface-variant/40"
+                  }`}>
                   {isPendingShipping || isShipped || isDelivered ? (
                     <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
                   ) : (
@@ -582,13 +592,12 @@ export default function OrderDetailView({
 
               {/* Step 3: Dikirim */}
               <div className="flex flex-col items-center w-1/4">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-2 shadow-sm text-white ${
-                  isDelivered 
-                    ? "bg-primary" 
-                    : isShipped 
-                      ? "border-2 border-primary bg-white relative text-primary" 
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-2 shadow-sm text-white ${isDelivered
+                    ? "bg-primary"
+                    : isShipped
+                      ? "border-2 border-primary bg-white relative text-primary"
                       : "bg-surface-container-highest text-on-surface-variant/40"
-                }`}>
+                  }`}>
                   {isDelivered ? (
                     <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
                   ) : isShipped ? (
@@ -602,9 +611,8 @@ export default function OrderDetailView({
 
               {/* Step 4: Selesai */}
               <div className="flex flex-col items-center w-1/4">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-2 shadow-sm text-white ${
-                  isDelivered ? "bg-primary" : "bg-surface-container-highest text-on-surface-variant/40"
-                }`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-2 shadow-sm text-white ${isDelivered ? "bg-primary" : "bg-surface-container-highest text-on-surface-variant/40"
+                  }`}>
                   {isDelivered ? (
                     <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
                   ) : (
@@ -620,11 +628,11 @@ export default function OrderDetailView({
         {/* Live Tracking Map (Hanya jika SHIPPED atau DELIVERED) */}
         {(isShipped || isDelivered) && (
           <section className="relative h-64 w-full rounded-2xl overflow-hidden shadow-md group border border-outline-variant/20">
-            <div 
-              className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" 
+            <div
+              className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
               style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida/AP1WRLtz66vjIfz4RDN8Ug3hIUZbFY_WHUjXsWT2ZbzSrAEm8tFExVqysC_srhLJzpeJDPcN8Kfv73ns5mvjqQ50D7B5oQFiBUcCdnMcMfXu_75qvfEB7BC4tGZh8gRezmV40I9LfcbW2CgF5HToYHtFSYLZMyvEWX8AYpkJeAfKE9kONeGDW1EJpkTuFZQKNho7F_k-bxzX3golEIXrchQqBPx8JDlj5qUkjKXhOx2M2ERFPTTo5eGO5kt4TSE')" }}
             ></div>
-            
+
             {/* Glass Overlay Info */}
             <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md p-3 rounded-xl flex items-center gap-3 border border-white/40 shadow-lg">
               <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center text-primary">
@@ -651,8 +659,8 @@ export default function OrderDetailView({
           <section className="flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-outline-variant/30">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-primary/20">
-                <img 
-                  className="w-full h-full object-cover" 
+                <img
+                  className="w-full h-full object-cover"
                   alt="Edi Santoso"
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuAtJ3Cyu3h50NHLSCr7nHtnD4m-UDxcpCr-kxXiIB6hcWLhrcgzSrG9_fZf5xqIdJz0f_8uYABM8Vydu1ZAdAbODBknAmRpoU3wD0Si_Gr3iFJanRcOxaTGQB16qw2PNa1-2lbDK6CIZJOfhT9cWXB3POlTpjwhaqzHuPjKpkyae1A5epgrmdGS7-ZAW9-RqsUeoJAYIxcjVQ9XOVyxhr9pwyyzdkEn1oXGXvNqpgtB0cATd-84MtLBAMTYkGI8qCfTntUw5bmL1Ok"
                 />
@@ -662,7 +670,7 @@ export default function OrderDetailView({
                 <p className="text-[9px] text-on-surface-variant font-bold">Kurir Internal PBF</p>
               </div>
             </div>
-            <button 
+            <button
               onClick={() => alert("Menghubungi Kurir Edi Santoso (+62 812-9988-7766) via Whatsapp...")}
               className="flex items-center gap-1 bg-primary text-white px-3.5 py-1.5 rounded-full font-bold text-[9px] hover:opacity-90 active:scale-95 transition-all border-none cursor-pointer"
             >
@@ -680,7 +688,7 @@ export default function OrderDetailView({
               <span className="text-[9px] text-on-surface-variant uppercase font-bold">No. Resi / Tracking</span>
               <div className="flex justify-between items-center">
                 <span className="font-mono text-sm text-foreground">{order.trackingNumber || "PBF-LOG-88219"}</span>
-                <button 
+                <button
                   onClick={() => {
                     navigator.clipboard.writeText(order.trackingNumber || "PBF-LOG-88219");
                     alert("No. Resi disalin!");
@@ -691,7 +699,7 @@ export default function OrderDetailView({
                 </button>
               </div>
             </div>
-            
+
             <div className="p-4 flex flex-col gap-1">
               <span className="text-[9px] text-on-surface-variant uppercase font-bold">Layanan</span>
               <span className="text-xs text-foreground flex items-center gap-2">
@@ -721,9 +729,8 @@ export default function OrderDetailView({
               return (
                 <div key={idx} className="bg-white p-3.5 rounded-2xl border border-outline-variant/30 flex justify-between items-center shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                      isItemColdChain ? "bg-tertiary-container/20 text-tertiary" : "bg-surface-container-high text-on-surface-variant"
-                    }`}>
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isItemColdChain ? "bg-tertiary-container/20 text-tertiary" : "bg-surface-container-high text-on-surface-variant"
+                      }`}>
                       <span className="material-symbols-outlined text-base">
                         {isItemColdChain ? "ac_unit" : "pill"}
                       </span>
@@ -788,22 +795,86 @@ export default function OrderDetailView({
 
         {/* Action Button: Konfirmasi Penerimaan */}
         {isShipped && (
-          <div className="fixed bottom-0 left-0 right-0 z-45 bg-white/95 backdrop-blur-md border-t border-outline-variant/20 shadow-2xl safe-bottom h-24 px-4 flex items-center justify-center">
+          <div className="pt-4 pb-6 px-1">
             <button 
-              onClick={() => {
-                if (confirm("Apakah Anda yakin paket obat telah diterima dengan lengkap sesuai CDOB?")) {
-                  handleConfirmDelivery(order.id);
-                  setViewingDetailOrder(null);
-                }
-              }}
-              className="w-full h-12 bg-primary text-white font-heading font-black text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-lg shadow-primary/20 active:scale-95 transition-all border-none cursor-pointer"
+              type="button"
+              onClick={() => setShowConfirmModal(true)}
+              className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-black text-xs rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all border-none cursor-pointer"
             >
-              <span className="material-symbols-outlined text-base">task_alt</span>
-              Konfirmasi Terima Barang
+              <span className="material-symbols-outlined text-lg">task_alt</span>
+              <span>Konfirmasi Terima Barang (CDOB)</span>
             </button>
           </div>
         )}
       </div>
+
+      {/* MODERN CDOB CONFIRMATION POPUP MODAL */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200 font-sans">
+          <div className="bg-white border border-slate-200/80 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 relative animate-in zoom-in-95 duration-200">
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setShowConfirmModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-slate-100 transition-colors text-slate-400 cursor-pointer border-none bg-transparent flex items-center justify-center"
+            >
+              <span className="material-symbols-outlined text-xl">close</span>
+            </button>
+
+            {/* Header Icon */}
+            <div className="flex flex-col items-center text-center space-y-2 pt-2">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shadow-xs">
+                <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>verified_user</span>
+              </div>
+              <div>
+                <h3 className="text-base font-heading font-extrabold text-slate-900">Konfirmasi Serah Terima Barang</h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">Pengesahan Kepatuhan Standar CDOB BPOM</p>
+              </div>
+            </div>
+
+            {/* Content Box */}
+            <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-2xl space-y-3 text-xs">
+              <p className="text-slate-700 font-semibold leading-relaxed">
+                Apakah Anda yakin paket obat dengan nomor SP <strong className="font-mono text-slate-900">{order.orderNumber}</strong> telah diterima dengan lengkap dan sesuai standar kualitas CDOB?
+              </p>
+              
+              <div className="space-y-2 pt-1 text-[11px] text-slate-600">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
+                  <span>Kondisi segel &amp; kemasan fisik boks obat utuh.</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
+                  <span>Kesesuaian jumlah sediaan SKU &amp; nomor batch (FEFO).</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer border-none"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  handleConfirmDelivery(order.id);
+                  setViewingDetailOrder(null);
+                }}
+                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer border-none flex items-center justify-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-base">task_alt</span>
+                <span>Ya, Diterima</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hidden printable document for @media print */}
       <div id="printable-faktur-container" className="hidden printable-document text-xs font-sans text-slate-900 bg-white p-6 leading-relaxed">
@@ -850,8 +921,8 @@ export default function OrderDetailView({
               <div>
                 <span className="font-semibold">Jatuh Tempo:</span>{" "}
                 <span className="font-mono font-bold text-slate-800">
-                  {order.shippingDate 
-                    ? new Date(new Date(order.shippingDate).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString("id-ID") 
+                  {order.shippingDate
+                    ? new Date(new Date(order.shippingDate).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString("id-ID")
                     : new Date(new Date(order.createdAt).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString("id-ID")}
                 </span>
               </div>
@@ -936,7 +1007,7 @@ export default function OrderDetailView({
           {/* QR CODE VERIFIKASI CDOB */}
           <div className="flex flex-col items-center bg-slate-50 p-2.5 rounded-2xl border border-slate-200 shadow-sm shrink-0">
             <svg width="55" height="55" viewBox="0 0 29 29" fill="none" className="text-slate-800">
-              <path d="M0 0h7v7H0zm2 2v3h3V2zm0 6h1v1H2zm6-8h7v7H8zm2 2v3h3V2zm-2 6h2v1H8zm8-8h7v7h-7zm2 2v3h3V2zm-2 6h1v1h-1zm3 0h2v1h-2zm-11 3h1v1H8zm1 1h1v1H9zm1-1h1v1h-1zm-2 2h1v1H8zm3-2h2v1h-2zm0 2h1v1h-1zm4-2h1v1h-1zm1 1h1v1h-1zm-1 1h1v1h-1zm3-2h3v1h-3zm1 1h1v1h-1zm0 1h2v1h-2zm-15 4h7v7H0zm2 2v3h3V20zm0 6h1v1H2zm6-8h1v1H8zm1 1h1v1H9zm1-1h1v1h-1zm-2 2h1v1H8zm3-2h2v1h-2zm0 2h1v1h-1zm4-2h1v1h-1zm1 1h1v1h-1zm-1 1h1v1h-1zm3-2h3v1h-3zm1 1h1v1h-1zm0 1h2v1h-2zm2 2h1v1h-1zm1-1h1v1h-1zm-1 2h2v1h-2zm3-2h1v1h-1zm-1 1h1v1h-1zm1 1h1v1h-1zm-8 4h1v1H8zm1 1h1v1H9zm1-1h1v1h-1zm-2 2h1v1H8zm3-2h2v1h-2zm0 2h1v1h-1zm4-2h1v1h-1zm1 1h1v1h-1zm-1 1h1v1h-1zm3-2h3v1h-3zm1 1h1v1h-1zm0 1h2v1h-2z" fill="currentColor"/>
+              <path d="M0 0h7v7H0zm2 2v3h3V2zm0 6h1v1H2zm6-8h7v7H8zm2 2v3h3V2zm-2 6h2v1H8zm8-8h7v7h-7zm2 2v3h3V2zm-2 6h1v1h-1zm3 0h2v1h-2zm-11 3h1v1H8zm1 1h1v1H9zm1-1h1v1h-1zm-2 2h1v1H8zm3-2h2v1h-2zm0 2h1v1h-1zm4-2h1v1h-1zm1 1h1v1h-1zm-1 1h1v1h-1zm3-2h3v1h-3zm1 1h1v1h-1zm0 1h2v1h-2zm-15 4h7v7H0zm2 2v3h3V20zm0 6h1v1H2zm6-8h1v1H8zm1 1h1v1H9zm1-1h1v1h-1zm-2 2h1v1H8zm3-2h2v1h-2zm0 2h1v1h-1zm4-2h1v1h-1zm1 1h1v1h-1zm-1 1h1v1h-1zm3-2h3v1h-3zm1 1h1v1h-1zm0 1h2v1h-2zm2 2h1v1h-1zm1-1h1v1h-1zm-1 2h2v1h-2zm3-2h1v1h-1zm-1 1h1v1h-1zm1 1h1v1h-1zm-8 4h1v1H8zm1 1h1v1H9zm1-1h1v1h-1zm-2 2h1v1H8zm3-2h2v1h-2zm0 2h1v1h-1zm4-2h1v1h-1zm1 1h1v1h-1zm-1 1h1v1h-1zm3-2h3v1h-3zm1 1h1v1h-1zm0 1h2v1h-2z" fill="currentColor" />
             </svg>
             <p className="text-[6px] font-extrabold text-emerald-800 uppercase mt-1.5 tracking-widest">VERIFIED CDOB</p>
           </div>

@@ -792,3 +792,54 @@ export async function recalculateInstitutionDebt(tx: any, institutionId: string)
     }
   });
 }
+
+// Pembatalan Pesanan oleh Customer (Mitra) untuk status PENDING_APPROVAL
+export async function cancelOrderByCustomer(orderId: string, reason: string) {
+  try {
+    const session = await getActiveUser();
+    if (session.role !== "CUSTOMER_USER" || !session.institutionId) {
+      return { success: false, error: "Akses ditolak: Hanya Pelanggan yang dapat membatalkan pesanan" };
+    }
+
+    const order = await db.order.findUnique({
+      where: { id: orderId },
+      include: { institution: true }
+    });
+
+    if (!order) {
+      return { success: false, error: "Pesanan tidak ditemukan" };
+    }
+
+    // Pastikan pesanan milik institusi customer yang login
+    if (order.institutionId !== session.institutionId) {
+      return { success: false, error: "Akses ditolak: Anda tidak berhak membatalkan pesanan ini" };
+    }
+
+    // Pembatalan mandiri hanya boleh dilakukan jika status masih PENDING_APPROVAL
+    if (order.status !== "PENDING_APPROVAL") {
+      return {
+        success: false,
+        error: "Pesanan yang sudah diproses / dikirim tidak dapat dibatalkan secara mandiri. Silakan hubungi Admin PBF."
+      };
+    }
+
+    const cancelReasonText = reason.trim() 
+      ? `Dibatalkan oleh Mitra: ${reason.trim()}` 
+      : "Dibatalkan oleh Mitra (Tanpa Alasan)";
+
+    await db.order.update({
+      where: { id: orderId },
+      data: {
+        status: "CANCELLED",
+        rejectionReason: cancelReasonText
+      }
+    });
+
+    revalidatePath("/customer/dashboard");
+    revalidatePath("/admin/dashboard");
+
+    return { success: true, message: "Pesanan berhasil dibatalkan." };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}

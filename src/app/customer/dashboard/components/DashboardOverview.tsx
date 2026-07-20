@@ -112,6 +112,29 @@ export default function DashboardOverview({
           </div>
         </section>
 
+        {/* Warning Banner: Legalitas SIA / SIPTTK Mendekati Kadaluwarsa */}
+        {institution.siaExpiry && (new Date(institution.siaExpiry).getTime() - Date.now()) < 30 * 24 * 60 * 60 * 1000 && (
+          <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl flex items-center justify-between gap-4 text-xs text-amber-950 shadow-sm animate-pulse">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-amber-600 text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
+              <div>
+                <h4 className="font-bold text-amber-950">Peringatan Masa Berlaku Legalitas SIA / SIPTTK</h4>
+                <p className="text-amber-800 text-[11px] mt-0.5">
+                  Izin Operasional Apotek ({institution.siaNumber || "SIA"}) berlaku hingga{" "}
+                  <strong>{new Date(institution.siaExpiry).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</strong>. Segera lakukan pembaruan untuk menghindari kendala pemesanan sediaan farmasi.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab("tagihan")}
+              className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-[11px] shrink-0 transition-colors shadow-sm border-none cursor-pointer"
+            >
+              Perbarui Berkas
+            </button>
+          </div>
+        )}
+
         {/* Grid 12 cols layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Main Content Column (Left/Center - 9 Cols) */}

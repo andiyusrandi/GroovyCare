@@ -101,13 +101,26 @@ export default function OrderApprovalsTab({
     pendingOrders.length > 0 ? pendingOrders[0] : null
   );
 
+  // Search filter for approval queue
+  const [searchQueue, setSearchQueue] = useState("");
+
   // Rejection input states
   const [isRejectMode, setIsRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Filter queue by search
+  const filteredPendingOrders = pendingOrders.filter((o) => {
+    const q = searchQueue.toLowerCase();
+    return (
+      o.orderNumber.toLowerCase().includes(q) ||
+      o.institution.name.toLowerCase().includes(q) ||
+      (o.createdBy.name && o.createdBy.name.toLowerCase().includes(q))
+    );
+  });
+
   // If selectedOrder is no longer in pendingOrders (e.g. approved), reset
-  const activeOrder = pendingOrders.find((o) => o.id === selectedOrder?.id) || pendingOrders[0] || null;
+  const activeOrder = pendingOrders.find((o) => o.id === selectedOrder?.id) || filteredPendingOrders[0] || pendingOrders[0] || null;
 
   async function handleApprove() {
     if (!activeOrder) return;
@@ -150,81 +163,86 @@ export default function OrderApprovalsTab({
     }, 0);
 
   const failCount = orders.filter((o) => o.status === "REJECTED").length;
-  const readyToRelease = orders.filter((o) => o.status === "APPROVED").length;
+  const readyToRelease = orders.filter((o) => o.status === "APPROVED" || o.status === "PENDING_SHIPPING").length;
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn font-sans">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-outline-variant/20 shadow-sm">
         <div>
-          <h3 className="font-heading font-extrabold text-2xl text-on-surface">Persetujuan Order &amp; Verifikasi CDOB</h3>
-          <p className="text-xs text-on-surface-variant font-medium mt-1">Validasi Surat Pesanan (SP) dan kepatuhan regulasi sebelum alokasi stok.</p>
+          <h3 className="font-heading font-extrabold text-xl md:text-2xl text-foreground">
+            Persetujuan Order &amp; Verifikasi CDOB
+          </h3>
+          <p className="text-xs text-on-surface-variant font-medium mt-1">
+            Validasi Surat Pesanan (SP) digital, e-Sign APJ, dan kepatuhan regulasi BPOM sebelum alokasi stok.
+          </p>
         </div>
-        <div className="flex gap-3 text-xs">
-          <button
-            onClick={() => alert("Membuka filter...")}
-            className="px-4 py-2 border border-outline-variant text-on-surface-variant font-bold rounded-xl flex items-center gap-1.5 hover:bg-surface-container transition-colors cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[18px]">filter_list</span>
-            <span>Filter</span>
-          </button>
-          <button
-            onClick={() => alert("Mengekspor laporan persetujuan...")}
-            className="px-4 py-2 bg-primary text-white font-bold rounded-xl flex items-center gap-1.5 shadow-md hover:brightness-110 transition-all cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[18px]">download</span>
-            <span>Ekspor Laporan</span>
-          </button>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="px-3.5 py-1.5 bg-primary/10 text-primary font-bold rounded-xl border border-primary/20 flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4 text-primary" />
+            <span>Standar CDOB BPOM</span>
+          </span>
         </div>
       </div>
 
       {/* KPI Bento Grid */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant/30 shadow-sm">
-          <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">Menunggu Verifikasi</p>
-          <h4 className="text-xl font-extrabold text-on-surface mt-1.5">{pendingOrders.length} <span className="text-xs font-bold text-on-surface-variant">Order</span></h4>
+        <div className="bg-white p-4 rounded-2xl border border-outline-variant/20 shadow-sm space-y-1">
+          <p className="text-[11px] text-on-surface-variant font-bold uppercase tracking-wider">Menunggu Verifikasi</p>
+          <h4 className="text-2xl font-extrabold text-foreground font-mono">{pendingOrders.length} <span className="text-xs font-bold text-on-surface-variant font-sans">Order</span></h4>
         </div>
-        <div className="bg-surface-container-lowest p-4 rounded-2xl border border-error/20 shadow-sm">
-          <p className="text-[10px] text-error font-extrabold uppercase tracking-wider">Validasi Gagal</p>
-          <h4 className="text-xl font-extrabold text-error mt-1.5">{failCount} <span className="text-xs font-bold text-error/70">Kasus</span></h4>
+        <div className="bg-white p-4 rounded-2xl border border-red-200 shadow-sm space-y-1">
+          <p className="text-[11px] text-red-700 font-extrabold uppercase tracking-wider">Validasi Gagal</p>
+          <h4 className="text-2xl font-extrabold text-red-700 font-mono">{failCount} <span className="text-xs font-bold text-red-600/80 font-sans">Kasus</span></h4>
         </div>
-        <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant/30 shadow-sm">
-          <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">Siap Rilis</p>
-          <h4 className="text-xl font-extrabold text-on-surface mt-1.5">{readyToRelease} <span className="text-xs font-bold text-on-surface-variant">Order</span></h4>
+        <div className="bg-white p-4 rounded-2xl border border-outline-variant/20 shadow-sm space-y-1">
+          <p className="text-[11px] text-on-surface-variant font-bold uppercase tracking-wider">Siap Logistik</p>
+          <h4 className="text-2xl font-extrabold text-foreground font-mono">{readyToRelease} <span className="text-xs font-bold text-on-surface-variant font-sans">Order</span></h4>
         </div>
-        <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant/30 shadow-sm">
-          <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">Total Nilai Hari Ini</p>
-          <h4 className="text-xl font-extrabold text-primary mt-1.5 font-mono">Rp {totalValueToday.toLocaleString("id-ID")}</h4>
+        <div className="bg-white p-4 rounded-2xl border border-outline-variant/20 shadow-sm space-y-1">
+          <p className="text-[11px] text-on-surface-variant font-bold uppercase tracking-wider">Total Nilai Hari Ini</p>
+          <h4 className="text-xl font-extrabold text-primary font-mono">Rp {totalValueToday.toLocaleString("id-ID")}</h4>
         </div>
       </section>
 
       {pendingOrders.length === 0 ? (
-        <div className="text-center py-16 bg-surface-container-lowest border border-outline-variant/30 rounded-3xl text-on-surface-variant text-sm font-semibold shadow-sm">
-          Tidak ada pesanan SP masuk yang menunggu verifikasi CDOB.
+        <div className="text-center py-16 bg-white border border-outline-variant/20 rounded-3xl text-on-surface-variant text-sm font-semibold shadow-sm">
+          Tidak ada pesanan SP masuk yang menunggu verifikasi CDOB saat ini.
         </div>
       ) : (
-        <div className="flex flex-col xl:flex-row gap-6 min-h-[500px]">
-          {/* Left Panel: Order Queue Table (60%) */}
-          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden flex flex-col shadow-sm xl:w-[60%] shrink-0">
-            <div className="px-5 py-4 border-b border-outline-variant/20 flex justify-between items-center bg-surface-container-low/20">
-              <h5 className="font-heading font-extrabold text-sm text-on-surface">Antrean Verifikasi Order</h5>
-              <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Prioritas FEFO</span>
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
+          {/* Left Panel: Order Queue Table (58%) */}
+          <div className="bg-white rounded-3xl border border-outline-variant/20 overflow-hidden flex flex-col shadow-sm w-full lg:w-[58%] shrink-0">
+            <div className="px-5 py-4 border-b border-outline-variant/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-surface-container-low/30">
+              <div>
+                <h5 className="font-heading font-extrabold text-sm text-foreground">Antrean Verifikasi Order ({filteredPendingOrders.length})</h5>
+                <p className="text-[10px] text-on-surface-variant">Klik baris order untuk meninjau detail SP CDOB</p>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <input
+                  type="text"
+                  placeholder="Cari SP / Nama Apotek..."
+                  value={searchQueue}
+                  onChange={(e) => setSearchQueue(e.target.value)}
+                  className="px-3 py-1.5 bg-white border border-outline-variant/30 rounded-xl text-xs font-sans text-foreground placeholder:text-outline-variant/60 focus:outline-none focus:border-primary w-full sm:w-48"
+                />
+              </div>
             </div>
 
             <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left border-collapse table-auto text-xs">
+              <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-surface-container/10 border-b border-outline-variant/20 text-on-surface-variant font-bold">
-                    <th className="px-5 py-3 uppercase tracking-wider text-[10px] w-36">No. Pesanan</th>
-                    <th className="px-5 py-3 uppercase tracking-wider text-[10px]">Mitra Apotek</th>
-                    <th className="px-5 py-3 uppercase tracking-wider text-[10px] w-32">Metode Bayar</th>
-                    <th className="px-5 py-3 uppercase tracking-wider text-[10px] w-32 text-right">Total Tagihan</th>
-                    <th className="px-5 py-3 uppercase tracking-wider text-[10px] w-28 text-center">Status CDOB</th>
-                    <th className="px-5 py-3 text-[10px] w-10"></th>
+                  <tr className="bg-surface-container-low border-b border-outline-variant/20 text-on-surface-variant font-bold">
+                    <th className="px-4 py-3.5 uppercase tracking-wider text-[10px] w-32">No. SP</th>
+                    <th className="px-4 py-3.5 uppercase tracking-wider text-[10px] min-w-[200px]">Mitra Apotek</th>
+                    <th className="px-4 py-3.5 uppercase tracking-wider text-[10px] w-32">Pembayaran</th>
+                    <th className="px-4 py-3.5 uppercase tracking-wider text-[10px] w-32 text-right">Total Tagihan</th>
+                    <th className="px-4 py-3.5 uppercase tracking-wider text-[10px] w-32 text-center">Status CDOB</th>
+                    <th className="px-2 py-3.5 text-[10px] w-8"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-outline-variant/10 text-on-surface">
-                  {pendingOrders.map((order) => {
+                <tbody className="divide-y divide-outline-variant/15 text-on-surface">
+                  {filteredPendingOrders.map((order) => {
                     const { total: orderVal } = calculateOrderTotals(order);
                     const isSelected = activeOrder?.id === order.id;
 
@@ -235,6 +253,13 @@ export default function OrderApprovalsTab({
 
                     const isComplianceOk = !isSiaExpired && !isSipaExpired && order.spSignature;
 
+                    // Parse clean short location/city from address string
+                    const rawAddr = order.institution.address || "";
+                    const cityMatch = rawAddr.match(/(Kab\/Kota|Kota|Kabupaten):\s*([^,]+)/i);
+                    const shortCity = cityMatch 
+                      ? cityMatch[2].trim() 
+                      : rawAddr.split(",")[0].replace(/^Alamat:\s*/i, "").trim() || "Lokasi Apotek";
+
                     return (
                       <tr
                         key={order.id}
@@ -242,75 +267,69 @@ export default function OrderApprovalsTab({
                           setSelectedOrder(order);
                           setIsRejectMode(false);
                         }}
-                        className={`transition-all duration-200 cursor-pointer ${isSelected
-                            ? "bg-primary-container/10 ring-1 ring-inset ring-primary/20"
-                            : "hover:bg-surface-container-low/50"
-                          }`}
+                        className={`transition-all duration-200 cursor-pointer ${
+                          isSelected
+                            ? "bg-primary/5 ring-1 ring-inset ring-primary/30"
+                            : "hover:bg-surface-container-low/40"
+                        }`}
                       >
-                        <td className="px-5 py-4">
+                        <td className="px-4 py-3.5">
                           <p className="font-bold text-foreground text-xs font-mono">{order.orderNumber}</p>
-                          <p className="text-[10px] text-on-surface-variant/60 font-semibold">{new Date(order.createdAt).toLocaleDateString("id-ID")}</p>
+                          <p className="text-[10px] text-on-surface-variant font-medium mt-0.5">{new Date(order.createdAt).toLocaleDateString("id-ID")}</p>
                         </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 flex-shrink-0 rounded bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px]">
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-extrabold text-xs shrink-0 shadow-xs border border-primary/20">
                               {order.institution.name.substring(0, 2).toUpperCase()}
                             </div>
-                            <div className="truncate">
-                              <p className="font-bold text-foreground text-xs truncate max-w-[140px]">{order.institution.name}</p>
-                              <p className="text-[10px] text-on-surface-variant truncate max-w-[140px]">{order.institution.address}</p>
+                            <div className="min-w-0">
+                              <p className="font-bold text-foreground text-xs truncate max-w-[200px]" title={order.institution.name}>
+                                {order.institution.name}
+                              </p>
+                              <p className="text-[10px] text-on-surface-variant truncate max-w-[200px] mt-0.5 flex items-center gap-0.5" title={rawAddr}>
+                                <span className="material-symbols-outlined text-[12px] text-outline shrink-0">location_on</span>
+                                <span className="truncate">{shortCity}</span>
+                              </p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-4 py-3.5 whitespace-nowrap">
                           <div className="space-y-1">
                             {order.paymentMethod === "VA" ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[8px] font-extrabold bg-blue-50 text-blue-600 border border-blue-200 uppercase">
-                                <span className="w-1 h-1 rounded-full bg-blue-600 animate-pulse animate-duration-1000"></span>
-                                Bank Transfer (VA)
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 uppercase">
+                                Instant VA
                               </span>
                             ) : order.paymentMethod === "TOP" ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[8px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200 uppercase">
-                                Credit Limit / TOP
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200 uppercase">
+                                Limit Kredit / TOP
                               </span>
                             ) : order.paymentMethod === "COD" ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[8px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200 uppercase">
                                 COD
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[8px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200 uppercase">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold bg-purple-50 text-purple-800 border border-purple-200 uppercase">
                                 Invoice Billing
                               </span>
                             )}
-                            <div>
-                              {order.paymentStatus === "PAID" ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200 uppercase">
-                                  Lunas (PAID)
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-extrabold bg-red-50 text-red-800 border border-red-200 uppercase animate-pulse">
-                                  Belum Lunas
-                                </span>
-                              )}
-                            </div>
                           </div>
                         </td>
-                        <td className="px-5 py-4 font-bold text-foreground font-mono text-right whitespace-nowrap">
+                        <td className="px-4 py-3.5 font-bold text-foreground font-mono text-right whitespace-nowrap text-xs">
                           Rp {orderVal.toLocaleString("id-ID")}
                         </td>
-                        <td className="px-5 py-4 text-center">
+                        <td className="px-4 py-3.5 text-center whitespace-nowrap">
                           {isComplianceOk ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-primary border border-emerald-200">
-                              Compliance OK
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              ✓ Compliance OK
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-error border border-rose-200">
-                              {isSiaExpired ? "SIA Expired" : isSipaExpired ? "SIPA Expired" : "Dokumen Ilegal"}
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-red-50 text-red-700 border border-red-200">
+                              {isSiaExpired ? "SIA Expired" : isSipaExpired ? "SIPA Expired" : "Dokumen Belum Lengkap"}
                             </span>
                           )}
                         </td>
-                        <td className="px-5 py-4 text-right">
-                          <ChevronRight className={`w-4 h-4 transition-transform ${isSelected ? "text-primary translate-x-1" : "text-outline"}`} />
+                        <td className="px-2 py-3.5 text-right">
+                          <ChevronRight className={`w-4 h-4 transition-transform ${isSelected ? "text-primary translate-x-1" : "text-outline/40"}`} />
                         </td>
                       </tr>
                     );
@@ -354,48 +373,48 @@ export default function OrderApprovalsTab({
                       <p className="text-white text-[10px] font-bold">Zoom Preview SP</p>
                     </div>
 
-                    <div className="w-full h-full p-4 flex flex-col gap-2 bg-white text-[8px] leading-normal text-slate-700">
+                    <div className="w-full h-full p-4 flex flex-col gap-2 bg-white text-[10px] leading-normal text-slate-700">
                       <div className="flex justify-between border-b border-slate-200 pb-2">
                         <div>
-                          <strong className="text-[10px] text-primary leading-tight font-heading">SURAT PESANAN OBAT</strong>
-                          <p className="text-[6px] text-slate-400 mt-0.5">SIA: {activeOrder.institution.siaNumber}</p>
+                          <strong className="text-xs text-primary leading-tight font-heading block">SURAT PESANAN OBAT (CDOB)</strong>
+                          <p className="text-[9px] text-slate-500 mt-0.5 font-mono">SIA: {activeOrder.institution.siaNumber}</p>
                         </div>
-                        <div className="text-right text-[6px]">
-                          <p>Tanggal: {new Date(activeOrder.createdAt).toLocaleDateString("id-ID")}</p>
-                          <p className="font-mono font-bold text-slate-800">{activeOrder.orderNumber}</p>
+                        <div className="text-right text-[9px]">
+                          <p className="text-slate-500">Tanggal: {new Date(activeOrder.createdAt).toLocaleDateString("id-ID")}</p>
+                          <p className="font-mono font-bold text-slate-900 mt-0.5">{activeOrder.orderNumber}</p>
                         </div>
                       </div>
 
-                      <div className="mt-1 space-y-1">
-                        <p>Kepada Yth. <strong>PBF GroovyCare (PBF MediFlow)</strong></p>
-                        <p>Harap dikirimkan sediaan obat pesanan kami berikut:</p>
+                      <div className="mt-1 space-y-0.5 text-[9.5px]">
+                        <p>Kepada Yth. <strong className="text-slate-900">PBF GroovyCare (PBF MediFlow)</strong></p>
+                        <p className="text-slate-600">Harap dikirimkan sediaan obat pesanan kami berikut:</p>
                       </div>
 
-                      <div className="mt-2 border-t border-b border-slate-200 py-1.5 space-y-1 max-h-[100px] overflow-hidden">
+                      <div className="mt-1.5 border-t border-b border-slate-200 py-2 space-y-1 max-h-[110px] overflow-y-auto font-mono text-[9px]">
                         {activeOrder.items.map((item) => (
-                          <div key={item.id} className="flex justify-between text-[7px]">
-                            <span>• {item.product.name} (x{item.quantity} {item.product.unit})</span>
-                            <span className="font-mono">Rp {(item.price * item.quantity).toLocaleString("id-ID")}</span>
+                          <div key={item.id} className="flex justify-between items-center text-slate-800">
+                            <span className="font-sans font-medium">• {item.product.name} (x{item.quantity} {item.product.unit})</span>
+                            <span className="font-bold">Rp {(item.price * item.quantity).toLocaleString("id-ID")}</span>
                           </div>
                         ))}
                       </div>
 
-                      <div className="mt-auto flex justify-between items-end">
-                        <div className="text-[6px]">
-                          <p>Apoteker Penanggung Jawab,</p>
+                      <div className="mt-auto flex justify-between items-end pt-2">
+                        <div className="text-[9px]">
+                          <p className="text-slate-500">Apoteker Penanggung Jawab,</p>
                           <p className="font-bold mt-1 text-slate-900">{activeOrder.createdBy.name}</p>
-                          <p className="text-[5px] text-slate-400 font-mono">SIPA: {activeOrder.createdBy.sipaNumber}</p>
+                          <p className="text-[8px] text-slate-400 font-mono">SIPA: {activeOrder.createdBy.sipaNumber || "-"}</p>
                         </div>
 
                         {activeOrder.spSignature ? (
-                          <div className="w-14 h-14 bg-emerald-50/50 rounded flex items-center justify-center border border-dashed border-primary relative">
+                          <div className="w-16 h-16 bg-emerald-50/60 rounded-xl flex items-center justify-center border border-dashed border-primary relative shadow-xs">
                             <img src={activeOrder.spSignature} alt="APJ Signature" className="max-h-full max-w-full object-contain" />
-                            <div className="absolute -bottom-1 -right-1 bg-primary text-white p-0.5 rounded-full scale-75">
-                              <ShieldCheck className="w-3 h-3 text-white" />
+                            <div className="absolute -bottom-1 -right-1 bg-primary text-white p-0.5 rounded-full scale-75 shadow-sm">
+                              <ShieldCheck className="w-3.5 h-3.5 text-white" />
                             </div>
                           </div>
                         ) : (
-                          <div className="w-14 h-8 bg-rose-50 border border-dashed border-error rounded flex items-center justify-center text-error font-bold text-[6px] uppercase">
+                          <div className="w-16 h-10 bg-rose-50 border border-dashed border-error rounded-xl flex items-center justify-center text-error font-bold text-[8px] uppercase">
                             NO SIGN
                           </div>
                         )}
