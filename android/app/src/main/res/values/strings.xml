@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">GroovyCare</string>
+    <string name="title_activity_main">GroovyCare</string>
+    <string name="package_name">com.groovycare.pbf</string>
+    <string name="custom_url_scheme">com.groovycare.pbf</string>
+</resources>

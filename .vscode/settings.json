@@ -1,0 +1,9 @@
+{
+  "css.lint.unknownAtRules": "ignore",
+  "java.project.excludePaths": [
+    "**/node_modules/**"
+  ],
+  "java.import.exclusions": [
+    "**/node_modules/**"
+  ]
+}

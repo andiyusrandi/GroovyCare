@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Catatan Peran:
+// - "CUSTOMER_USER": Menggabungkan Purchasing, APJ Pelanggan, dan Finance Pelanggan
+// - "PBF_ADMIN": Menggabungkan Sales Admin, APJ PBF, dan Gudang/Logistik
+// - "SYSTEM_ADMIN": Super Admin Teknis
+
+// Catatan OrderStatus:
+// - "PENDING_APPROVAL": Menunggu persetujuan SP & verifikasi CDOB oleh PBF Admin
+// - "PENDING_SHIPPING": SP Disetujui, Menunggu packing & pengiriman (stok FEFO teralokasi)
+// - "SHIPPED": Barang sedang dikirim, resi diinput
+// - "DELIVERED": Barang telah diterima oleh pelanggan
+// - "REJECTED": Pesanan ditolak oleh PBF Admin
+
+// Catatan PaymentStatus:
+// - "UNPAID"
+// - "PENDING_VERIFICATION"
+// - "PAID"
+
+model User {
+  id              String       @id @default(uuid())
+  email           String       @unique
+  password        String       // Password untuk login sederhana
+  name            String
+  role            String       // "CUSTOMER_USER" | "PBF_ADMIN" | "SYSTEM_ADMIN"
+  phone           String?
+  sipaNumber      String?      // Nomor SIPA Apoteker (Pelanggan / APJ PBF)
+  sipaExpiry      DateTime?    // Tanggal Expired SIPA
+  sipaFileUrl     String?      // Dokumen SIPA/SIPTTK (Base64)
+  institutionId   String?
+  institution     Institution? @relation(fields: [institutionId], references: [id])
+  orders          Order[]      @relation("CreatedBy")
+  pbfApprovals    Order[]      @relation("PbfApprovedBy")
+
+  @@index([institutionId])
+}
+
+model Institution {
+  id           String    @id @default(uuid())
+  name         String
+  type         String    @default("APOTEK") // "APOTEK" | "KLINIK" | "RUMAH_SAKIT" | "PBF" | "PERUSAHAAN_UMUM"
+  siaNumber    String    @unique // Nomor Izin SIA apotek / Izin operasional / Izin PBF / NIB
+  siaExpiry    DateTime          // Tanggal Expired SIA / Izin operasional / Izin PBF / NIB
+  siaFileUrl   String?           // Dokumen SIA / Izin (Base64)
+  address      String
+  creditLimit  Float     @default(0.0)
+  currentDebt  Float     @default(0.0)
+  topDays      Int       @default(30)
+  isActive     Boolean   @default(false) // Ditandai aktif setelah disetujui PBF Admin
+  ownerKtp     String?           // NIK/KTP Pemilik Sarana
+  ownerNpwp    String?           // NPWP Pemilik Sarana
+  bpomCode     String    @default("") // Kode BPOM Resmi PBF/Sarana
+  users        User[]
+  orders       Order[]
+}
+
+model Product {
+  id               String      @id @default(uuid())
+  name             String
+  code             String      @unique // SKU / Kode Obat
+  activeIngredient String      // Kandungan zat aktif untuk pencarian substitusi
+  price            Float
+  category         String
+  description      String?
+  unit             String      // Box, Strip, Botol, Vial, dll.
+  manufacturer     String      @default("Kalbe Farma")
+  nie              String      @default("") // Nomor Izin Edar BPOM
+  imageUrl         String?
+  createdAt        DateTime    @default(now())
+  batches          Batch[]
+  orderItems       OrderItem[]
+  stockTransactions StockTransaction[]
+}
+
+model Batch {
+  id          String                  @id @default(uuid())
+  productId   String
+  product     Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
+  batchNumber String
+  expiryDate  DateTime
+  stock       Int
+  allocations OrderBatchAllocation[]
+  
+  @@unique([productId, batchNumber])
+}
+
+model Order {
+  id                String                 @id @default(uuid())
+  orderNumber       String                 @unique // format: SP-YYYYMMDD-XXXX
+  institutionId     String
+  institution       Institution            @relation(fields: [institutionId], references: [id])
+  createdById       String
+  createdBy         User                   @relation("CreatedBy", fields: [createdById], references: [id])
+  status            String                 @default("PENDING_APPROVAL") // "PENDING_APPROVAL" | "PENDING_SHIPPING" | "SHIPPED" | "DELIVERED" | "REJECTED"
+  spSignature       String?                // Tanda tangan digital dalam base64
+  spUploadUrl       String?                // Dokumen pendukung lain jika ada
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  approvedById      String?
+  approvedBy        User?                  @relation("PbfApprovedBy", fields: [approvedById], references: [id])
+  approvedAt        DateTime?
+  rejectionReason   String?
+  shippingAddress   String
+  trackingNumber    String?
+  shippingDate      DateTime?
+  paymentProofUrl   String?                // Base64 bukti bayar
+  paymentStatus     String                 @default("UNPAID") // "UNPAID" | "PENDING_VERIFICATION" | "PAID"
+  paymentMethod     String                 @default("VA")     // "VA" | "TOP" | "INVOICE"
+  items             OrderItem[]
+  batchAllocations  OrderBatchAllocation[]
+
+  @@index([institutionId])
+  @@index([createdById])
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model OrderBatchAllocation {
+  id        String @id @default(uuid())
+  orderId   String
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  batchId   String
+  batch     Batch  @relation(fields: [batchId], references: [id])
+  quantity  Int
+
+  @@index([orderId])
+  @@index([batchId])
+}
+
+model StockTransaction {
+  id               String   @id @default(uuid())
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  batchId          String?
+  type             String   // "IN_IF" | "IN_PBF" | "IN_RETUR_CUSTOMER" | "OUT_SALE" | "OUT_RETUR_SUPPLIER" | "OUT_DISPOSAL"
+  quantity         Int
+  referenceNumber  String   // Nomor Faktur / Nomor SP / Nomor Berita Acara
+  sourceTargetId   String?  // ID Instansi / Supplier terkait
+  sourceTargetName String   // Nama Instansi / Supplier terkait
+  createdAt        DateTime @default(now())
+
+  @@index([productId])
+  @@index([batchId])
+}
