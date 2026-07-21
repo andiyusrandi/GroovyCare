@@ -229,40 +229,41 @@ export default function SettingsView({ user, institution, onUpdateProfile }: Set
   return (
     <div className="space-y-5 animate-fadeIn font-sans pb-12">
       {/* 1. MODERN APOTHECARY HERO PROFILE CARD */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-white rounded-3xl p-5 shadow-xl border border-slate-700/50 relative overflow-hidden space-y-4">
+      <div className="bg-gradient-to-br from-[#003824] via-[#004a30] to-[#006844] text-white rounded-3xl p-5 shadow-xl shadow-emerald-950/20 border border-emerald-500/30 relative overflow-hidden space-y-4">
         {/* Glow decoration */}
-        <div className="absolute -right-10 -bottom-10 w-44 h-44 bg-primary/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -left-10 -top-10 w-36 h-36 bg-teal-300/10 rounded-full blur-2xl pointer-events-none"></div>
 
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3.5">
             {/* Avatar Circle */}
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary to-emerald-500 text-white font-extrabold text-xl flex items-center justify-center shadow-md border-2 border-white/20 shrink-0">
+            <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md text-white font-extrabold text-xl flex items-center justify-center shadow-lg border border-white/30 shrink-0">
               {user.name ? user.name.charAt(0).toUpperCase() : "A"}
             </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <h2 className="text-base font-heading font-extrabold text-white leading-tight">{user.name || "Apoteker Penanggung Jawab"}</h2>
-                <span className="material-symbols-outlined text-emerald-400 text-base" title="Apoteker Terverifikasi">verified</span>
+                <span className="material-symbols-outlined text-emerald-300 text-base" title="Apoteker Terverifikasi">verified</span>
               </div>
-              <p className="text-[11px] text-slate-300 font-bold mt-0.5">{institution.name}</p>
-              <p className="text-[10px] text-slate-400 font-mono mt-0.5">SIPA: {sipaNumber || "SIPA/123/ABC/2026"}</p>
+              <p className="text-[11px] text-emerald-100 font-bold mt-0.5">{institution.name}</p>
+              <p className="text-[10px] text-emerald-200/80 font-mono mt-0.5">SIPA: {sipaNumber || "SIPA/123/ABC/2026"}</p>
             </div>
           </div>
 
-          <span className="bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider hidden sm:flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5" />
+          <span className="bg-white/15 backdrop-blur-md border border-white/20 text-white text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-wider hidden sm:flex items-center gap-1 shadow-xs">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
             <span>Aktif CDOB</span>
           </span>
         </div>
 
         {/* Quick Info Grid */}
-        <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-700/60 relative z-10 text-[10px]">
-          <div className="bg-white/5 border border-white/10 rounded-xl p-2.5">
-            <span className="text-slate-400 block font-bold uppercase">SIA Apotek</span>
+        <div className="grid grid-cols-2 gap-2 pt-3 border-t border-emerald-400/20 relative z-10 text-[10px]">
+          <div className="bg-black/15 backdrop-blur-xs border border-white/10 rounded-xl p-2.5">
+            <span className="text-emerald-200/80 block font-bold uppercase">SIA Apotek</span>
             <span className="text-white font-mono font-bold">{siaNumber || "SIA/456/DEF/2026"}</span>
           </div>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-2.5">
-            <span className="text-slate-400 block font-bold uppercase">Email Terdaftar</span>
+          <div className="bg-black/15 backdrop-blur-xs border border-white/10 rounded-xl p-2.5">
+            <span className="text-emerald-200/80 block font-bold uppercase">Email Terdaftar</span>
             <span className="text-white font-medium truncate block">{user.email}</span>
           </div>
         </div>

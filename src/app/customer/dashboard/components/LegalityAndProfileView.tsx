@@ -193,6 +193,11 @@ export default function LegalityAndProfileView({
   const siaDaysLeft = getRemainingDays(isSiaPending ? siaExpiry : institution.siaExpiry);
   const sipaDaysLeft = getRemainingDays(isSipaPending ? sipaExpiry : user.sipaExpiry);
 
+  const isNoExpirySia =
+    institution.type === "PERUSAHAAN_UMUM" ||
+    institution.siaNumber?.toLowerCase().includes("nib") ||
+    (institution.siaExpiry && new Date(institution.siaExpiry).getFullYear() >= 2090);
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Title */}
@@ -384,6 +389,10 @@ export default function LegalityAndProfileView({
               {isSiaPending ? (
                 <span className="px-3 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold rounded-xl flex items-center gap-1.5">
                   <RefreshCw className="w-3.5 h-3.5 text-amber-700 animate-spin" /> Menunggu Verifikasi PBF
+                </span>
+              ) : isNoExpirySia ? (
+                <span className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-250 text-[10px] font-bold rounded-xl flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" /> Aktif: Berlaku Selama Usaha Berjalan (NIB Tanpa Kadaluwarsa)
                 </span>
               ) : siaDaysLeft > 0 ? (
                 <span className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-250 text-[10px] font-bold rounded-xl flex items-center gap-1">

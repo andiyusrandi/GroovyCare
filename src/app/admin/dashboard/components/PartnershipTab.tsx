@@ -428,7 +428,7 @@ export default function PartnershipTab({
             </thead>
             <tbody className="divide-y divide-slate-100/70 text-slate-700">
               {filteredPartners.map((partner) => {
-                const isSiaExpired = new Date(partner.siaExpiry) <= today && new Date(partner.siaExpiry).getFullYear() < 2090;
+                const isSiaExpired = new Date(partner.siaExpiry) <= today && new Date(partner.siaExpiry).getFullYear() < 2090 && partner.type !== "PERUSAHAAN_UMUM";
                 const user = partner.users[0];
                 const isSipaExpired = user && user.sipaExpiry ? new Date(user.sipaExpiry) <= today : false;
 
