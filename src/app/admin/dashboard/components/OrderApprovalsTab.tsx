@@ -68,14 +68,14 @@ interface OrderApprovalsTabProps {
 function calculateOrderTotals(order: any) {
   const subtotal = order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
   const vat = Math.round(subtotal * 0.11);
-  
+
   const addr = order.shippingAddress || "";
   const feeMatch = addr.match(/-\s*Rp\s*([0-9.,]+)/);
   let shippingFee = 0;
   if (feeMatch && feeMatch[1]) {
     shippingFee = parseInt(feeMatch[1].replace(/[.,]/g, ""), 10) || 0;
   } else if (addr.includes("Kurir: Standard Flat Rate")) {
-    const isColdChain = order.items.some((item: any) => 
+    const isColdChain = order.items.some((item: any) =>
       item.product?.category === "COLD_CHAIN" || item.product?.category?.toLowerCase() === "cold chain" ||
       item.product?.name?.toLowerCase().includes("insulin") || item.product?.code?.toLowerCase().includes("amx")
     );
@@ -256,8 +256,8 @@ export default function OrderApprovalsTab({
                     // Parse clean short location/city from address string
                     const rawAddr = order.institution.address || "";
                     const cityMatch = rawAddr.match(/(Kab\/Kota|Kota|Kabupaten):\s*([^,]+)/i);
-                    const shortCity = cityMatch 
-                      ? cityMatch[2].trim() 
+                    const shortCity = cityMatch
+                      ? cityMatch[2].trim()
                       : rawAddr.split(",")[0].replace(/^Alamat:\s*/i, "").trim() || "Lokasi Apotek";
 
                     return (
@@ -267,11 +267,10 @@ export default function OrderApprovalsTab({
                           setSelectedOrder(order);
                           setIsRejectMode(false);
                         }}
-                        className={`transition-all duration-200 cursor-pointer ${
-                          isSelected
+                        className={`transition-all duration-200 cursor-pointer ${isSelected
                             ? "bg-primary/5 ring-1 ring-inset ring-primary/30"
                             : "hover:bg-surface-container-low/40"
-                        }`}
+                          }`}
                       >
                         <td className="px-4 py-3.5">
                           <p className="font-bold text-foreground text-xs font-mono">{order.orderNumber}</p>
@@ -533,8 +532,8 @@ export default function OrderApprovalsTab({
                             <span className="font-bold text-foreground">SIA Apotek Aktif</span>
                           </div>
                           <span className={`text-[10px] font-bold ${isExpired ? "text-error" : "text-on-surface-variant"}`}>
-                            {isExpired 
-                              ? "EXPIRED" 
+                            {isExpired
+                              ? "EXPIRED"
                               : new Date(activeOrder.institution.siaExpiry).getFullYear() >= 2090
                                 ? "Berlaku Selamanya (NIB)"
                                 : `Valid s/d ${new Date(activeOrder.institution.siaExpiry).toLocaleDateString("id-ID")}`}

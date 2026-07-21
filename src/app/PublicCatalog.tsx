@@ -57,11 +57,10 @@ export default function PublicCatalog({ products }: { products: Product[] }) {
             <button
               key={cat}
               onClick={() => setCategory(cat)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
-                category === cat
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all ${category === cat
                   ? "bg-primary text-white shadow-sm shadow-primary/10"
                   : "bg-surface-container-low hover:bg-surface-container-high text-on-surface-variant hover:text-foreground border border-outline-variant/20"
-              }`}
+                }`}
             >
               {cat}
             </button>

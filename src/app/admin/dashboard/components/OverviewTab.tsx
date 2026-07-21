@@ -110,7 +110,7 @@ export default function OverviewTab({
 }: OverviewTabProps) {
   const pendingOrders = orders.filter((o) => o.status === "PENDING_APPROVAL");
   const pendingPartners = partners.filter((p) => !p.isActive);
-  
+
   // Calculate total B2B invoice billing value from all orders (except rejected ones)
   const totalOmset = orders
     .filter((o) => o.status !== "REJECTED")
@@ -186,7 +186,7 @@ export default function OverviewTab({
             <div className="w-11 h-11 rounded-xl bg-tertiary-container/10 flex items-center justify-center text-tertiary group-hover:bg-tertiary group-hover:text-on-tertiary transition-colors duration-300">
               <span className="material-symbols-outlined text-[20px]">pending_actions</span>
             </div>
-            <button 
+            <button
               onClick={() => setActiveTab("cdob")}
               className="text-[9px] text-primary hover:underline font-bold"
             >
@@ -208,7 +208,7 @@ export default function OverviewTab({
             <div className="w-11 h-11 rounded-xl bg-secondary-container/20 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-on-secondary transition-colors duration-300">
               <span className="material-symbols-outlined text-[20px]">group_add</span>
             </div>
-            <button 
+            <button
               onClick={() => setActiveTab("kemitraan")}
               className="text-[9px] text-secondary hover:underline font-bold"
             >
@@ -260,12 +260,11 @@ export default function OverviewTab({
                 <div className="absolute -top-7 bg-on-surface text-surface text-[9px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md font-mono font-bold z-20">
                   {item.val}
                 </div>
-                <div 
-                  className={`w-full max-w-[45px] rounded-t-lg transition-all duration-300 ${
-                    item.active 
-                      ? "bg-primary shadow-sm shadow-primary/20" 
+                <div
+                  className={`w-full max-w-[45px] rounded-t-lg transition-all duration-300 ${item.active
+                      ? "bg-primary shadow-sm shadow-primary/20"
                       : "bg-primary-container/20 group-hover:bg-primary-container/60"
-                  }`} 
+                    }`}
                   style={{ height: item.height }}
                 ></div>
                 <span className={`text-[10px] text-center mt-2 font-bold ${item.active ? "text-primary font-black" : "text-outline"}`}>
@@ -329,7 +328,7 @@ export default function OverviewTab({
       <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/10 shadow-sm overflow-hidden flex flex-col">
         <div className="px-6 py-5 border-b border-outline-variant/10 flex items-center justify-between">
           <h4 className="font-heading font-bold text-sm text-on-surface">Pesanan Terbaru</h4>
-          <button 
+          <button
             onClick={() => setActiveTab("cdob")}
             className="text-primary font-bold text-xs hover:underline cursor-pointer"
           >
@@ -384,7 +383,7 @@ export default function OverviewTab({
                       )}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button 
+                      <button
                         onClick={() => {
                           setViewingOrder(o);
                           setActiveTab("cdob");

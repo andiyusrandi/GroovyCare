@@ -199,6 +199,257 @@ export default function CustomerDashboardClient({
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [tempShippingAddress, setTempShippingAddress] = useState("");
+  // States untuk integrasi pengiriman real-time di keranjang mobile
+  const [shippingProvince, setShippingProvince] = useState("");
+  const [shippingRegency, setShippingRegency] = useState("");
+  const [shippingDistrict, setShippingDistrict] = useState("");
+  const [shippingVillage, setShippingVillage] = useState("");
+  const [shippingPostalCode, setShippingPostalCode] = useState("");
+  const [shippingAddressDetail, setShippingAddressDetail] = useState(institution.address || "");
+  const [selectedProvinceId, setSelectedProvinceId] = useState("");
+  const [selectedRegencyId, setSelectedRegencyId] = useState("");
+  const [selectedDistrictId, setSelectedDistrictId] = useState("");
+  
+  const [provincesList, setProvincesList] = useState<{ id: string; name: string }[]>([]);
+  const [regenciesList, setRegenciesList] = useState<{ id: string; name: string }[]>([]);
+  const [districtsList, setDistrictsList] = useState<{ id: string; name: string }[]>([]);
+  const [villagesList, setVillagesList] = useState<{ id: string; name: string }[]>([]);
+  
+  const [biteshipRates, setBiteshipRates] = useState<any[]>([]);
+  const [isLoadingRates, setIsLoadingRates] = useState(false);
+  const [ratesError, setRatesError] = useState<string | null>(null);
+  const [selectedRate, setSelectedRate] = useState<any | null>(null);
+  const [shippingFeeMobile, setShippingFeeMobile] = useState(50000);
+  const [isEditingAddressMobile, setIsEditingAddressMobile] = useState(false);
+  const [isCourierSelectorOpenMobile, setIsCourierSelectorOpenMobile] = useState(false);
+
+  // Parse and resolve consolidated/simple address from database on mount or when address changes
+  useEffect(() => {
+    const addr = institution.address || "";
+    if (addr.includes("Kel/Desa:") || addr.includes("Kel:") || addr.includes("Provinsi:")) {
+      try {
+        const detailPart = addr.match(/Alamat:\s*(.*?),\s*Kel/)?.[1] || "";
+        const kelPart = addr.match(/Kel(?:Desa)?:\s*(.*?),\s*Kec/)?.[1] || addr.match(/Kel\/Desa:\s*(.*?),\s*Kec/)?.[1] || "";
+        const kecPart = addr.match(/Kec:\s*(.*?),\s*Kab/)?.[1] || addr.match(/Kec:\s*(.*?),\s*Kota/)?.[1] || "";
+        const kabPart = addr.match(/Kab\/Kota:\s*(.*?),\s*Prov/)?.[1] || addr.match(/Kota\/Kab:\s*(.*?),\s*Prov/)?.[1] || "";
+        const provPart = addr.match(/Prov(?:insi)?:\s*(.*?)(?:,\s*Kode Pos:|$)/)?.[1] || "";
+        const posPart = addr.match(/Kode Pos:\s*(\d+)/)?.[1] || "";
+
+        if (provPart) setShippingProvince(provPart.trim());
+        if (kabPart) setShippingRegency(kabPart.trim());
+        if (kecPart) setShippingDistrict(kecPart.trim());
+        if (kelPart) setShippingVillage(kelPart.trim());
+        if (posPart) setShippingPostalCode(posPart.trim());
+        if (detailPart) setShippingAddressDetail(detailPart.trim());
+      } catch (e) {
+        setShippingAddressDetail(addr);
+      }
+    } else {
+      // Fallback for simple address format (like in seeds: "Jakarta Selatan", "Makassar", "Bandung", "Bekasi")
+      const lower = addr.toLowerCase();
+      if (lower.includes("makassar")) {
+        setShippingProvince("SULAWESI SELATAN");
+        setShippingRegency("KOTA MAKASSAR");
+        setShippingDistrict("TAMALANREA");
+        setShippingVillage("TAMALANREA INDAH");
+        setShippingPostalCode("90245");
+        setShippingAddressDetail(addr);
+      } else if (lower.includes("jakarta selatan")) {
+        setShippingProvince("DKI JAKARTA");
+        setShippingRegency("KOTA JAKARTA SELATAN");
+        setShippingDistrict("KEBAYORAN BARU");
+        setShippingVillage("SELOONG");
+        setShippingPostalCode("12110");
+        setShippingAddressDetail(addr);
+      } else if (lower.includes("bekasi")) {
+        setShippingProvince("JAWA BARAT");
+        setShippingRegency("KOTA BEKASI");
+        setShippingDistrict("BEKASI BARAT");
+        setShippingVillage("BINTARA");
+        setShippingPostalCode("17134");
+        setShippingAddressDetail(addr);
+      } else if (lower.includes("bandung")) {
+        setShippingProvince("JAWA BARAT");
+        setShippingRegency("KOTA BANDUNG");
+        setShippingDistrict("COBLONG");
+        setShippingVillage("SILIWANGI");
+        setShippingPostalCode("40132");
+        setShippingAddressDetail(addr);
+      } else {
+        setShippingAddressDetail(addr);
+      }
+    }
+  }, [institution.address]);
+
+  // Match Province Name -> Province ID
+  useEffect(() => {
+    if (shippingProvince && provincesList.length > 0 && !selectedProvinceId) {
+      const match = provincesList.find(p => p.name.toUpperCase() === shippingProvince.toUpperCase());
+      if (match) {
+        setSelectedProvinceId(match.id);
+      }
+    }
+  }, [shippingProvince, provincesList, selectedProvinceId]);
+
+  // Match Regency Name -> Regency ID
+  useEffect(() => {
+    if (shippingRegency && regenciesList.length > 0 && !selectedRegencyId) {
+      const cleanRegName = shippingRegency.replace(/KABUPATEN\s+|KOTA\s+/i, "").toUpperCase();
+      const match = regenciesList.find(r => r.name.replace(/KABUPATEN\s+|KOTA\s+/i, "").toUpperCase() === cleanRegName);
+      if (match) {
+        setSelectedRegencyId(match.id);
+      }
+    }
+  }, [shippingRegency, regenciesList, selectedRegencyId]);
+
+  // Match District Name -> District ID
+  useEffect(() => {
+    if (shippingDistrict && districtsList.length > 0 && !selectedDistrictId) {
+      const match = districtsList.find(d => d.name.toUpperCase() === shippingDistrict.toUpperCase());
+      if (match) {
+        setSelectedDistrictId(match.id);
+      }
+    }
+  }, [shippingDistrict, districtsList, selectedDistrictId]);
+
+  // Fetch provinces
+  useEffect(() => {
+    fetch("/api/wilayah?type=provinces")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) setProvincesList(data);
+      })
+      .catch((err) => console.error("Gagal mengambil data provinsi:", err));
+  }, []);
+
+  // Fetch regencies
+  useEffect(() => {
+    if (!selectedProvinceId) {
+      setRegenciesList([]);
+      return;
+    }
+    fetch(`/api/wilayah?type=regencies&id=${selectedProvinceId}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) setRegenciesList(data);
+      })
+      .catch((err) => console.error("Gagal mengambil data kabupaten:", err));
+  }, [selectedProvinceId]);
+
+  // Fetch districts
+  useEffect(() => {
+    if (!selectedRegencyId) {
+      setDistrictsList([]);
+      return;
+    }
+    fetch(`/api/wilayah?type=districts&id=${selectedRegencyId}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) setDistrictsList(data);
+      })
+      .catch((err) => console.error("Gagal mengambil data kecamatan:", err));
+  }, [selectedRegencyId]);
+
+  // Fetch villages
+  useEffect(() => {
+    if (!selectedDistrictId) {
+      setVillagesList([]);
+      return;
+    }
+    fetch(`/api/wilayah?type=villages&id=${selectedDistrictId}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) setVillagesList(data);
+      })
+      .catch((err) => console.error("Gagal mengambil data kelurahan:", err));
+  }, [selectedDistrictId]);
+
+  // Fetch postcode automatically
+  useEffect(() => {
+    if (!shippingVillage || !shippingDistrict) return;
+    const cleanRegency = shippingRegency.replace(/KABUPATEN\s+|KOTA\s+/i, "").trim();
+    const query = `${shippingVillage} ${shippingDistrict} ${cleanRegency}`;
+    fetch(`/api/wilayah?type=postcode&q=${encodeURIComponent(query)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((resData) => {
+        if (resData && resData.data && resData.data.length > 0) {
+          const match = resData.data.find((item: any) => 
+            item.village.toLowerCase().includes(shippingVillage.toLowerCase()) ||
+            shippingVillage.toLowerCase().includes(item.village.toLowerCase())
+          ) || resData.data[0];
+          if (match && match.code) {
+            setShippingPostalCode(match.code.toString());
+          }
+        }
+      })
+      .catch((err) => console.error("Gagal mencocokkan kode pos:", err));
+  }, [shippingVillage, shippingDistrict, shippingRegency]);
+
+  // Fetch Biteship rates in Customer Dashboard
+  useEffect(() => {
+    const hasAddress =
+      shippingProvince.trim() !== "" &&
+      shippingRegency.trim() !== "" &&
+      shippingDistrict.trim() !== "";
+    const isColdChain = cart.some(it => 
+      it.product?.name?.toLowerCase().includes("insulin") || 
+      it.product?.code?.toLowerCase().includes("amx") || 
+      it.product?.category?.toLowerCase().includes("cold chain")
+    );
+
+    if (!hasAddress) {
+      setBiteshipRates([]);
+      setSelectedRate(null);
+      setShippingFeeMobile(isColdChain ? 85000 : 50000);
+      return;
+    }
+
+    setIsLoadingRates(true);
+    setRatesError(null);
+    const totalWeight = Math.max(1000, cart.reduce((acc, item) => acc + item.quantity * 50, 0));
+
+    fetch("/api/biteship/rates", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        destination_province: shippingProvince,
+        destination_city: shippingRegency,
+        destination_district: shippingDistrict,
+        weight: totalWeight,
+      }),
+    })
+      .then(async (res) => {
+        const isJson = res.headers.get("content-type")?.includes("application/json");
+        const data = isJson ? await res.json() : null;
+        if (!res.ok) throw new Error(data?.error || "Gagal mengambil tarif pengiriman");
+        return data;
+      })
+      .then((data) => {
+        if (data && data.success && data.pricing && data.pricing.length > 0) {
+          setBiteshipRates(data.pricing);
+          const firstRate = data.pricing[0];
+          setSelectedRate(firstRate);
+          setShippingFeeMobile(firstRate.price);
+        } else {
+          setBiteshipRates([]);
+          setSelectedRate(null);
+          setShippingFeeMobile(isColdChain ? 85000 : 50000);
+        }
+      })
+      .catch((err) => {
+        console.error("Rates fetch error:", err);
+        setRatesError(err.message || "Layanan pengiriman sedang dalam pemeliharaan (Maintenance)");
+        setBiteshipRates([]);
+        setSelectedRate(null);
+        setShippingFeeMobile(isColdChain ? 85000 : 50000);
+      })
+      .finally(() => {
+        setIsLoadingRates(false);
+      });
+  }, [shippingProvince, shippingRegency, shippingDistrict, cart]);
+
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -1461,9 +1712,180 @@ export default function CustomerDashboardClient({
                     </button>
                   </div>
                 ) : (
-                  <section className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h2 className="font-heading font-black text-base text-on-surface">Item Pesanan ({cart.length})</h2>
+                  <>
+                    {/* Alamat Pengiriman */}
+                    <section className="bg-white p-4 rounded-2xl border border-outline-variant/20 shadow-2xs space-y-3 font-sans">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-heading font-black text-xs text-on-surface flex items-center gap-1.5 uppercase tracking-wider">
+                          <span className="material-symbols-outlined text-primary text-base">location_on</span>
+                          Alamat Pengiriman Apotek
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingAddressMobile(!isEditingAddressMobile)}
+                          className="text-primary text-xs font-bold hover:underline border-none bg-transparent cursor-pointer"
+                        >
+                          {isEditingAddressMobile ? "Tutup Form" : "Pilih Alamat"}
+                        </button>
+                      </div>
+
+                      {isEditingAddressMobile ? (
+                        <div className="space-y-3 p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+                          <p className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-2">Pilih Wilayah Tujuan Kurir (BiteShip):</p>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[8px] font-bold text-slate-400 uppercase mb-1">Provinsi</label>
+                              <select
+                                required
+                                value={selectedProvinceId}
+                                onChange={(e) => {
+                                  const id = e.target.value;
+                                  setSelectedProvinceId(id);
+                                  const name = provincesList.find((p) => p.id === id)?.name || "";
+                                  setShippingProvince(name);
+                                  setSelectedRegencyId("");
+                                  setShippingRegency("");
+                                  setSelectedDistrictId("");
+                                  setShippingDistrict("");
+                                  setShippingVillage("");
+                                }}
+                                className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-primary text-[11px]"
+                              >
+                                <option value="">Pilih Provinsi</option>
+                                {provincesList.map((p) => (
+                                  <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-[8px] font-bold text-slate-400 uppercase mb-1">Kabupaten/Kota</label>
+                              <select
+                                required
+                                disabled={!selectedProvinceId}
+                                value={selectedRegencyId}
+                                onChange={(e) => {
+                                  const id = e.target.value;
+                                  setSelectedRegencyId(id);
+                                  const name = regenciesList.find((r) => r.id === id)?.name || "";
+                                  setShippingRegency(name);
+                                  setSelectedDistrictId("");
+                                  setShippingDistrict("");
+                                  setShippingVillage("");
+                                }}
+                                className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-primary text-[11px] disabled:opacity-50"
+                              >
+                                <option value="">Pilih Kabupaten/Kota</option>
+                                {regenciesList.map((r) => (
+                                  <option key={r.id} value={r.id}>{r.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[8px] font-bold text-slate-400 uppercase mb-1">Kecamatan</label>
+                              <select
+                                required
+                                disabled={!selectedRegencyId}
+                                value={selectedDistrictId}
+                                onChange={(e) => {
+                                  const id = e.target.value;
+                                  setSelectedDistrictId(id);
+                                  const name = districtsList.find((d) => d.id === id)?.name || "";
+                                  setShippingDistrict(name);
+                                  setShippingVillage("");
+                                }}
+                                className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-primary text-[11px] disabled:opacity-50"
+                              >
+                                <option value="">Pilih Kecamatan</option>
+                                {districtsList.map((d) => (
+                                  <option key={d.id} value={d.id}>{d.name}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[8px] font-bold text-slate-400 uppercase mb-1">Kelurahan/Desa</label>
+                              <select
+                                required
+                                disabled={!selectedDistrictId}
+                                value={shippingVillage}
+                                onChange={(e) => setShippingVillage(e.target.value)}
+                                className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-primary text-[11px] disabled:opacity-50"
+                              >
+                                <option value="">Pilih Kelurahan/Desa</option>
+                                {villagesList.map((v) => (
+                                  <option key={v.id} value={v.name}>{v.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="col-span-1">
+                              <label className="block text-[8px] font-bold text-slate-400 uppercase mb-1">Kode Pos</label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="12345"
+                                value={shippingPostalCode}
+                                onChange={(e) => setShippingPostalCode(e.target.value)}
+                                className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-primary text-[11px] font-mono"
+                              />
+                            </div>
+                            
+                            <div className="col-span-2">
+                              <label className="block text-[8px] font-bold text-slate-400 uppercase mb-1">Detail Alamat (Jalan, Blok, No)</label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="Nama Jalan, Komplek, No. Rumah"
+                                value={shippingAddressDetail}
+                                onChange={(e) => setShippingAddressDetail(e.target.value)}
+                                className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-primary text-[11px]"
+                              />
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (shippingProvince && shippingRegency && shippingDistrict && shippingVillage && shippingAddressDetail) {
+                                const consolidated = `Alamat: ${shippingAddressDetail}, Kel: ${shippingVillage}, Kec: ${shippingDistrict}, Kota/Kab: ${shippingRegency}, Prov: ${shippingProvince}, Kode Pos: ${shippingPostalCode}`;
+                                setTempShippingAddress(consolidated);
+                                setIsEditingAddressMobile(false);
+                              } else {
+                                alert("Mohon lengkapi seluruh wilayah pengiriman.");
+                              }
+                            }}
+                            className="w-full py-2 bg-primary text-white font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-primary/95 transition-all mt-1"
+                          >
+                            Simpan &amp; Hubungkan Kurir
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-xs text-slate-700 leading-relaxed font-semibold">
+                          <p className="font-black text-slate-900 mb-0.5">{institution.name}</p>
+                          <p className="whitespace-pre-wrap text-[11px]">
+                            {tempShippingAddress || institution.address}
+                          </p>
+                          
+                          {shippingProvince && (
+                            <div className="mt-2 pt-2 border-t border-slate-200/60 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400 font-bold uppercase text-primary">
+                              <span>📍 {shippingDistrict}, {shippingRegency}</span>
+                              <span>📮 {shippingPostalCode}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </section>
+
+                    <section className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h2 className="font-heading font-black text-base text-on-surface">Item Pesanan ({cart.length})</h2>
                       <button 
                         onClick={() => setCart([])}
                         className="text-primary text-xs font-bold hover:underline border-none bg-transparent cursor-pointer"
@@ -1527,12 +1949,10 @@ export default function CustomerDashboardClient({
                                     return;
                                   }
                                   setIsCheckoutOpen(true);
-                                  setCheckoutError(null);
                                 }}
-                                className="w-full py-2 bg-transparent hover:bg-error-container/10 text-error border-none rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 active:scale-98 transition-transform cursor-pointer"
+                                className="w-full py-2 bg-error text-white text-xs font-bold rounded-xl active:scale-95 transition-transform cursor-pointer border-none"
                               >
-                                <span className="material-symbols-outlined text-[18px]">upload_file</span>
-                                Upload e-Sign SP
+                                Tanda Tangani Surat Pesanan
                               </button>
                             </div>
                           </div>
@@ -1542,62 +1962,55 @@ export default function CustomerDashboardClient({
                       return (
                         <div 
                           key={item.product.id}
-                          className="glass-card border border-surface-variant/50 rounded-2xl p-4 shadow-sm space-y-3 transition-shadow"
+                          className="bg-white border border-outline-variant/20 rounded-2xl p-4 shadow-2xs relative flex gap-4"
                         >
-                          <div className="flex gap-4">
-                            {/* Image container */}
-                            <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-50 flex-shrink-0 border border-outline-variant/10">
-                              <img 
-                                className="w-full h-full object-cover mix-blend-multiply opacity-90"
-                                src={item.product.imageUrl || "https://lh3.googleusercontent.com/aida-public/AB6AXuBVwwWGNG9klmFlTxE7qRJlM1a7CWQA41HcodSrxAo5yyi2kDDxkKfVY-ZKWSidodMppE_pXoP_mQCrcx9gRPdHjb967dBVWUoFL5AFRR5c_Jl2dQgOsaFvIFY5EDsB4KhW6Yp97g7uZJaWqjHlKz4J8OY4vHoN93-nWI0lZZOj7DhkS8ZaO6mCejJMLHI-yHbtaiqlkdO0f2skoMG2UQD7cf0ywd87rynYVJHts51V9wTivLcGooleoOrenqnrUzra16cONC2_49Y"} 
-                                alt={item.product.name}
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = "https://lh3.googleusercontent.com/aida-public/AB6AXuBVwwWGNG9klmFlTxE7qRJlM1a7CWQA41HcodSrxAo5yyi2kDDxkKfVY-ZKWSidodMppE_pXoP_mQCrcx9gRPdHjb967dBVWUoFL5AFRR5c_Jl2dQgOsaFvIFY5EDsB4KhW6Yp97g7uZJaWqjHlKz4J8OY4vHoN93-nWI0lZZOj7DhkS8ZaO6mCejJMLHI-yHbtaiqlkdO0f2skoMG2UQD7cf0ywd87rynYVJHts51V9wTivLcGooleoOrenqnrUzra16cONC2_49Y";
-                                }}
-                              />
+                          {/* Image container */}
+                          <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-50 flex-shrink-0 border border-outline-variant/10">
+                            <img 
+                              className="w-full h-full object-cover mix-blend-multiply opacity-90"
+                              src={item.product.imageUrl || "https://lh3.googleusercontent.com/aida-public/AB6AXuBVwwWGNG9klmFlTxE7qRJlM1a7CWQA41HcodSrxAo5yyi2kDDxkKfVY-ZKWSidodMppE_pXoP_mQCrcx9gRPdHjb967dBVWUoFL5AFRR5c_Jl2dQgOsaFvIFY5EDsB4KhW6Yp97g7uZJaWqjHlKz4J8OY4vHoN93-nWI0lZZOj7DhkS8ZaO6mCejJMLHI-yHbtaiqlkdO0f2skoMG2UQD7cf0ywd87rynYVJHts51V9wTivLcGooleoOrenqnrUzra16cONC2_49Y"} 
+                              alt={item.product.name}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = "https://lh3.googleusercontent.com/aida-public/AB6AXuBVwwWGNG9klmFlTxE7qRJlM1a7CWQA41HcodSrxAo5yyi2kDDxkKfVY-ZKWSidodMppE_pXoP_mQCrcx9gRPdHjb967dBVWUoFL5AFRR5c_Jl2dQgOsaFvIFY5EDsB4KhW6Yp97g7uZJaWqjHlKz4J8OY4vHoN93-nWI0lZZOj7DhkS8ZaO6mCejJMLHI-yHbtaiqlkdO0f2skoMG2UQD7cf0ywd87rynYVJHts51V9wTivLcGooleoOrenqnrUzra16cONC2_49Y";
+                              }}
+                            />
+                          </div>
+
+                          {/* Details */}
+                          <div className="flex-1 space-y-1.5">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h3 className="font-heading font-black text-xs leading-snug line-clamp-2 text-foreground">{item.product.name}</h3>
+                                <p className="text-[9px] text-outline font-semibold mt-0.5">Sediaan: {item.product.unit}</p>
+                              </div>
+                              <button 
+                                onClick={() => removeFromCart(item.product.id)}
+                                className="text-on-surface-variant hover:text-error transition-colors border-none bg-transparent cursor-pointer p-0"
+                              >
+                                <span className="material-symbols-outlined text-[20px]">delete</span>
+                              </button>
                             </div>
-
-                            {/* Details */}
-                            <div className="flex-1 space-y-1">
-                              <div className="flex justify-between items-start">
-                                <h3 className="font-heading font-black text-sm leading-snug line-clamp-1 text-foreground">{item.product.name}</h3>
-                                <button 
-                                  onClick={() => removeFromCart(item.product.id)}
-                                  className="text-on-surface-variant hover:text-error transition-colors border-none bg-transparent cursor-pointer p-0"
-                                >
-                                  <span className="material-symbols-outlined text-[20px]">delete</span>
-                                </button>
-                              </div>
-                              <p className="text-on-surface-variant text-xs font-bold">Satuan: {item.product.unit}</p>
+                            
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="font-black text-xs text-primary font-mono">
+                                Rp {item.product.price.toLocaleString("id-ID")}
+                              </span>
                               
-                              <div className="flex items-center gap-1.5 py-0.5">
-                                <span className={`w-1.5 h-1.5 rounded-full ${isOutOfStock ? "bg-error" : "bg-primary"}`}></span>
-                                <span className={`${isOutOfStock ? "text-error" : "text-primary"} text-xs font-bold`}>
-                                  Stok tersedia: {item.product.totalStock} Unit
-                                </span>
-                              </div>
-
-                              <div className="flex items-center justify-between pt-2">
-                                <span className="font-extrabold text-base text-primary font-mono">
-                                  Rp {item.product.price.toLocaleString("id-ID")}
-                                </span>
-                                
-                                {/* Quantity Selector */}
-                                <div className="flex items-center bg-surface-container-low rounded-full px-1 py-1 border border-outline-variant/30">
-                                  <button 
-                                    onClick={() => updateQty(item.product.id, item.quantity - 1)}
-                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white shadow-xs active:scale-90 transition-transform border-none cursor-pointer text-xs"
-                                  >
-                                    -
-                                  </button>
-                                  <span className="px-3 font-bold text-sm font-mono">{item.quantity.toString().padStart(2, '0')}</span>
-                                  <button 
-                                    onClick={() => updateQty(item.product.id, item.quantity + 1)}
-                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-primary text-white shadow-xs active:scale-90 transition-transform border-none cursor-pointer text-xs"
-                                  >
-                                    +
-                                  </button>
-                                </div>
+                              {/* Quantity Selector */}
+                              <div className="flex items-center bg-surface-container-low rounded-full px-1 py-1 border border-outline-variant/30">
+                                <button 
+                                  onClick={() => updateQty(item.product.id, item.quantity - 1)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white shadow-xs active:scale-90 transition-transform border-none cursor-pointer text-xs"
+                                >
+                                  -
+                                </button>
+                                <span className="px-3 font-bold text-sm font-mono">{item.quantity.toString().padStart(2, '0')}</span>
+                                <button 
+                                  onClick={() => updateQty(item.product.id, item.quantity + 1)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-full bg-primary text-white shadow-xs active:scale-90 transition-transform border-none cursor-pointer text-xs"
+                                >
+                                  +
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -1605,8 +2018,94 @@ export default function CustomerDashboardClient({
                       );
                     })}
 
+                    {/* Kurir Pengiriman */}
+                    <section className="bg-white p-4 rounded-2xl border border-outline-variant/20 shadow-2xs space-y-3 font-sans">
+                      <h3 className="font-heading font-black text-xs text-on-surface flex items-center gap-1.5 uppercase tracking-wider">
+                        <span className="material-symbols-outlined text-primary text-base">local_shipping</span>
+                        Metode Pengiriman / Kurir
+                      </h3>
+                      
+                      <div>
+                        {isLoadingRates ? (
+                          <div className="flex flex-col items-center justify-center py-6 space-y-1.5 bg-slate-50 rounded-xl border border-slate-100">
+                            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                            <span className="text-[10px] text-slate-400 font-bold">Mengambil tarif kurir real-time...</span>
+                          </div>
+                        ) : biteshipRates.length === 0 ? (
+                          <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-center text-slate-400 text-[10px] font-semibold">
+                            {ratesError || "Silakan pilih alamat/wilayah di atas untuk memanggil kurir real-time."}
+                          </div>
+                        ) : (
+                          <div 
+                            onClick={() => setIsCourierSelectorOpenMobile(true)}
+                            className="p-3.5 rounded-xl border border-primary/20 bg-primary-container/5 hover:bg-primary-container/10 flex items-center justify-between gap-3 cursor-pointer transition-all active:scale-98"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center font-extrabold text-[9px] text-slate-500 uppercase border border-slate-200 shrink-0">
+                                {selectedRate ? selectedRate.courier_code : "LOG"}
+                              </div>
+                              <div className="text-left">
+                                <span className="text-xs font-bold text-slate-900 block">
+                                  {selectedRate ? `${selectedRate.courier_name.toUpperCase()} - ${selectedRate.courier_service_name}` : "Pilih Kurir Ekspedisi"}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-semibold block mt-0.5">
+                                  {selectedRate ? `Estimasi tiba: ${selectedRate.duration || `${selectedRate.shipment_duration} hari`}` : "Ketuk untuk melihat ekspedisi tersedia"}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-xs font-extrabold text-primary font-mono">
+                                {selectedRate ? `Rp ${selectedRate.price.toLocaleString("id-ID")}` : "-"}
+                              </span>
+                              <span className="material-symbols-outlined text-primary text-base font-bold">chevron_right</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </section>
+                    <section className="bg-white p-4 rounded-2xl border border-outline-variant/20 shadow-2xs space-y-3 font-sans">
+                      <h3 className="font-heading font-black text-xs text-on-surface flex items-center gap-1.5 uppercase tracking-wider">
+                        <span className="material-symbols-outlined text-primary text-base">draw</span>
+                        e-Sign Surat Pesanan (SP)
+                      </h3>
+                      
+                      <div>
+                        {hasSigned && signatureDataUrl ? (
+                          <div 
+                            onClick={() => setIsDrawingModalOpen(true)}
+                            className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/55 hover:bg-emerald-50 flex items-center justify-between gap-3 cursor-pointer transition-all active:scale-98"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span className="material-symbols-outlined text-emerald-600 text-lg">check_circle</span>
+                              <div className="text-left">
+                                <span className="text-xs font-bold text-emerald-900 block">Surat Pesanan Ditandatangani</span>
+                                <span className="text-[9px] text-emerald-600 font-semibold block mt-0.5">Ketuk untuk meninjau / ubah tanda tangan</span>
+                              </div>
+                            </div>
+                            <div className="w-12 h-8 border border-emerald-100 bg-white rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+                              <img src={signatureDataUrl} alt="E-Sign Preview" className="max-h-full max-w-full object-contain" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div 
+                            onClick={() => setIsDrawingModalOpen(true)}
+                            className="p-3.5 rounded-xl border border-rose-100 bg-rose-50/30 hover:bg-rose-50/60 flex items-center justify-between gap-3 cursor-pointer transition-all active:scale-98"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span className="material-symbols-outlined text-rose-500 text-lg animate-pulse">draw</span>
+                              <div className="text-left">
+                                <span className="text-xs font-bold text-rose-900 block">Tanda Tangan Surat Pesanan (SP)</span>
+                                <span className="text-[9px] text-rose-500 font-semibold block mt-0.5">Dibutuhkan e-Sign basah secara digital</span>
+                              </div>
+                            </div>
+                            <span className="material-symbols-outlined text-rose-400 text-base font-bold">chevron_right</span>
+                          </div>
+                        )}
+                      </div>
+                    </section>
+
                     {/* 3. Price Summary */}
-                    <section className="bg-surface-container-low rounded-2xl p-5 space-y-4 border border-outline-variant/10">
+                    <section className="bg-surface-container-low rounded-2xl p-5 space-y-4 border border-outline-variant/10 font-sans">
                       <h3 className="font-heading font-black text-base text-on-surface">Ringkasan Harga</h3>
                       <div className="space-y-2.5 text-sm font-bold">
                         <div className="flex justify-between text-on-surface-variant">
@@ -1619,60 +2118,81 @@ export default function CustomerDashboardClient({
                         </div>
                         <div className="flex justify-between text-on-surface-variant">
                           <span>Biaya Pengiriman</span>
-                          <span className="text-primary font-black">{cartTotal > 500000 ? "Gratis" : "Rp 50.000"}</span>
+                          <span className="text-primary font-black">Rp {shippingFeeMobile.toLocaleString("id-ID")}</span>
                         </div>
                         <hr className="border-outline-variant/20 my-2.5"/>
                         <div className="flex justify-between text-on-surface">
                           <span className="font-heading font-black text-sm">Total Estimasi</span>
                           <span className="font-extrabold text-lg text-primary font-mono">
-                            Rp {(cartTotal + Math.round(cartTotal * 0.11) + (cartTotal > 500000 ? 0 : 50000)).toLocaleString("id-ID")}
+                            Rp {(cartTotal + Math.round(cartTotal * 0.11) + shippingFeeMobile).toLocaleString("id-ID")}
                           </span>
                         </div>
                       </div>
                     </section>
 
                     {/* 4. Compliance Check Detail */}
-                    <div className="flex items-start gap-2.5 p-4 bg-surface-container-highest rounded-2xl border border-outline-variant/10">
+                    <div className="flex items-start gap-2.5 p-4 bg-surface-container-highest rounded-2xl border border-outline-variant/10 font-sans">
                       <span className="material-symbols-outlined text-outline text-[18px]">info</span>
                       <p className="text-xs font-bold text-on-surface-variant leading-relaxed">
                         Harga di atas merupakan estimasi awal. Harga final akan menyesuaikan dengan kebijakan diskon batch dan ketersediaan stok fisik di gudang cabang terdekat.
                       </p>
                     </div>
                   </section>
-                )}
 
-                {/* 5. Sticky Bottom Checkout Area */}
-                <div className="fixed bottom-16 left-0 right-0 z-45 bg-white/95 backdrop-blur-md border-t border-outline-variant/20 shadow-2xl h-20 px-4 flex flex-col justify-center">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex flex-col">
-                      <span className="text-on-surface-variant text-xs font-bold">Total Pembayaran</span>
-                      <span className="font-black text-lg text-on-surface font-mono">
-                        Rp {(cartTotal + Math.round(cartTotal * 0.11) + (cartTotal > 500000 ? 0 : 50000)).toLocaleString("id-ID")}
-                      </span>
+                  {/* 5. Bottom Checkout Area */}
+                  <div className="bg-white p-5 rounded-2xl border border-outline-variant/20 shadow-2xs mt-4 font-sans">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex flex-col">
+                        <span className="text-on-surface-variant text-xs font-bold">Total Pembayaran</span>
+                        <span className="font-black text-lg text-on-surface font-mono">
+                          Rp {(cartTotal + Math.round(cartTotal * 0.11) + shippingFeeMobile).toLocaleString("id-ID")}
+                        </span>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          if (!isProfileComplete) {
+                            alert("Pemesanan diblokir. Harap lengkapi profil Mitra (KTP Pemilik, NPWP Pemilik, SIA, dan SIPA) terlebih dahulu di menu Pengaturan > Profil Apotek.");
+                            setActiveTab("pengaturan");
+                            return;
+                          }
+                          if (cart.length === 0) return;
+                          
+                          if (!shippingProvince) {
+                            alert("Silakan lengkapi regional alamat pengiriman dan pilih kurir pengiriman terlebih dahulu.");
+                            setIsEditingAddressMobile(true);
+                            return;
+                          }
+
+                          if (!hasSigned) {
+                            alert("Silakan bubuhkan tanda tangan Surat Pesanan (SP) terlebih dahulu di kolom e-Sign SP di atas.");
+                            setIsDrawingModalOpen(true);
+                            return;
+                          }
+
+                          // Save the consolidated address with selected courier info
+                          const courierString = selectedRate
+                            ? ` | Kurir: ${selectedRate.courier_name.toUpperCase()} ${selectedRate.courier_service_name} (${selectedRate.shipment_duration} hari) - Rp ${selectedRate.price.toLocaleString("id-ID")}`
+                            : " | Kurir: Standard Flat Rate";
+                          const finalAddress = `Alamat: ${shippingAddressDetail}, Kel/Desa: ${shippingVillage}, Kec: ${shippingDistrict}, Kab/Kota: ${shippingRegency}, Provinsi: ${shippingProvince}, Kode Pos: ${shippingPostalCode}${courierString}`;
+                          setTempShippingAddress(finalAddress);
+
+                          // Execute order checkout directly
+                          executeCheckout(finalAddress);
+                        }}
+                        disabled={isSubmittingOrder || cart.length === 0}
+                        className={`bg-primary text-white font-heading font-black text-sm px-8 py-3.5 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center gap-1.5 border-none cursor-pointer ${
+                          cart.length === 0 ? "opacity-50 cursor-not-allowed shadow-none" : ""
+                        }`}
+                      >
+                        <span>{isSubmittingOrder ? "Memproses..." : "Checkout & Kirim SP"}</span>
+                        <span className="material-symbols-outlined text-base">arrow_forward</span>
+                      </button>
                     </div>
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        if (!isProfileComplete) {
-                          alert("Pemesanan diblokir. Harap lengkapi profil Mitra (KTP Pemilik, NPWP Pemilik, SIA, dan SIPA) terlebih dahulu di menu Pengaturan > Profil Apotek.");
-                          setActiveTab("pengaturan");
-                          return;
-                        }
-                        if (cart.length === 0) return;
-                        setIsCheckoutOpen(true);
-                        setCheckoutError(null);
-                      }}
-                      disabled={cart.length === 0}
-                      className={`bg-primary text-white font-heading font-black text-sm px-8 py-3.5 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center gap-1.5 border-none cursor-pointer ${
-                        cart.length === 0 ? "opacity-50 cursor-not-allowed shadow-none" : ""
-                      }`}
-                    >
-                      <span>Checkout</span>
-                      <span className="material-symbols-outlined text-base">arrow_forward</span>
-                    </button>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
+            </div>
 
             </div>
           )}
@@ -2472,31 +2992,7 @@ export default function CustomerDashboardClient({
         </div>
       )}
 
-      {/* MOBILE FLOATING STICKY CART BAR (Tampil saat belanja & keranjang terisi) */}
-      {activeTab === "belanja" && cart.length > 0 && !isCheckoutOpen && !viewingDetailOrder && (
-        <div className="md:hidden fixed bottom-16 left-3 right-3 z-30 bg-slate-900 text-white rounded-2xl p-3 shadow-xl flex items-center justify-between animate-in slide-in-from-bottom duration-200 font-sans">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/20 text-primary rounded-xl flex items-center justify-center font-bold text-sm relative">
-              <ShoppingCart className="w-5 h-5 text-white" />
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">
-                {cartItemCount}
-              </span>
-            </div>
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{cartItemCount} Obat Terpilih</p>
-              <p className="font-mono font-extrabold text-sm text-white">Rp {cartTotal.toLocaleString("id-ID")}</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => handleSwitchTab("keranjang")}
-            className="px-4 py-2 bg-primary hover:bg-primary/95 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1 cursor-pointer border-none"
-          >
-            <span>Lanjut Ke SP</span>
-            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-          </button>
-        </div>
-      )}
+      {/* MOBILE FLOATING STICKY CART BAR dihapus sesuai instruksi agar katalog mobile bersih */}
 
       {/* MOBILE BOTTOM NAVIGATION BAR (DOCK APP 5 TAB) */}
       {!isCheckoutOpen && !viewingDetailOrder && (
@@ -2655,6 +3151,78 @@ export default function CustomerDashboardClient({
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Full Screen Courier Selector Overlay */}
+      {isCourierSelectorOpenMobile && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex flex-col justify-end md:hidden font-sans">
+          <div className="bg-white rounded-t-3xl w-full max-h-[85vh] flex flex-col animate-slideUp">
+            
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-xl font-bold">local_shipping</span>
+                <span className="font-heading font-black text-sm text-slate-900">Pilih Kurir / Ekspedisi</span>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsCourierSelectorOpenMobile(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-full transition-colors border-none bg-transparent cursor-pointer flex items-center justify-center"
+              >
+                <span className="material-symbols-outlined text-slate-500 text-lg">close</span>
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="p-5 overflow-y-auto space-y-3 flex-1">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Kurir Tersedia untuk Wilayah Anda:</p>
+              
+              {biteshipRates.map((rate, i) => {
+                const isSelected = selectedRate?.courier_code === rate.courier_code && selectedRate?.courier_service_code === rate.courier_service_code;
+                return (
+                  <div
+                    key={i}
+                    onClick={() => {
+                      setSelectedRate(rate);
+                      setShippingFeeMobile(rate.price);
+                      setIsCourierSelectorOpenMobile(false);
+                    }}
+                    className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                      isSelected
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-slate-100 bg-white hover:bg-slate-50 text-slate-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center font-extrabold text-[10px] text-slate-500 uppercase border border-slate-100 shrink-0">
+                        {rate.courier_code}
+                      </div>
+                      <div className="text-left">
+                        <span className="text-xs font-bold block">
+                          {rate.courier_name.toUpperCase()} - {rate.courier_service_name}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-semibold block mt-0.5">
+                          Estimasi tiba: {rate.duration || `${rate.shipment_duration} hari`}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black font-mono">
+                        Rp {rate.price.toLocaleString("id-ID")}
+                      </span>
+                      {isSelected && (
+                        <span className="material-symbols-outlined text-primary text-sm font-bold">check_circle</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Bottom Safe Area spacing */}
+            <div className="h-6 shrink-0 bg-white"></div>
           </div>
         </div>
       )}

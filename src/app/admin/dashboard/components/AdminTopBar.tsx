@@ -25,7 +25,7 @@ export default function AdminTopBar({ adminName, pendingPartnersCount, setActive
           />
         </div>
       </div>
-      
+
       <div className="flex items-center gap-4 relative">
         {/* Notification Bell Button */}
         <div className="relative">
@@ -90,9 +90,9 @@ export default function AdminTopBar({ adminName, pendingPartnersCount, setActive
         >
           <History className="w-4.5 h-4.5" />
         </button>
-        
+
         <div className="h-8 w-px bg-outline-variant/30 mx-2"></div>
-        
+
         <div className="flex items-center gap-3 pl-2">
           <div className="text-right hidden sm:block">
             <p className="text-xs font-extrabold text-foreground leading-none">{adminName}</p>

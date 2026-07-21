@@ -1,38 +1,38 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Trash2, Calendar, Search, Edit2, AlertCircle, Eye, ShieldAlert } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Search, Plus, Edit2, Trash2, LayoutGrid, List } from "lucide-react";
 
-interface Batch {
+export interface Batch {
   id: string;
   batchNumber: string;
-  expiryDate: Date;
+  expiryDate: string | Date;
   stock: number;
 }
 
-interface Product {
+export interface Product {
   id: string;
   name: string;
   code: string;
   activeIngredient: string;
   price: number;
   category: string;
-  description: string | null;
+  description?: string | null;
   unit: string;
   manufacturer: string;
-  imageUrl: string | null;
-  batches: Batch[];
+  imageUrl?: string | null;
   totalStock: number;
+  batches?: Batch[];
 }
 
 interface InventoryTabProps {
-  products: Product[];
+  products: any[];
   today: Date;
-  setIsAddingProduct: (val: boolean) => void;
-  setSelectedProductForBatch: (product: Product | null) => void;
-  handleDeleteProduct: (productId: string) => void;
-  handleDeleteBatch: (batchId: string) => void;
-  onEditProduct: (product: Product) => void;
+  setIsAddingProduct: (b: boolean) => void;
+  setSelectedProductForBatch: (p: any) => void;
+  handleDeleteProduct: (id: string) => void;
+  handleDeleteBatch: (id: string) => void;
+  onEditProduct: (p: any) => void;
 }
 
 export default function InventoryTab({
@@ -47,77 +47,81 @@ export default function InventoryTab({
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Semua Kategori");
   const [expiryFilter, setExpiryFilter] = useState("Range Kadaluwarsa");
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
 
-  // Flatten products and batches into individual table rows
-  const tableRows: {
-    product: Product;
-    batch: Batch | null;
-    isFEFO: boolean; // Mark the batch with the earliest expiry for this product
-  }[] = [];
+  // Flatten products and batches into table rows (1 row = 1 product batch or product with no batch)
+  const flattenedData = useMemo(() => {
+    const tableRows: { product: Product; batch: Batch | null; isFEFO: boolean }[] = [];
 
-  products.forEach((product) => {
-    if (product.batches.length === 0) {
-      tableRows.push({ product, batch: null, isFEFO: false });
-    } else {
-      // Find the earliest expiry date batch for FEFO highlighting
-      const sortedBatches = [...product.batches].sort(
-        (a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime()
-      );
-      const earliestBatchId = sortedBatches[0]?.id;
+    products.forEach((product) => {
+      if (!product.batches || product.batches.length === 0) {
+        tableRows.push({ product, batch: null, isFEFO: false });
+      } else {
+        // Find the earliest expiry date batch for FEFO highlighting
+        let earliestBatchId: string | null = null;
+        let earliestDate: number = Infinity;
 
-      product.batches.forEach((batch) => {
-        tableRows.push({
-          product,
-          batch,
-          isFEFO: batch.id === earliestBatchId && batch.stock > 0,
+        product.batches.forEach((b: any) => {
+          if (b.stock > 0) {
+            const time = new Date(b.expiryDate).getTime();
+            if (time < earliestDate) {
+              earliestDate = time;
+              earliestBatchId = b.id;
+            }
+          }
         });
-      });
-    }
-  });
 
-  // Calculate KPIs
+        product.batches.forEach((batch: any) => {
+          tableRows.push({
+            product,
+            batch,
+            isFEFO: batch.id === earliestBatchId && batch.stock > 0,
+          });
+        });
+      }
+    });
+
+    return tableRows;
+  }, [products]);
+
+  // Statistics calculation
   const totalSKU = products.length;
-  
   let criticalStockCount = 0;
   let soonExpiredCount = 0;
   let expiredCount = 0;
 
-  products.forEach((p) => {
-    p.batches.forEach((b) => {
-      if (b.stock < 100) criticalStockCount++;
-      
-      const expiry = new Date(b.expiryDate);
+  flattenedData.forEach(({ batch }) => {
+    if (batch) {
+      if (batch.stock < 100 && batch.stock > 0) criticalStockCount++;
+      const expiry = new Date(batch.expiryDate);
       const diffTime = expiry.getTime() - today.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays <= 0) {
-        expiredCount++;
-      } else if (diffDays <= 90) {
-        soonExpiredCount++;
-      }
-    });
+      if (diffDays <= 0) expiredCount++;
+      else if (diffDays <= 90) soonExpiredCount++;
+    }
   });
 
-  // Apply search and dropdown filters
-  const filteredRows = tableRows.filter(({ product, batch }) => {
-    // 1. Search Query filter
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (product.manufacturer && product.manufacturer.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (batch && batch.batchNumber.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    if (!matchesSearch) return false;
-
-    // 2. Kategori filter
-    if (categoryFilter !== "Semua Kategori") {
-      const catLower = categoryFilter.toLowerCase();
-      const prodCatLower = product.category.toLowerCase();
-      // Partial match for categories like "Obat Bebas" vs "Bebas"
-      if (!prodCatLower.includes(catLower) && !catLower.includes(prodCatLower)) return false;
+  // Filtered rows
+  const filteredRows = flattenedData.filter(({ product, batch }) => {
+    // 1. Search Query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchName = product.name.toLowerCase().includes(q);
+      const matchCode = product.code.toLowerCase().includes(q);
+      const matchBatch = batch ? batch.batchNumber.toLowerCase().includes(q) : false;
+      const matchMfg = product.manufacturer.toLowerCase().includes(q);
+      const matchActive = product.activeIngredient.toLowerCase().includes(q);
+      if (!matchName && !matchCode && !matchBatch && !matchMfg && !matchActive) return false;
     }
 
-    // 3. Expiry Range filter
+    // 2. Category Filter
+    if (categoryFilter !== "Semua Kategori") {
+      const catLower = product.category.toLowerCase();
+      const targetLower = categoryFilter.toLowerCase();
+      if (!catLower.includes(targetLower)) return false;
+    }
+
+    // 3. Expiry Range Filter
     if (expiryFilter !== "Range Kadaluwarsa") {
       if (!batch) return false;
       const expiry = new Date(batch.expiryDate);
@@ -132,326 +136,531 @@ export default function InventoryTab({
   });
 
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <div className="space-y-8 animate-fadeIn font-sans">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-heading font-extrabold text-on-surface">Manajemen Produk &amp; Inventaris (FEFO)</h2>
-          <p className="text-xs text-on-surface-variant max-w-2xl mt-1">
-            Kelola SKU obat, nomor batch, dan pantau masa kedaluwarsa sesuai standar CDOB (Cara Distribusi Obat yang Baik).
+      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
+        <div className="space-y-2 relative z-10">
+          <div className="flex items-center gap-2">
+            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] font-extrabold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-2xs">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+              CDOB &amp; FEFO Synchronized Live
+            </span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-heading font-extrabold text-slate-900 tracking-tight">
+            Manajemen Produk &amp; Inventaris <span className="text-emerald-700 font-mono">(FEFO)</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-2xl leading-relaxed">
+            Kelola SKU obat, nomor batch, dan pantau masa kedaluwarsa secara otomatis sesuai kepatuhan standar <strong className="text-slate-800 font-semibold">CDOB (Cara Distribusi Obat yang Baik) BPOM RI</strong>.
           </p>
         </div>
+
         <button
+          type="button"
           onClick={() => setIsAddingProduct(true)}
-          className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg active:scale-95 transition-all text-xs cursor-pointer"
+          className="inline-flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2.5 rounded-xl font-extrabold text-xs shadow-xs hover:shadow-md active:scale-95 transition-all duration-200 cursor-pointer shrink-0 border border-emerald-800/30 relative z-10"
         >
           <span className="material-symbols-outlined text-[18px]">add_circle</span>
           <span>Tambah Produk Baru</span>
         </button>
+
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-emerald-50/40 to-transparent pointer-events-none" />
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total SKU */}
-        <div className="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/20 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-          <div className="relative z-10">
-            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Total SKU Aktif</p>
-            <h3 className="text-3xl font-heading font-extrabold text-primary mt-2 font-mono">{totalSKU}</h3>
-            <div className="flex items-center gap-1 mt-2 text-primary font-bold text-[10px]">
-              <span className="material-symbols-outlined text-xs">trending_up</span>
-              <span>Aktif di Katalog</span>
+        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-500/30 transition-all duration-300 relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Total SKU Aktif</span>
+            <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200/60 flex items-center justify-center">
+              <span className="material-symbols-outlined text-lg">inventory_2</span>
             </div>
           </div>
-          <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <span className="material-symbols-outlined text-[100px]">inventory</span>
+          <div className="mt-3">
+            <h3 className="text-3xl font-heading font-black text-slate-900 font-mono tracking-tight">{totalSKU}</h3>
+            <p className="text-[11px] font-bold text-emerald-700 flex items-center gap-1 mt-1">
+              <span className="material-symbols-outlined text-xs">verified</span>
+              <span>Aktif di Katalog Mitra</span>
+            </p>
           </div>
+          <div className="absolute -right-2 -bottom-2 w-16 h-16 bg-emerald-50 rounded-full opacity-40 group-hover:scale-125 transition-transform duration-500 pointer-events-none" />
         </div>
 
         {/* Stok Kritis */}
-        <div className="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/20 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-          <div className="relative z-10">
-            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Stok Kritis (Batch)</p>
-            <h3 className="text-3xl font-heading font-extrabold text-secondary mt-2 font-mono">{criticalStockCount}</h3>
-            <div className="flex items-center gap-1 mt-2 text-secondary font-bold text-[10px]">
-              <span className="material-symbols-outlined text-xs">warning</span>
-              <span>Stock &lt; 100 Unit</span>
+        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md hover:border-amber-500/30 transition-all duration-300 relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Stok Kritis (&lt;100 Unit)</span>
+            <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-700 border border-amber-200/60 flex items-center justify-center">
+              <span className="material-symbols-outlined text-lg">warning</span>
             </div>
           </div>
-          <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <span className="material-symbols-outlined text-[100px]">report_problem</span>
+          <div className="mt-3">
+            <h3 className="text-3xl font-heading font-black text-amber-600 font-mono tracking-tight">{criticalStockCount}</h3>
+            <p className="text-[11px] font-bold text-amber-600 flex items-center gap-1 mt-1">
+              <span className="material-symbols-outlined text-xs">production_quantity_limits</span>
+              <span>Perlu Refill Stok Batch</span>
+            </p>
           </div>
+          <div className="absolute -right-2 -bottom-2 w-16 h-16 bg-amber-50 rounded-full opacity-40 group-hover:scale-125 transition-transform duration-500 pointer-events-none" />
         </div>
 
         {/* Mendekati Kadaluwarsa */}
-        <div className="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/20 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-          <div className="relative z-10">
-            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Mendekati Kadaluwarsa</p>
-            <h3 className="text-3xl font-heading font-extrabold text-amber-500 mt-2 font-mono">{soonExpiredCount}</h3>
-            <div className="flex items-center gap-1 mt-2 text-amber-500 font-bold text-[10px]">
-              <span className="material-symbols-outlined text-xs">event_busy</span>
-              <span>&lt; 3 Bulan sisa</span>
+        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md hover:border-purple-500/30 transition-all duration-300 relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Mendekati Expired</span>
+            <div className="w-9 h-9 rounded-2xl bg-purple-50 text-purple-700 border border-purple-200/60 flex items-center justify-center">
+              <span className="material-symbols-outlined text-lg">hourglass_bottom</span>
             </div>
           </div>
-          <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <span className="material-symbols-outlined text-[100px]">schedule</span>
+          <div className="mt-3">
+            <h3 className="text-3xl font-heading font-black text-purple-700 font-mono tracking-tight">{soonExpiredCount}</h3>
+            <p className="text-[11px] font-bold text-purple-700 flex items-center gap-1 mt-1">
+              <span className="material-symbols-outlined text-xs">schedule</span>
+              <span>&lt; 3 Bulan (Priority FEFO)</span>
+            </p>
           </div>
+          <div className="absolute -right-2 -bottom-2 w-16 h-16 bg-purple-50 rounded-full opacity-40 group-hover:scale-125 transition-transform duration-500 pointer-events-none" />
         </div>
 
         {/* Urgent Kadaluwarsa */}
-        <div className="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/20 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-          <div className="relative z-10">
-            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Batch Kadaluwarsa</p>
-            <h3 className="text-3xl font-heading font-extrabold text-error mt-2 font-mono">{expiredCount}</h3>
-            <div className="flex items-center gap-1 mt-2 text-error font-bold text-[10px]">
-              <span className="material-symbols-outlined text-xs">dangerous</span>
-              <span>Tindakan segera diperlukan</span>
+        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md hover:border-rose-500/30 transition-all duration-300 relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Batch Kadaluwarsa</span>
+            <div className="w-9 h-9 rounded-2xl bg-rose-50 text-rose-700 border border-rose-200/60 flex items-center justify-center">
+              <span className="material-symbols-outlined text-lg">dangerous</span>
             </div>
           </div>
-          <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <span className="material-symbols-outlined text-[100px]">error</span>
+          <div className="mt-3">
+            <h3 className="text-3xl font-heading font-black text-rose-600 font-mono tracking-tight">{expiredCount}</h3>
+            <p className="text-[11px] font-bold text-rose-600 flex items-center gap-1 mt-1">
+              <span className="material-symbols-outlined text-xs">block</span>
+              <span>Karantina Obat Segera</span>
+            </p>
           </div>
+          <div className="absolute -right-2 -bottom-2 w-16 h-16 bg-rose-50 rounded-full opacity-40 group-hover:scale-125 transition-transform duration-500 pointer-events-none" />
         </div>
       </div>
 
-      {/* Main Table Section */}
-      <div className="bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant/20 overflow-hidden">
-        {/* Table Filters */}
-        <div className="p-4 border-b border-outline-variant/20 flex flex-wrap items-center justify-between gap-4 bg-surface-container-low/30">
-          <div className="flex flex-1 items-center gap-3 min-w-0">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/70 w-4 h-4" />
+      {/* Main Table & Bento Section */}
+      <div className="bg-white rounded-3xl shadow-xs border border-slate-200/80 overflow-hidden">
+        
+        {/* Control Bar: Search & Filters */}
+        <div className="p-4 sm:p-5 border-b border-slate-150 flex flex-wrap items-center justify-between gap-4 bg-slate-50/50">
+          <div className="flex flex-1 items-center gap-3 min-w-0 flex-wrap">
+            <div className="relative flex-1 min-w-[240px] max-w-md">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-surface-container-low border-none rounded-xl text-xs focus:ring-2 focus:ring-primary/20 transition-all outline-none text-foreground"
-                placeholder="Cari SKU, Nama Produk, atau Batch..."
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200/90 rounded-2xl text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none text-slate-800 placeholder:text-slate-400 font-medium shadow-2xs"
+                placeholder="Cari SKU, Nama Obat, Batch, Zat Aktif, atau Pabrik..."
                 type="text"
               />
             </div>
+
             <div className="flex items-center gap-2">
-              <div className="relative">
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="appearance-none bg-surface-container-low border-none rounded-xl px-3 py-2 pr-8 text-xs font-bold text-on-surface-variant focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer"
-                >
-                  <option value="Semua Kategori">Semua Kategori</option>
-                  <option value="Bebas">Obat Bebas</option>
-                  <option value="Keras">Obat Keras</option>
-                  <option value="Psikotropika">Psikotropika</option>
-                </select>
-              </div>
-              <div className="relative">
-                <select
-                  value={expiryFilter}
-                  onChange={(e) => setExpiryFilter(e.target.value)}
-                  className="appearance-none bg-surface-container-low border-none rounded-xl px-3 py-2 pr-8 text-xs font-bold text-on-surface-variant focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer"
-                >
-                  <option value="Range Kadaluwarsa">Range Kadaluwarsa</option>
-                  <option value="Sudah Kadaluwarsa">Sudah Kadaluwarsa</option>
-                  <option value="< 3 Bulan">&lt; 3 Bulan</option>
-                </select>
-              </div>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="bg-white border border-slate-200/90 rounded-2xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer shadow-2xs"
+              >
+                <option value="Semua Kategori">Semua Kategori Obat</option>
+                <option value="Bebas">Obat Bebas (W)</option>
+                <option value="Keras">Obat Keras (G)</option>
+                <option value="Psikotropika">Psikotropika</option>
+                <option value="Cold Chain">Cold Chain</option>
+              </select>
+
+              <select
+                value={expiryFilter}
+                onChange={(e) => setExpiryFilter(e.target.value)}
+                className="bg-white border border-slate-200/90 rounded-2xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer shadow-2xs"
+              >
+                <option value="Range Kadaluwarsa">Semua Expired Date</option>
+                <option value="Sudah Kadaluwarsa">🔴 Sudah Kadaluwarsa</option>
+                <option value="< 3 Bulan">⏰ &lt; 3 Bulan (Priority)</option>
+              </select>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            <button 
-              onClick={() => alert("Membuka penyaringan lanjutan...")}
-              className="flex items-center gap-1.5 px-3 py-2 bg-surface-container-low text-on-surface-variant hover:bg-surface-variant/50 rounded-xl transition-colors cursor-pointer font-bold"
-            >
-              <span className="material-symbols-outlined text-[16px]">filter_list</span>
-              <span>Filter</span>
-            </button>
-            <div className="w-[1px] h-6 bg-outline-variant/20 mx-1"></div>
-            <button 
-              onClick={() => alert("Mengunduh laporan stok dalam format Excel...")}
-              className="p-2 text-on-surface-variant hover:bg-surface-variant/50 rounded-xl transition-colors cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">download</span>
-            </button>
+
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-bold text-slate-500 hidden sm:inline-block">
+              <strong className="text-slate-900 font-extrabold">{filteredRows.length}</strong> Baris Sediaan
+            </span>
+
+            {/* View Switcher Segmented Button */}
+            <div className="flex items-center bg-slate-200/60 p-1 rounded-2xl border border-slate-200/80">
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border-none ${
+                  viewMode === "grid" 
+                    ? "bg-white text-emerald-800 shadow-xs" 
+                    : "text-slate-600 hover:text-slate-900 bg-transparent"
+                }`}
+                title="Tampilan Kartu Bento"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Bento</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("table")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border-none ${
+                  viewMode === "table" 
+                    ? "bg-white text-emerald-800 shadow-xs" 
+                    : "text-slate-600 hover:text-slate-900 bg-transparent"
+                }`}
+                title="Tampilan Tabel Data"
+              >
+                <List className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Tabel</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Data Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-surface-container-low/50 text-on-surface-variant border-b border-outline-variant/20 font-bold">
-                <th className="px-6 py-4">Produk &amp; SKU</th>
-                <th className="px-6 py-4 text-center">Kategori</th>
-                <th className="px-6 py-4">No. Batch</th>
-                <th className="px-6 py-4">Exp. Date</th>
-                <th className="px-6 py-4">Sisa Stok</th>
-                <th className="px-6 py-4">Satuan</th>
-                <th className="px-6 py-4">Harga</th>
-                <th className="px-6 py-4 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant/10 text-on-surface">
-              {filteredRows.map(({ product, batch, isFEFO }) => {
-                let isExpired = false;
-                let isSoonExpired = false;
-                let diffDays = 999;
+        {/* Content View: Bento Grid or Data Table */}
+        {viewMode === "grid" ? (
+          /* Bento Cards Grid View */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 p-6 bg-slate-50/50">
+            {filteredRows.map(({ product, batch, isFEFO }) => {
+              let isExpired = false;
+              let isSoonExpired = false;
+              let diffDays = 999;
 
-                if (batch) {
-                  const expiry = new Date(batch.expiryDate);
-                  const diffTime = expiry.getTime() - today.getTime();
-                  diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                  isExpired = diffDays <= 0;
-                  isSoonExpired = !isExpired && diffDays <= 90;
-                }
+              if (batch) {
+                const expiry = new Date(batch.expiryDate);
+                const diffTime = expiry.getTime() - today.getTime();
+                diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                isExpired = diffDays <= 0;
+                isSoonExpired = !isExpired && diffDays <= 90;
+              }
 
-                // Determine category color badge
-                let catBadgeClass = "bg-emerald-50 text-primary border border-emerald-200";
-                if (product.category.includes("Keras")) {
-                  catBadgeClass = "bg-orange-50 text-orange-700 border border-orange-200";
-                } else if (product.category.includes("Psikotropika")) {
-                  catBadgeClass = "bg-blue-50 text-blue-700 border border-blue-200";
-                }
+              let catBadgeClass = "bg-emerald-50 text-emerald-800 border-emerald-200/80";
+              if (product.category.includes("Keras")) {
+                catBadgeClass = "bg-rose-50 text-rose-800 border-rose-200/80";
+              } else if (product.category.includes("Psikotropika")) {
+                catBadgeClass = "bg-purple-50 text-purple-800 border-purple-200/80";
+              } else if (product.category.includes("Cold Chain")) {
+                catBadgeClass = "bg-cyan-50 text-cyan-800 border-cyan-200/80";
+              }
 
-                return (
-                  <tr 
-                    key={batch ? batch.id : `no-batch-${product.id}`} 
-                    className={`hover:bg-primary/5 transition-colors group relative ${isFEFO ? "bg-primary/5 font-medium" : ""}`}
-                  >
-                    <td className="px-6 py-4">
+              return (
+                <div 
+                  key={batch ? batch.id : `grid-${product.id}`} 
+                  className={`bg-white rounded-3xl border transition-all duration-300 flex flex-col justify-between space-y-4 group relative overflow-hidden ${
+                    isFEFO 
+                      ? "border-emerald-500/50 shadow-md shadow-emerald-600/5 hover:border-emerald-500" 
+                      : "border-slate-200/80 shadow-2xs hover:shadow-lg hover:border-slate-300"
+                  }`}
+                >
+                  {/* FEFO Priority Badge Banner */}
+                  {isFEFO && (
+                    <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white text-[9px] font-extrabold uppercase tracking-wider py-1.5 px-4 flex items-center justify-between shadow-2xs">
+                      <span className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[14px] text-emerald-200">bolt</span>
+                        FEFO Priority Batch
+                      </span>
+                      <span className="text-[8px] bg-white/20 px-2 py-0.5 rounded-md font-black tracking-widest text-emerald-50 border border-white/20">
+                        ALOKASI UTAMA
+                      </span>
+                    </div>
+                  )}
+
+                  <div className={`p-5 space-y-4 ${isFEFO ? "pt-2" : ""}`}>
+                    {/* Header: Name & Badge */}
+                    <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg overflow-hidden shrink-0 flex items-center justify-center border border-outline-variant/20 bg-slate-50 ${
-                          isExpired ? "bg-red-50 text-error border-red-200" : ""
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border border-slate-200 bg-slate-50/80 shadow-2xs overflow-hidden ${
+                          isExpired ? "bg-rose-50 text-rose-600 border-rose-200" : ""
                         }`}>
                           {product.imageUrl ? (
-                            <img src={product.imageUrl} alt={product.name} className="max-h-full max-w-full object-contain" />
+                            <img src={product.imageUrl} alt={product.name} className="max-h-full max-w-full object-contain p-1" />
                           ) : (
-                            <span className="material-symbols-outlined text-[18px] text-primary">
+                            <span className="material-symbols-outlined text-[24px] text-emerald-700">
                               {isExpired ? "report" : "medication"}
                             </span>
                           )}
                         </div>
-                        <div>
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <span className="font-bold text-foreground">{product.name}</span>
-                            {isFEFO && (
-                              <span className="bg-primary text-white text-[8px] px-1.5 py-0.5 rounded-full font-extrabold uppercase tracking-wide">FEFO</span>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-on-surface-variant font-mono">
-                            SKU: {product.code} | Pabrikan: <span className="font-sans font-semibold text-primary">{product.manufacturer}</span>
+                        <div className="space-y-0.5">
+                          <span className={`px-2 py-0.5 rounded-full text-[8px] font-black border uppercase tracking-wider ${catBadgeClass}`}>
+                            {product.category.replace("Obat ", "")}
+                          </span>
+                          <h4 className="font-heading font-extrabold text-slate-900 text-sm leading-snug line-clamp-1" title={product.name}>
+                            {product.name}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 font-medium truncate max-w-[160px]">
+                            {product.manufacturer}
                           </p>
                         </div>
                       </div>
-                      {isFEFO && <div className="absolute left-0 top-0 h-full w-1 bg-primary"></div>}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] uppercase ${catBadgeClass}`}>
-                        {product.category.replace("Obat ", "")}
+                    </div>
+
+                    {/* Meta Specs Box */}
+                    <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-200/70 space-y-1.5 text-[10px]">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500 font-medium">Nomor SKU / BPOM</span>
+                        <span className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">{product.code}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500 font-medium">Nomor Batch Stok</span>
+                        <span className="font-mono font-extrabold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          {batch ? batch.batchNumber : "Belum Ada Batch"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Expiry & Stock Progress Box */}
+                    <div className="grid grid-cols-2 gap-2 text.xs">
+                      <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-200/70 space-y-1">
+                        <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block">Exp Date</span>
+                        <span className={`font-bold block text-xs ${isExpired ? "text-rose-600 font-black" : isSoonExpired ? "text-amber-600 font-black" : "text-slate-900"}`}>
+                          {batch ? new Date(batch.expiryDate).toLocaleDateString("id-ID") : "-"}
+                        </span>
+                      </div>
+                      <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-200/70 space-y-1">
+                        <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block">Sisa Stok</span>
+                        <span className={`font-mono font-black text-sm block ${isExpired ? "text-rose-600" : "text-slate-900"}`}>
+                          {batch ? batch.stock.toLocaleString("id-ID") : 0} <span className="text-[9px] text-slate-400 font-sans font-normal">{product.unit}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer Action */}
+                  <div className="p-4 bg-slate-50/60 border-t border-slate-150 flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider">Harga Het Pbf</span>
+                      <span className="font-mono font-black text-slate-900 text-xs">
+                        Rp {product.price.toLocaleString("id-ID")}
                       </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {batch ? (
-                        <span className="font-mono text-on-surface-variant bg-surface-variant/40 px-2 py-0.5 rounded font-bold">{batch.batchNumber}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {isExpired ? (
+                        <button
+                          type="button"
+                          onClick={() => batch && handleDeleteBatch(batch.id)}
+                          className="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-sm">block</span>
+                          Karantina
+                        </button>
                       ) : (
-                        <span className="text-outline italic">KOSONG</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {batch ? (
-                        <div className="flex flex-col">
-                          <span className={`font-bold ${isExpired || isSoonExpired ? "text-error" : "text-on-surface-variant"}`}>
-                            {new Date(batch.expiryDate).toLocaleDateString("id-ID")}
-                          </span>
-                          {isExpired && (
-                            <span className="text-[8px] bg-error text-white font-extrabold px-1 rounded w-fit mt-0.5 flex items-center gap-0.5">
-                              <span className="material-symbols-outlined text-[10px] text-white">warning</span>
-                              KADALUWARSA
-                            </span>
-                          )}
-                          {isSoonExpired && (
-                            <span className="text-[8px] text-error font-bold italic mt-0.5">Mendekati ({Math.ceil(diffDays / 30)} bln)</span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-outline">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {batch ? (
-                        <div className="flex flex-col gap-1">
-                          <span className={`font-bold font-mono text-sm ${isExpired ? "text-error" : "text-foreground"}`}>
-                            {batch.stock.toLocaleString("id-ID")}
-                          </span>
-                          {batch.stock < 100 && batch.stock > 0 && (
-                            <div className="w-16 h-1 bg-surface-variant rounded-full overflow-hidden">
-                              <div className="h-full bg-secondary" style={{ width: `${(batch.stock / 100) * 100}%` }}></div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-error font-bold font-mono">0</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-on-surface-variant font-bold">{product.unit}</td>
-                    <td className="px-6 py-4 font-bold font-mono text-foreground">Rp {product.price.toLocaleString("id-ID")}</td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {/* If Expired, show Karantina button, else normal actions */}
-                        {isExpired ? (
+                        <>
                           <button
                             type="button"
-                            onClick={() => batch && handleDeleteBatch(batch.id)}
-                            className="bg-error text-white px-3 py-1 rounded-xl text-[10px] font-bold hover:bg-error/95 cursor-pointer shadow-sm shadow-error/15"
+                            onClick={() => setSelectedProductForBatch(product)}
+                            className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl transition-all cursor-pointer border border-emerald-200/80 shadow-2xs active:scale-95"
+                            title="Tambah Batch Stok Obat"
                           >
-                            Karantina
+                            <Plus className="w-4 h-4" />
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => onEditProduct(product)}
+                            className="p-2 bg-white hover:bg-slate-100 text-slate-700 rounded-xl transition-all cursor-pointer border border-slate-200/80 shadow-2xs active:scale-95"
+                            title="Edit Data Produk"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteProduct(product.id)}
+                            className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-all cursor-pointer border border-rose-200/80 shadow-2xs active:scale-95"
+                            title="Hapus Produk"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* Modern Data Table View */
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-400 font-extrabold text-[9px] uppercase tracking-wider">
+                  <th className="px-6 py-4">Produk &amp; SKU</th>
+                  <th className="px-6 py-4 text-center">Kategori</th>
+                  <th className="px-6 py-4">No. Batch</th>
+                  <th className="px-6 py-4">Exp. Date</th>
+                  <th className="px-6 py-4">Sisa Stok</th>
+                  <th className="px-6 py-4">Satuan</th>
+                  <th className="px-6 py-4">Harga HET</th>
+                  <th className="px-6 py-4 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-150 text-slate-700">
+                {filteredRows.map(({ product, batch, isFEFO }) => {
+                  let isExpired = false;
+                  let isSoonExpired = false;
+                  let diffDays = 999;
+
+                  if (batch) {
+                    const expiry = new Date(batch.expiryDate);
+                    const diffTime = expiry.getTime() - today.getTime();
+                    diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    isExpired = diffDays <= 0;
+                    isSoonExpired = !isExpired && diffDays <= 90;
+                  }
+
+                  let catBadgeClass = "bg-emerald-50 text-emerald-800 border border-emerald-200/80";
+                  if (product.category.includes("Keras")) {
+                    catBadgeClass = "bg-rose-50 text-rose-800 border border-rose-200/80";
+                  } else if (product.category.includes("Psikotropika")) {
+                    catBadgeClass = "bg-purple-50 text-purple-800 border border-purple-200/80";
+                  }
+
+                  return (
+                    <tr 
+                      key={batch ? batch.id : `no-batch-${product.id}`} 
+                      className={`hover:bg-emerald-50/30 transition-colors group relative ${isFEFO ? "bg-emerald-50/20 font-medium" : ""}`}
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center border border-slate-200/80 bg-slate-50 ${
+                            isExpired ? "bg-rose-50 text-rose-600 border-rose-200" : ""
+                          }`}>
+                            {product.imageUrl ? (
+                              <img src={product.imageUrl} alt={product.name} className="max-h-full max-w-full object-contain p-1" />
+                            ) : (
+                              <span className="material-symbols-outlined text-[20px] text-emerald-700">
+                                {isExpired ? "report" : "medication"}
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className="font-extrabold text-slate-900 text-sm">{product.name}</span>
+                              {isFEFO && (
+                                <span className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider shadow-2xs flex items-center gap-1">
+                                  <span className="w-1 h-1 bg-white rounded-full animate-pulse" />
+                                  FEFO Priority
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-500 font-mono">
+                              SKU: <strong className="text-slate-800 font-bold">{product.code}</strong> | Pabrikan: <span className="font-sans font-bold text-emerald-800">{product.manufacturer}</span>
+                            </p>
+                          </div>
+                        </div>
+                        {isFEFO && <div className="absolute left-0 top-0 h-full w-1 bg-emerald-500" />}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`px-2.5 py-0.5 rounded-full font-extrabold text-[9px] uppercase ${catBadgeClass}`}>
+                          {product.category.replace("Obat ", "")}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {batch ? (
+                          <span className="font-mono text-emerald-900 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg font-bold">{batch.batchNumber}</span>
                         ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedProductForBatch(product);
-                              }}
-                              className="p-1 text-primary hover:bg-primary/10 rounded-lg transition-colors cursor-pointer"
-                              title="Tambah Batch Stok"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onEditProduct(product)}
-                              className="p-1 text-on-surface-variant hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                              title="Edit Obat"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteProduct(product.id)}
-                              className="p-1 text-error hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                              title="Hapus Obat"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
+                          <span className="text-slate-400 italic font-mono text-[10px]">BELUM ADA BATCH</span>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {batch ? (
+                          <div className="flex flex-col">
+                            <span className={`font-bold ${isExpired || isSoonExpired ? "text-rose-600 font-black" : "text-slate-900"}`}>
+                              {new Date(batch.expiryDate).toLocaleDateString("id-ID")}
+                            </span>
+                            {isExpired && (
+                              <span className="text-[8px] bg-rose-600 text-white font-black px-2 py-0.5 rounded-full w-fit mt-0.5 flex items-center gap-0.5 uppercase tracking-wide">
+                                🔴 KADALUWARSA
+                              </span>
+                            )}
+                            {isSoonExpired && (
+                              <span className="text-[8px] text-amber-600 font-bold italic mt-0.5">Mendekati ({Math.ceil(diffDays / 30)} bln)</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {batch ? (
+                          <div className="flex flex-col gap-1">
+                            <span className={`font-black font-mono text-sm ${isExpired ? "text-rose-600" : "text-slate-900"}`}>
+                              {batch.stock.toLocaleString("id-ID")}
+                            </span>
+                            {batch.stock < 100 && batch.stock > 0 && (
+                              <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-amber-500 rounded-full" style={{ width: `${(batch.stock / 100) * 100}%` }} />
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-rose-600 font-black font-mono">0</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-slate-700 font-bold">{product.unit}</td>
+                      <td className="px-6 py-4 font-black font-mono text-slate-900">Rp {product.price.toLocaleString("id-ID")}</td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {isExpired ? (
+                            <button
+                              type="button"
+                              onClick={() => batch && handleDeleteBatch(batch.id)}
+                              className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-xl text-[10px] font-black cursor-pointer shadow-xs"
+                            >
+                              Karantina
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedProductForBatch(product)}
+                                className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl transition-all cursor-pointer border border-emerald-200/80 shadow-2xs active:scale-95"
+                                title="Tambah Batch Stok Obat"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onEditProduct(product)}
+                                className="p-2 bg-white hover:bg-slate-100 text-slate-700 rounded-xl transition-all cursor-pointer border border-slate-200/80 shadow-2xs active:scale-95"
+                                title="Edit Obat"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteProduct(product.id)}
+                                className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-all cursor-pointer border border-rose-200/80 shadow-2xs active:scale-95"
+                                title="Hapus Obat"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Table Footer / Pagination info */}
-        <div className="p-4 border-t border-outline-variant/20 flex items-center justify-between text-xs bg-surface-container-low/20">
-          <p className="font-medium text-on-surface-variant">
-            Menampilkan <span className="text-on-surface font-extrabold">{filteredRows.length}</span> baris sediaan obat
+        <div className="p-4 sm:p-5 border-t border-slate-150 flex items-center justify-between text-xs bg-slate-50/50">
+          <p className="font-medium text-slate-500">
+            Menampilkan <span className="text-slate-900 font-extrabold">{filteredRows.length}</span> baris sediaan obat terverifikasi
           </p>
           <div className="flex items-center gap-1 font-bold">
-            <button className="p-1.5 hover:bg-surface-container-low rounded-lg disabled:opacity-20" disabled>
+            <button className="p-1.5 text-slate-400 hover:bg-slate-200/60 rounded-xl disabled:opacity-20 cursor-not-allowed" disabled>
               <span className="material-symbols-outlined text-[16px]">chevron_left</span>
             </button>
-            <button className="w-7 h-7 flex items-center justify-center bg-primary text-white rounded-lg">1</button>
-            <button className="p-1.5 hover:bg-surface-container-low rounded-lg disabled:opacity-20" disabled>
+            <button className="w-8 h-8 flex items-center justify-center bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs">1</button>
+            <button className="p-1.5 text-slate-400 hover:bg-slate-200/60 rounded-xl disabled:opacity-20 cursor-not-allowed" disabled>
               <span className="material-symbols-outlined text-[16px]">chevron_right</span>
             </button>
           </div>
@@ -459,22 +668,27 @@ export default function InventoryTab({
       </div>
 
       {/* Standar CDOB Disclaimer Footer */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-primary/5 p-5 rounded-2xl border border-primary/15 flex items-start gap-3">
-          <span className="material-symbols-outlined text-primary shrink-0 mt-0.5">assignment_turned_in</span>
-          <div>
-            <h4 className="font-extrabold text-primary text-xs mb-1">Standar Kepatuhan CDOB BPOM</h4>
-            <p className="text-[11px] text-on-surface-variant leading-relaxed">
-              Sistem otomatis menerapkan prinsip FEFO (First-Expired, First-Out). Sediaan obat dengan tanggal kadaluwarsa terdekat diprioritaskan untuk pemenuhan pesanan secara sistematis oleh sistem logistik.
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex items-start gap-4 hover:border-emerald-500/30 transition-all">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200/60 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-xl">assignment_turned_in</span>
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-extrabold text-slate-900 text-sm">Standar Kepatuhan CDOB BPOM RI</h4>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Sistem otomatis menerapkan prinsip <strong className="text-slate-900">FEFO (First-Expired, First-Out)</strong>. Sediaan obat dengan tanggal kadaluwarsa terdekat diprioritaskan untuk pemenuhan pesanan secara terstruktur oleh sistem logistik.
             </p>
           </div>
         </div>
-        <div className="bg-surface-container-high/40 p-5 rounded-2xl border border-outline-variant/20 flex items-start gap-3">
-          <span className="material-symbols-outlined text-on-surface-variant shrink-0 mt-0.5">update</span>
-          <div>
-            <h4 className="font-extrabold text-on-surface-variant text-xs mb-1">Audit Log Sinkronisasi</h4>
-            <p className="text-[11px] text-on-surface-variant leading-relaxed">
-              Inventori gudang obat sinkron 100% dengan database batch pengadaan PBF GroovyCare. Seluruh mutasi stok tercatat dalam audit trail sistem.
+
+        <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex items-start gap-4 hover:border-blue-500/30 transition-all">
+          <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-700 border border-blue-200/60 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-xl">update</span>
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-extrabold text-slate-900 text-sm">Audit Trail Mutasi Stok Batch</h4>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Inventori gudang obat terhubung 100% dengan database batch pengadaan PBF GroovyCare. Seluruh mutasi stok dan alokasi pesanan tercatat secara sah dalam log audit sistem.
             </p>
           </div>
         </div>

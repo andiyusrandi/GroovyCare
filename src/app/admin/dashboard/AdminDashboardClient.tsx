@@ -23,6 +23,11 @@ import {
   verifyPayment,
   deleteOrder,
 } from "@/app/actions/orders";
+import {
+  searchKfaMedicines,
+  KfaMedicine,
+} from "@/app/actions/kfa";
+import { getClinicalDescription } from "@/lib/kfaUtils";
 import { useRouter } from "next/navigation";
 import {
   Users,
@@ -218,10 +223,115 @@ export default function AdminDashboardClient({
   const [isMfgDropdownOpen, setIsMfgDropdownOpen] = useState(false);
   const [unitSearch, setUnitSearch] = useState("");
   const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false);
+  // State KFA SATUSEHAT Kemenkes Auto-Fill
+  const [kfaSearchQuery, setKfaSearchQuery] = useState("");
+  const [kfaResults, setKfaResults] = useState<any[]>([]);
+  const [isSearchingKfa, setIsSearchingKfa] = useState(false);
+  const [isKfaDropdownOpen, setIsKfaDropdownOpen] = useState(false);
+  const [kfaSource, setKfaSource] = useState<string | null>(null);
+  const [selectedKfaMedicine, setSelectedKfaMedicine] = useState<any | null>(null);
+
+  const handleKfaSearch = async (query: string) => {
+    setKfaSearchQuery(query);
+    if (query.trim().length < 2) {
+      setKfaResults([]);
+      setIsKfaDropdownOpen(false);
+      return;
+    }
+    setIsSearchingKfa(true);
+    setIsKfaDropdownOpen(true);
+    try {
+      const res = await searchKfaMedicines(query);
+      if (res.success) {
+        setKfaResults(res.results);
+        setKfaSource(res.source);
+      }
+    } catch (e) {
+      console.error("KFA search error:", e);
+    } finally {
+      setIsSearchingKfa(false);
+    }
+  };
+
+  const mapKfaCategoryToProductCategory = (med: any): string => {
+    const cat = (med.category || "").toLowerCase();
+    const name = (med.name || "").toLowerCase();
+
+    if (cat.includes("cold chain") || name.includes("insulin") || name.includes("vaccine") || name.includes("vaksin")) {
+      return "Cold Chain";
+    }
+    if (cat.includes("alat") || name.includes("alkes") || name.includes("spuit") || name.includes("infusion")) {
+      return "Alat Kesehatan";
+    }
+    if (cat.includes("kulit") || name.includes("ketoconazole") || name.includes("miconazole") || name.includes("salep") || name.includes("cream")) {
+      return "Obat Kulit";
+    }
+    if (cat.includes("pencernaan") || name.includes("ranitidine") || name.includes("omeprazole") || name.includes("lansoprazole") || name.includes("loperamide")) {
+      return "Obat Pencernaan";
+    }
+    if (cat.includes("antidiabetes") || name.includes("metformin") || name.includes("glibenclamide")) {
+      return "Obat Antidiabetes";
+    }
+    if (cat.includes("kardiovaskular") || name.includes("amlodipine") || name.includes("simvastatin")) {
+      return "Obat Kardiovaskular";
+    }
+    if (cat.includes("batuk") || name.includes("acetylcysteine") || name.includes("dextro")) {
+      return "Obat Batuk & Pilek";
+    }
+    if (cat.includes("antibiotik") || name.includes("amoxicillin") || name.includes("cefixime") || name.includes("cefadroxil") || name.includes("ciprofloxacin") || name.includes("azithromycin") || name.includes("rifamp")) {
+      return "Antibiotik";
+    }
+    if (name.includes("paracetamol") || name.includes("sanmol") || name.includes("mefenamat") || name.includes("ibuprofen")) {
+      return "Analgesik & Anti-inflamasi";
+    }
+    if (name.includes("vitamin") || name.includes("redoxon") || name.includes("neurobion")) {
+      return "Multivitamin & Suplemen";
+    }
+    if (med.category && med.category !== "OTC") {
+      return med.category;
+    }
+    return "Ethical";
+  };
+
+  const handleSelectKfaMedicine = (med: any) => {
+    setSelectedKfaMedicine(med);
+    const targetCategory = mapKfaCategoryToProductCategory(med);
+    const autoDescription = getClinicalDescription(med.name, med.activeIngredient, med.kfaCode, med.nie);
+    setNewProductData((prev) => ({
+      ...prev,
+      name: med.name,
+      code: med.kfaCode || med.nie || prev.code,
+      activeIngredient: med.activeIngredient,
+      manufacturer: med.manufacturer || prev.manufacturer,
+      unit: med.unit || prev.unit,
+      category: targetCategory,
+      description: autoDescription,
+    }));
+    setMfgSearch(med.manufacturer);
+    setUnitSearch(med.unit);
+    setIsKfaDropdownOpen(false);
+  };
+
   const [editMfgSearch, setEditMfgSearch] = useState("");
   const [isEditMfgDropdownOpen, setIsEditMfgDropdownOpen] = useState(false);
   const [editUnitSearch, setEditUnitSearch] = useState("");
   const [isEditUnitDropdownOpen, setIsEditUnitDropdownOpen] = useState(false);
+
+  // Auto Generate Batch Number Generator (Standar CDOB Farmasi)
+  const generateBatchNumber = (productName?: string) => {
+    const dateStr = new Date().toISOString().slice(0, 7).replace("-", ""); // e.g. 202607
+    let codePrefix = "BTC";
+    if (productName) {
+      const words = productName.trim().replace(/[^a-zA-Z0-9\s]/g, "").split(/\s+/);
+      if (words.length >= 2) {
+        codePrefix = (words[0].substring(0, 2) + words[1].substring(0, 2)).toUpperCase();
+      } else if (words[0] && words[0].length >= 3) {
+        codePrefix = words[0].substring(0, 3).toUpperCase();
+      }
+    }
+    const randomSeq = Math.floor(100 + Math.random() * 900);
+    return `${codePrefix}-${dateStr}-${randomSeq}`;
+  };
 
   // State Form Batch Baru
   const [selectedProductForBatch, setSelectedProductForBatch] = useState<Product | null>(null);
@@ -230,6 +340,18 @@ export default function AdminDashboardClient({
     expiryDate: "",
     stock: 100,
   });
+
+  useEffect(() => {
+    if (selectedProductForBatch) {
+      const nextYearDate = new Date();
+      nextYearDate.setFullYear(nextYearDate.getFullYear() + 1);
+      setNewBatchData({
+        batchNumber: generateBatchNumber(selectedProductForBatch.name),
+        expiryDate: nextYearDate.toISOString().split("T")[0],
+        stock: 100,
+      });
+    }
+  }, [selectedProductForBatch]);
 
   // State Form Edit Obat
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -663,6 +785,108 @@ export default function AdminDashboardClient({
             </div>
 
             <div className="space-y-3 text-xs">
+              {/* KFA SATUSEHAT AUTO-FILL INTEGRATION */}
+              <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-100/60 border border-emerald-200/80 p-3.5 rounded-2xl space-y-2 relative">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-emerald-700 text-[18px]">saved_search</span>
+                    <span className="font-bold text-[11px] text-emerald-900">Master Data KFA SATUSEHAT Kemenkes</span>
+                  </div>
+                  <span className="text-[8px] font-black bg-emerald-700 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Auto-Fill Live
+                  </span>
+                </div>
+                <p className="text-[10px] text-emerald-800 leading-tight">
+                  Ketik <strong>Nomor NIE BPOM</strong> (contoh: GKL1905032417B1), <strong>Kode KFA</strong> (contoh: 93009182), atau Nama Obat / Merek / Zat Aktif untuk auto-fill:
+                </p>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Cari berdasarkan Nomor NIE BPOM (GKL1905032417B1), Kode KFA (93009182), Nama, Zat Aktif..."
+                    value={kfaSearchQuery}
+                    onChange={(e) => handleKfaSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs text-foreground placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs font-medium"
+                  />
+                  <span className="material-symbols-outlined text-emerald-600 text-[16px] absolute left-2.5 top-2.5 pointer-events-none">
+                    search
+                  </span>
+                  {isSearchingKfa && (
+                    <span className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin absolute right-3 top-3"></span>
+                  )}
+
+                  {/* Dropdown Live Results */}
+                  {isKfaDropdownOpen && (
+                    <ul className="absolute left-0 right-0 z-50 mt-1 max-h-56 overflow-y-auto bg-white border border-emerald-300 rounded-xl shadow-2xl divide-y divide-slate-100">
+                      {kfaResults.length > 0 ? (
+                        kfaResults.map((med, idx) => (
+                          <li
+                            key={idx}
+                            onMouseDown={() => handleSelectKfaMedicine(med)}
+                            className="p-2.5 hover:bg-emerald-50/80 cursor-pointer transition-colors space-y-1"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                {med.nie && (
+                                  <span className="font-mono text-[9px] font-extrabold bg-blue-700 text-white px-2 py-0.5 rounded-md shrink-0 shadow-2xs">
+                                    BPOM: {med.nie}
+                                  </span>
+                                )}
+                                <span className="font-mono text-[9px] font-black bg-emerald-700 text-white px-2 py-0.5 rounded-md shrink-0 shadow-2xs">
+                                  KFA: {med.kfaCode}
+                                </span>
+                                <span className="font-bold text-slate-900 text-xs truncate">{med.name}</span>
+                              </div>
+                              <span className="text-[8px] font-extrabold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">
+                                {med.category}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-600 truncate pl-0.5">
+                              Zat Aktif: <strong className="text-slate-900">{med.activeIngredient}</strong> | Pabrik: {med.manufacturer}
+                            </p>
+                            <div className="flex items-center gap-2 text-[9px] text-slate-500 font-mono pl-0.5">
+                              <span className="font-bold text-emerald-800">NIE BPOM: {med.nie}</span>
+                              <span>•</span>
+                              <span>Kemasan: {med.unit}</span>
+                            </div>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="p-4 text-center space-y-1 bg-amber-50/50">
+                          <div className="flex items-center justify-center gap-1.5 text-amber-700 font-extrabold text-xs">
+                            <span className="material-symbols-outlined text-base">info</span>
+                            <span>Sediaan Obat Tidak Ditemukan</span>
+                          </div>
+                          <p className="text-[10px] text-slate-600 font-medium">
+                            {isSearchingKfa
+                              ? "Sedang mencocokkan dengan API SATUSEHAT Kemenkes RI..."
+                              : `Kode / Nama "${kfaSearchQuery}" tidak terdaftar di Master KFA Kemenkes RI.`}
+                          </p>
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+
+                {selectedKfaMedicine && (
+                  <div className="bg-white/80 border border-emerald-300 rounded-xl p-2 text-[10px] text-emerald-900 flex items-center justify-between gap-2">
+                    <div className="truncate">
+                      <span className="font-bold">✓ Terpilih dari KFA:</span> {selectedKfaMedicine.name}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedKfaMedicine(null);
+                        setKfaSearchQuery("");
+                      }}
+                      className="text-[9px] font-bold text-red-600 hover:underline shrink-0"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-on-surface-variant mb-0.5">Nama Sediaan Obat</label>
                 <input
@@ -778,6 +1002,9 @@ export default function AdminDashboardClient({
                   <option value="Obat Antidiabetes">Obat Antidiabetes</option>
                   <option value="Multivitamin &amp; Suplemen">Multivitamin &amp; Suplemen</option>
                   <option value="Obat Kulit">Obat Kulit</option>
+                  <option value="Cold Chain">Cold Chain ❄️ (2°-8°C)</option>
+                  <option value="Alat Kesehatan">Alat Kesehatan</option>
+                  <option value="Ethical">Ethical / Obat Keras Preskripsi</option>
                 </select>
                 {categoryDescriptions[newProductData.category] && (
                   <p className="mt-1 text-[10px] text-primary italic leading-tight">
@@ -913,14 +1140,29 @@ export default function AdminDashboardClient({
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block text-xs font-bold text-on-surface-variant mb-0.5">Nomor Batch Obat</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-on-surface-variant">Nomor Batch Obat</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedProductForBatch) {
+                        const autoBatch = generateBatchNumber(selectedProductForBatch.name);
+                        setNewBatchData((prev) => ({ ...prev, batchNumber: autoBatch }));
+                      }
+                    }}
+                    className="text-[9px] font-bold text-primary hover:text-primary/90 flex items-center gap-1 cursor-pointer bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded-full border border-primary/20 transition-all"
+                  >
+                    <span className="material-symbols-outlined text-[12px]">auto_fix_high</span>
+                    Generate Batch
+                  </button>
+                </div>
                 <input
                   type="text"
                   required
                   value={newBatchData.batchNumber}
                   onChange={(e) => setNewBatchData((prev) => ({ ...prev, batchNumber: e.target.value }))}
-                  placeholder="Contoh: B-PCT-003"
-                  className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Contoh: BTC-AMX-202607-849"
+                  className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-mono font-bold text-xs tracking-wide"
                 />
               </div>
 

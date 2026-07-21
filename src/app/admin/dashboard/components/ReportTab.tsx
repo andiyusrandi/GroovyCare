@@ -371,7 +371,7 @@ export default function ReportTab({ products, orders }: ReportTabProps) {
         const cellRef = XLSX.utils.encode_cell({ r, c });
         const cell = wsReport[cellRef];
         if (!cell) continue;
-        
+
         if (cell.t === 'n') {
           if (c === 20) { // HJD column (Col U)
             cell.z = '"Rp"#,##0';
@@ -467,7 +467,7 @@ export default function ReportTab({ products, orders }: ReportTabProps) {
 
     currentPeriodOrders.forEach((order) => {
       const orderAddress = order.shippingAddress || order.institution.address;
-      
+
       // Match city
       const matchedCity = CITY_REGIONS.find((city) => {
         const cityNameClean = city.name.replace(/^(Kab\.|Kota)\s+/i, "").toLowerCase().trim();
@@ -565,7 +565,7 @@ export default function ReportTab({ products, orders }: ReportTabProps) {
         const cellRef = XLSX.utils.encode_cell({ r, c });
         const cell = wsDistribution[cellRef];
         if (!cell) continue;
-        
+
         if (cell.t === 'n') {
           if (c === 4) { // JUMLAH OBAT JADI (Col E)
             cell.z = '#,##0';
@@ -658,7 +658,7 @@ export default function ReportTab({ products, orders }: ReportTabProps) {
     currentPeriodTxs.forEach((tx) => {
       const product = products.find((p) => p.id === tx.productId);
       const batch = product?.batches?.find((b: any) => b.id === tx.batchId);
-      
+
       const batchNumber = batch ? batch.batchNumber : "-";
       const expDate = batch ? new Date(batch.expiryDate).toISOString().split("T")[0] : "-";
 
@@ -740,7 +740,7 @@ export default function ReportTab({ products, orders }: ReportTabProps) {
         const cellRef = XLSX.utils.encode_cell({ r, c });
         const cell = wsReceive[cellRef];
         if (!cell) continue;
-        
+
         if (cell.t === 'n') {
           if (c === 4) { // JUMLAH (Col E)
             cell.z = '#,##0';
@@ -877,7 +877,7 @@ export default function ReportTab({ products, orders }: ReportTabProps) {
       </div>
 
       {/* Collapsible Table Preview Trigger */}
-      <div 
+      <div
         onClick={() => setIsTableExpanded(!isTableExpanded)}
         className="bg-surface border border-outline-variant/30 rounded-3xl p-5 shadow-sm flex justify-between items-center cursor-pointer hover:bg-slate-50/50 transition-all duration-150"
       >
@@ -893,8 +893,8 @@ export default function ReportTab({ products, orders }: ReportTabProps) {
           </div>
         </div>
         <div className="text-on-surface-variant flex items-center justify-center w-8 h-8 rounded-full hover:bg-slate-100 transition-colors">
-          <span 
-            className="material-symbols-outlined transition-transform duration-200" 
+          <span
+            className="material-symbols-outlined transition-transform duration-200"
             style={{ transform: isTableExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
           >
             expand_more

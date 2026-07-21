@@ -210,11 +210,10 @@ export default function LogisticsTab({
                       <tr
                         key={order.id}
                         onClick={() => startPacking(order)}
-                        className={`transition-colors cursor-pointer ${
-                          isSelected
+                        className={`transition-colors cursor-pointer ${isSelected
                             ? "border-l-4 border-primary bg-primary-container/10 font-medium"
                             : "hover:bg-surface-container-low/50"
-                        }`}
+                          }`}
                       >
                         <td className="px-5 py-4 font-bold text-primary font-mono">{order.orderNumber}</td>
                         <td className="px-5 py-4">
@@ -265,16 +264,16 @@ export default function LogisticsTab({
                   item.product.name.toLowerCase().includes("bcg") ||
                   item.product.name.toLowerCase().includes("inj")
               ) && (
-                <div className="absolute top-16 left-4 right-4 z-20 bg-rose-50 border border-error/30 p-3 rounded-xl flex items-start gap-3 shadow-lg">
-                  <div className="bg-error text-white p-1 rounded-lg shrink-0 mt-0.5">
-                    <AlertTriangle className="w-4 h-4 text-white" />
+                  <div className="absolute top-16 left-4 right-4 z-20 bg-rose-50 border border-error/30 p-3 rounded-xl flex items-start gap-3 shadow-lg">
+                    <div className="bg-error text-white p-1 rounded-lg shrink-0 mt-0.5">
+                      <AlertTriangle className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-error text-xs">Peringatan Rantai Dingin (Cold Chain)!</h4>
+                      <p className="text-[9px] text-error/85 mt-0.5 font-medium">Sediaan ini sensitif suhu. Wajib langsung dimasukkan ke Cooler Box logistik.</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-error text-xs">Peringatan Rantai Dingin (Cold Chain)!</h4>
-                    <p className="text-[9px] text-error/85 mt-0.5 font-medium">Sediaan ini sensitif suhu. Wajib langsung dimasukkan ke Cooler Box logistik.</p>
-                  </div>
-                </div>
-              )}
+                )}
 
               <div className="px-6 py-4 border-b border-outline-variant/10 bg-white flex justify-between items-center">
                 <div className="flex-1">
@@ -289,7 +288,7 @@ export default function LogisticsTab({
                     {activePackingOrder.institution.name}
                   </p>
                 </div>
-                
+
                 {/* Admin Actions: Batalkan / Hapus */}
                 <div className="flex gap-1.5 ml-2">
                   <button
@@ -323,23 +322,21 @@ export default function LogisticsTab({
                   const totalScanned = scannedItems[alloc.id] || 0;
                   const isDone = totalScanned >= alloc.quantity;
                   const matchItem = activePackingOrder.items.find((it) => alloc.batch.productId && it.productId === alloc.batch.productId) || activePackingOrder.items[0];
-                  
-                  const isCold = matchItem?.product.name.toLowerCase().includes("vaksin") || 
-                                 matchItem?.product.name.toLowerCase().includes("bcg") || 
-                                 matchItem?.product.name.toLowerCase().includes("inj");
+
+                  const isCold = matchItem?.product.name.toLowerCase().includes("vaksin") ||
+                    matchItem?.product.name.toLowerCase().includes("bcg") ||
+                    matchItem?.product.name.toLowerCase().includes("inj");
 
                   return (
                     <div
                       key={alloc.id}
-                      className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                        isDone 
-                          ? "border-primary/20 bg-primary/[0.03]" 
+                      className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${isDone
+                          ? "border-primary/20 bg-primary/[0.03]"
                           : "border-outline-variant/20 hover:border-primary/50"
-                      }`}
+                        }`}
                     >
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        isDone ? "bg-emerald-50 text-primary" : "bg-surface-container text-on-surface-variant"
-                      }`}>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isDone ? "bg-emerald-50 text-primary" : "bg-surface-container text-on-surface-variant"
+                        }`}>
                         <span className="material-symbols-outlined text-[18px]">
                           {isCold ? "vaccines" : "pill"}
                         </span>

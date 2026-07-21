@@ -52,14 +52,14 @@ interface OrderHistoryTabProps {
 function calculateOrderTotals(order: any) {
   const subtotal = order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
   const vat = Math.round(subtotal * 0.11);
-  
+
   const addr = order.shippingAddress || "";
   const feeMatch = addr.match(/-\s*Rp\s*([0-9.,]+)/);
   let shippingFee = 0;
   if (feeMatch && feeMatch[1]) {
     shippingFee = parseInt(feeMatch[1].replace(/[.,]/g, ""), 10) || 0;
   } else if (addr.includes("Kurir: Standard Flat Rate")) {
-    const isColdChain = order.items.some((item: any) => 
+    const isColdChain = order.items.some((item: any) =>
       item.product?.category === "COLD_CHAIN" || item.product?.category?.toLowerCase() === "cold chain" ||
       item.product?.name?.toLowerCase().includes("insulin") || item.product?.code?.toLowerCase().includes("amx")
     );
@@ -105,7 +105,7 @@ export default function OrderHistoryTab({
     const matchesSearch =
       order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.institution.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus =
       statusFilter === "ALL" ? true : order.status === statusFilter;
 
@@ -253,11 +253,10 @@ export default function OrderHistoryTab({
                 setIsSelectionMode(true);
               }
             }}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-1.5 ${
-              isSelectionMode
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-1.5 ${isSelectionMode
                 ? "bg-red-50 text-red-700 border-red-200"
                 : "bg-surface-container-low text-on-surface-variant border-outline-variant/30 hover:bg-slate-100"
-            }`}
+              }`}
           >
             <span className="material-symbols-outlined text-[16px]">
               {isSelectionMode ? "close" : "checklist"}
@@ -351,9 +350,8 @@ export default function OrderHistoryTab({
                   return (
                     <tr
                       key={order.id}
-                      className={`transition-colors ${
-                        isChecked ? "bg-primary/5" : "hover:bg-slate-50/50"
-                      }`}
+                      className={`transition-colors ${isChecked ? "bg-primary/5" : "hover:bg-slate-50/50"
+                        }`}
                     >
                       {isSelectionMode && (
                         <td className="px-4 py-4 text-center w-12" onClick={(e) => e.stopPropagation()}>

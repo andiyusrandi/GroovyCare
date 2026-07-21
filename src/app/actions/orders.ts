@@ -385,8 +385,8 @@ export async function rejectOrder(orderId: string, reason: string) {
     const isApprovedBefore = order.status !== "PENDING_APPROVAL" && order.status !== "REJECTED";
 
     await db.$transaction(async (tx: any) => {
-      if (isApprovedBefore) {
-        // 1. Kembalikan stok batch dan catat log retur
+      if (order.batchAllocations && order.batchAllocations.length > 0) {
+        // 1. Kembalikan stok batch obat
         for (const alloc of order.batchAllocations) {
           await tx.batch.update({
             where: { id: alloc.batchId },
@@ -394,19 +394,16 @@ export async function rejectOrder(orderId: string, reason: string) {
               stock: { increment: alloc.quantity },
             },
           });
-
         }
 
-        // Hapus log transaksi StockTransaction untuk order ini karena ditolak sebelum terealisasi
+        // Hapus log transaksi StockTransaction untuk order ini
         await tx.stockTransaction.deleteMany({
           where: {
             referenceNumber: order.orderNumber,
           },
         });
-      }
 
-      if (isApprovedBefore) {
-        // 2. Hapus alokasi batch karena pesanan dibatalkan
+        // 2. Hapus alokasi batch karena pesanan dibatalkan/ditolak
         await tx.orderBatchAllocation.deleteMany({
           where: { orderId: order.id },
         });
@@ -461,8 +458,8 @@ export async function deleteOrder(orderId: string) {
     const isApprovedBefore = order.status !== "PENDING_APPROVAL" && order.status !== "REJECTED";
 
     await db.$transaction(async (tx: any) => {
-      if (isApprovedBefore) {
-        // 1. Kembalikan stok batch dan catat log retur
+      if (order.batchAllocations && order.batchAllocations.length > 0) {
+        // 1. Kembalikan stok batch obat
         for (const alloc of order.batchAllocations) {
           await tx.batch.update({
             where: { id: alloc.batchId },
@@ -470,7 +467,6 @@ export async function deleteOrder(orderId: string) {
               stock: { increment: alloc.quantity },
             },
           });
-
         }
 
         // Hapus log transaksi StockTransaction untuk order ini (karena dihapus)
@@ -803,7 +799,15 @@ export async function cancelOrderByCustomer(orderId: string, reason: string) {
 
     const order = await db.order.findUnique({
       where: { id: orderId },
-      include: { institution: true }
+      include: {
+        institution: true,
+        batchAllocations: {
+          include: {
+            batch: true,
+          },
+        },
+        items: true,
+      }
     });
 
     if (!order) {
@@ -815,11 +819,11 @@ export async function cancelOrderByCustomer(orderId: string, reason: string) {
       return { success: false, error: "Akses ditolak: Anda tidak berhak membatalkan pesanan ini" };
     }
 
-    // Pembatalan mandiri hanya boleh dilakukan jika status masih PENDING_APPROVAL
-    if (order.status !== "PENDING_APPROVAL") {
+    // Pembatalan mandiri hanya boleh dilakukan jika status masih PENDING_APPROVAL atau PENDING_SHIPPING
+    if (order.status !== "PENDING_APPROVAL" && order.status !== "PENDING_SHIPPING") {
       return {
         success: false,
-        error: "Pesanan yang sudah diproses / dikirim tidak dapat dibatalkan secara mandiri. Silakan hubungi Admin PBF."
+        error: "Pesanan yang sudah dikirim / selesai tidak dapat dibatalkan secara mandiri. Silakan hubungi Admin PBF."
       };
     }
 
@@ -827,18 +831,49 @@ export async function cancelOrderByCustomer(orderId: string, reason: string) {
       ? `Dibatalkan oleh Mitra: ${reason.trim()}` 
       : "Dibatalkan oleh Mitra (Tanpa Alasan)";
 
-    await db.order.update({
-      where: { id: orderId },
-      data: {
-        status: "CANCELLED",
-        rejectionReason: cancelReasonText
+    await db.$transaction(async (tx: any) => {
+      // 1. Jika pesanan memiliki alokasi stok batch, kembalikan stok obat ke batch masing-masing
+      if (order.batchAllocations && order.batchAllocations.length > 0) {
+        for (const alloc of order.batchAllocations) {
+          await tx.batch.update({
+            where: { id: alloc.batchId },
+            data: {
+              stock: { increment: alloc.quantity },
+            },
+          });
+        }
+
+        // Hapus alokasi batch
+        await tx.orderBatchAllocation.deleteMany({
+          where: { orderId: order.id },
+        });
+
+        // Hapus log transaksi stok keluar untuk order ini
+        await tx.stockTransaction.deleteMany({
+          where: {
+            referenceNumber: order.orderNumber,
+          },
+        });
       }
+
+      // 2. Update status order menjadi CANCELLED
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: "CANCELLED",
+          rejectionReason: cancelReasonText
+        }
+      });
+
+      // 3. Rekalkulasi sisa hutang / limit kredit mitra
+      await recalculateInstitutionDebt(tx, order.institutionId);
     });
 
     revalidatePath("/customer/dashboard");
     revalidatePath("/admin/dashboard");
+    revalidatePath("/");
 
-    return { success: true, message: "Pesanan berhasil dibatalkan." };
+    return { success: true, message: "Pesanan berhasil dibatalkan dan stok obat telah dikembalikan ke inventaris." };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
