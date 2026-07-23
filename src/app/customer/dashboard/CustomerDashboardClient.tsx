@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/app/actions/auth";
 import { checkoutOrder, confirmDelivery, uploadPaymentProof, cancelOrderByCustomer } from "@/app/actions/orders";
@@ -952,8 +952,8 @@ export default function CustomerDashboardClient({
     reader.readAsDataURL(file);
   }
 
-  // Penjumlahan tagihan belum lunas
-  const unpaidOrders = orders.filter((o) => o.paymentStatus !== "PAID" && o.status !== "REJECTED");
+  // Penjumlahan tagihan belum lunas (hanya untuk TOP & INVOICE)
+  const unpaidOrders = orders.filter((o) => o.paymentStatus !== "PAID" && o.status !== "REJECTED" && (o.paymentMethod === "TOP" || o.paymentMethod === "INVOICE"));
   const totalUnpaidAmount = unpaidOrders.reduce((sum, o) => {
     return sum + calculateOrderTotals(o).total;
   }, 0);
@@ -1042,7 +1042,7 @@ export default function CustomerDashboardClient({
   const unreadCount = notifications.filter((n) => !readNotifIds.includes(n.id)).length;
   const cartItemCount = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
   const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0), [cart]);
-  const pendingPaymentCount = useMemo(() => orders.filter(o => o.paymentStatus !== "PAID" && o.status !== "DELIVERED" && o.status !== "REJECTED").length, [orders]);
+  const pendingPaymentCount = useMemo(() => orders.filter(o => o.paymentStatus !== "PAID" && o.status !== "DELIVERED" && o.status !== "REJECTED" && (o.paymentMethod === "TOP" || o.paymentMethod === "INVOICE")).length, [orders]);
   const activeOrdersCount = useMemo(() => orders.filter(o => o.status !== "DELIVERED" && o.status !== "REJECTED").length, [orders]);
 
   if (isMobileBrowser) {
@@ -1417,8 +1417,14 @@ export default function CustomerDashboardClient({
             </div>
           )}
 
-          {viewingReceiptReport ? (
-            <ReceiptReportView
+          <Suspense fallback={
+            <div className="flex flex-col items-center justify-center py-20 space-y-3 font-sans">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-xs text-slate-400 font-bold">Memuat halaman...</span>
+            </div>
+          }>
+            {viewingReceiptReport ? (
+              <ReceiptReportView
               order={viewingReceiptReport}
               onClose={() => setViewingReceiptReport(null)}
               onConfirm={(orderId) => {
@@ -2330,14 +2336,14 @@ export default function CustomerDashboardClient({
               {/* Tagihan Aktif */}
               <div className="space-y-4">
                 <h3 className="text-base font-heading font-bold text-foreground">Daftar Tagihan Belum Lunas</h3>
-                {orders.filter((o) => o.paymentStatus !== "PAID" && o.status !== "REJECTED").length === 0 ? (
+                {orders.filter((o) => o.paymentStatus !== "PAID" && o.status !== "REJECTED" && (o.paymentMethod === "TOP" || o.paymentMethod === "INVOICE")).length === 0 ? (
                   <div className="text-center py-8 bg-white border border-outline-variant/30 rounded-3xl text-on-surface-variant text-xs shadow-sm">
                     Tidak ada tagihan jatuh tempo saat ini.
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {orders
-                      .filter((o) => o.paymentStatus !== "PAID" && o.status !== "REJECTED")
+                      .filter((o) => o.paymentStatus !== "PAID" && o.status !== "REJECTED" && (o.paymentMethod === "TOP" || o.paymentMethod === "INVOICE"))
                       .map((o) => {
                         const { total: totalAmount } = calculateOrderTotals(o);
 
@@ -2438,6 +2444,7 @@ export default function CustomerDashboardClient({
           )}
         </>
       )}
+          </Suspense>
     </div>
       </main>
 
@@ -2519,42 +2526,44 @@ export default function CustomerDashboardClient({
           )}
         </button>
       </nav>
-      <MobileDrawer
-        isOpen={isMobileSidebarOpen}
-        onClose={() => setIsMobileSidebarOpen(false)}
-        user={user}
-        institution={institution}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        docSubTab={docSubTab}
-        setDocSubTab={setDocSubTab}
-        legalSubTab={legalSubTab}
-        setLegalSubTab={setLegalSubTab}
-        cartItemCount={cartItemCount}
-        activeOrdersCount={activeOrdersCount}
-        pendingPaymentCount={pendingPaymentCount}
-        esignPendingCount={orders.filter(o => o.status === "PENDING_APPROVAL" && !o.spSignature).length}
-        handleLogout={handleLogout}
-        setViewingDetailOrder={setViewingDetailOrder}
-        setViewingReceiptReport={setViewingReceiptReport}
-        setIsCheckoutOpen={setIsCheckoutOpen}
-      />
+      <Suspense fallback={null}>
+        <MobileDrawer
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          user={user}
+          institution={institution}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          docSubTab={docSubTab}
+          setDocSubTab={setDocSubTab}
+          legalSubTab={legalSubTab}
+          setLegalSubTab={setLegalSubTab}
+          cartItemCount={cartItemCount}
+          activeOrdersCount={activeOrdersCount}
+          pendingPaymentCount={pendingPaymentCount}
+          esignPendingCount={orders.filter(o => o.status === "PENDING_APPROVAL" && !o.spSignature).length}
+          handleLogout={handleLogout}
+          setViewingDetailOrder={setViewingDetailOrder}
+          setViewingReceiptReport={setViewingReceiptReport}
+          setIsCheckoutOpen={setIsCheckoutOpen}
+        />
 
-      <SignatureModal
-        isDrawingModalOpen={isDrawingModalOpen}
-        setIsDrawingModalOpen={setIsDrawingModalOpen}
-        canvasRef={canvasRef}
-        startDrawing={startDrawing}
-        draw={draw}
-        stopDrawing={stopDrawing}
-        clearSignature={clearSignature}
-        setSignatureDataUrl={setSignatureDataUrl}
-        setHasSigned={setHasSigned}
-        hasSigned={hasSigned}
-        cart={cart}
-        institution={institution}
-        user={user}
-      />
+        <SignatureModal
+          isDrawingModalOpen={isDrawingModalOpen}
+          setIsDrawingModalOpen={setIsDrawingModalOpen}
+          canvasRef={canvasRef}
+          startDrawing={startDrawing}
+          draw={draw}
+          stopDrawing={stopDrawing}
+          clearSignature={clearSignature}
+          setSignatureDataUrl={setSignatureDataUrl}
+          setHasSigned={setHasSigned}
+          hasSigned={hasSigned}
+          cart={cart}
+          institution={institution}
+          user={user}
+        />
+      </Suspense>
 
       {/* MODAL: BATALKAN PESANAN MITRA */}
       {cancelingOrder && (

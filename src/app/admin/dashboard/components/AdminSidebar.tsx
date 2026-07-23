@@ -36,8 +36,8 @@ export default function AdminSidebar({
         <button
           onClick={() => setActiveTab("overview")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-left font-sans text-sm font-bold cursor-pointer ${activeTab === "overview"
-              ? "text-primary border-l-4 border-primary bg-primary-container/10"
-              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+            ? "text-primary border-l-4 border-primary bg-primary-container/10"
+            : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
             }`}
         >
           <span className="material-symbols-outlined" style={{ fontVariationSettings: activeTab === "overview" ? "'FILL' 1" : "'FILL' 0" }}>dashboard</span>
@@ -48,8 +48,8 @@ export default function AdminSidebar({
         <button
           onClick={() => setActiveTab("kemitraan")}
           className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 text-left font-sans text-sm font-bold cursor-pointer ${activeTab === "kemitraan"
-              ? "text-primary border-l-4 border-primary bg-primary-container/10"
-              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+            ? "text-primary border-l-4 border-primary bg-primary-container/10"
+            : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
             }`}
         >
           <div className="flex items-center gap-3">
@@ -67,8 +67,8 @@ export default function AdminSidebar({
         <button
           onClick={() => setActiveTab("obat")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-left font-sans text-sm font-bold cursor-pointer ${activeTab === "obat"
-              ? "text-primary border-l-4 border-primary bg-primary-container/10"
-              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+            ? "text-primary border-l-4 border-primary bg-primary-container/10"
+            : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
             }`}
         >
           <span className="material-symbols-outlined">inventory_2</span>
@@ -79,8 +79,8 @@ export default function AdminSidebar({
         <button
           onClick={() => setActiveTab("cdob")}
           className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 text-left font-sans text-sm font-bold cursor-pointer ${activeTab === "cdob"
-              ? "text-primary border-l-4 border-primary bg-primary-container/10"
-              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+            ? "text-primary border-l-4 border-primary bg-primary-container/10"
+            : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
             }`}
         >
           <div className="flex items-center gap-3">
@@ -98,8 +98,8 @@ export default function AdminSidebar({
         <button
           onClick={() => setActiveTab("logistik")}
           className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 text-left font-sans text-sm font-bold cursor-pointer ${activeTab === "logistik"
-              ? "text-primary border-l-4 border-primary bg-primary-container/10"
-              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+            ? "text-primary border-l-4 border-primary bg-primary-container/10"
+            : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
             }`}
         >
           <div className="flex items-center gap-3">
@@ -117,8 +117,8 @@ export default function AdminSidebar({
         <button
           onClick={() => setActiveTab("pembayaran")}
           className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 text-left font-sans text-sm font-bold cursor-pointer ${activeTab === "pembayaran"
-              ? "text-primary border-l-4 border-primary bg-primary-container/10"
-              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+            ? "text-primary border-l-4 border-primary bg-primary-container/10"
+            : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
             }`}
         >
           <div className="flex items-center gap-3">
@@ -136,8 +136,8 @@ export default function AdminSidebar({
         <button
           onClick={() => setActiveTab("riwayat")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-left font-sans text-sm font-bold cursor-pointer ${activeTab === "riwayat"
-              ? "text-primary border-l-4 border-primary bg-primary-container/10"
-              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+            ? "text-primary border-l-4 border-primary bg-primary-container/10"
+            : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
             }`}
         >
           <span className="material-symbols-outlined">history</span>
@@ -148,8 +148,8 @@ export default function AdminSidebar({
         <button
           onClick={() => setActiveTab("pelaporan")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-left font-sans text-sm font-bold cursor-pointer ${activeTab === "pelaporan"
-              ? "text-primary border-l-4 border-primary bg-primary-container/10"
-              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+            ? "text-primary border-l-4 border-primary bg-primary-container/10"
+            : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
             }`}
         >
           <span className="material-symbols-outlined">description</span>
