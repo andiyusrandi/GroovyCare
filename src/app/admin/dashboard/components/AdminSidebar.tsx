@@ -1,13 +1,14 @@
 "use client";
 
 interface AdminSidebarProps {
-  activeTab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "pembayaran" | "riwayat" | "pelaporan";
-  setActiveTab: (tab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "pembayaran" | "riwayat" | "pelaporan") => void;
+  activeTab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin";
+  setActiveTab: (tab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin") => void;
   pendingApprovalsCount: number;
   pendingPaymentsCount: number;
   pendingLogisticsCount: number;
   pendingPartnersCount: number;
   handleLogout: () => void;
+  adminRole: string;
 }
 
 export default function AdminSidebar({
@@ -18,6 +19,7 @@ export default function AdminSidebar({
   pendingLogisticsCount,
   pendingPartnersCount,
   handleLogout,
+  adminRole,
 }: AdminSidebarProps) {
   return (
     <aside className="h-screen w-64 fixed left-0 top-0 bg-surface/70 backdrop-blur-xl border-r border-outline-variant/30 shadow-sm flex flex-col py-6 z-50">
@@ -26,8 +28,12 @@ export default function AdminSidebar({
           <span className="material-symbols-outlined font-bold">medical_services</span>
         </div>
         <div>
-          <h1 className="font-heading font-extrabold text-lg text-primary leading-tight">PBF Admin</h1>
-          <p className="text-[10px] text-outline font-bold tracking-wider uppercase">Pharma Distribution</p>
+          <h1 className="font-heading font-extrabold text-lg text-primary leading-tight">
+            {adminRole === "SYSTEM_ADMIN" ? "Super Admin" : "PBF Admin"}
+          </h1>
+          <p className="text-[10px] text-outline font-bold tracking-wider uppercase">
+            {adminRole === "SYSTEM_ADMIN" ? "Sistem & Teknis" : "Pharma Distribution"}
+          </p>
         </div>
       </div>
 
@@ -155,6 +161,20 @@ export default function AdminSidebar({
           <span className="material-symbols-outlined">description</span>
           <span>E-Report BPOM</span>
         </button>
+
+        {/* Tab: Super Admin (Only for SYSTEM_ADMIN) */}
+        {adminRole === "SYSTEM_ADMIN" && (
+          <button
+            onClick={() => setActiveTab("superadmin")}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-left font-sans text-sm font-bold cursor-pointer ${activeTab === "superadmin"
+              ? "text-primary border-l-4 border-primary bg-primary-container/10"
+              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+              }`}
+          >
+            <span className="material-symbols-outlined" style={{ fontVariationSettings: activeTab === "superadmin" ? "'FILL' 1" : "'FILL' 0" }}>admin_panel_settings</span>
+            <span>Super Admin</span>
+          </button>
+        )}
       </nav>
 
       <div className="px-3 mt-auto pt-4 border-t border-outline-variant/20">
@@ -167,7 +187,13 @@ export default function AdminSidebar({
         </button>
         <div className="space-y-1">
           <button
-            onClick={() => alert("Pengaturan admin saat ini dikelola oleh super-admin.")}
+            onClick={() => {
+              if (adminRole === "SYSTEM_ADMIN") {
+                setActiveTab("superadmin");
+              } else {
+                alert("Pengaturan admin saat ini dikelola oleh super-admin.");
+              }
+            }}
             className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-left text-xs font-bold text-on-surface-variant hover:bg-surface-container-high/50 transition-colors cursor-pointer"
           >
             <span className="material-symbols-outlined text-[18px]">settings</span>

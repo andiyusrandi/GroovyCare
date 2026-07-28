@@ -176,7 +176,7 @@ export async function getOrders() {
   try {
     const session = await getActiveUser();
 
-    if (session.role === "PBF_ADMIN") {
+    if (session.role === "PBF_ADMIN" || session.role === "SYSTEM_ADMIN") {
       return await db.order.findMany({
         include: {
           institution: true,
@@ -218,8 +218,8 @@ export async function getOrders() {
 export async function approveOrderCDOB(orderId: string) {
   try {
     const session = await getActiveUser();
-    if (session.role !== "PBF_ADMIN") {
-      return { success: false, error: "Akses ditolak: Hanya PBF Admin yang berwenang menyetujui SP" };
+    if (session.role !== "PBF_ADMIN" && session.role !== "SYSTEM_ADMIN") {
+      return { success: false, error: "Akses ditolak: Hanya PBF Admin atau System Admin yang berwenang menyetujui SP" };
     }
 
     const order = await db.order.findUnique({
@@ -360,7 +360,7 @@ export async function approveOrderCDOB(orderId: string) {
 export async function rejectOrder(orderId: string, reason: string) {
   try {
     const session = await getActiveUser();
-    if (session.role !== "PBF_ADMIN") {
+    if (session.role !== "PBF_ADMIN" && session.role !== "SYSTEM_ADMIN") {
       return { success: false, error: "Akses ditolak" };
     }
 
@@ -434,7 +434,7 @@ export async function rejectOrder(orderId: string, reason: string) {
 export async function deleteOrder(orderId: string) {
   try {
     const session = await getActiveUser();
-    if (session.role !== "PBF_ADMIN") {
+    if (session.role !== "PBF_ADMIN" && session.role !== "SYSTEM_ADMIN") {
       return { success: false, error: "Akses ditolak" };
     }
 
@@ -502,7 +502,7 @@ export async function deleteOrder(orderId: string) {
 export async function shipOrder(orderId: string, trackingNumber: string) {
   try {
     const session = await getActiveUser();
-    if (session.role !== "PBF_ADMIN") {
+    if (session.role !== "PBF_ADMIN" && session.role !== "SYSTEM_ADMIN") {
       return { success: false, error: "Akses ditolak" };
     }
 
@@ -706,7 +706,7 @@ export async function uploadPaymentProof(orderId: string, base64Image: string) {
 export async function verifyPayment(orderId: string, approve: boolean) {
   try {
     const session = await getActiveUser();
-    if (session.role !== "PBF_ADMIN") {
+    if (session.role !== "PBF_ADMIN" && session.role !== "SYSTEM_ADMIN") {
       return { success: false, error: "Akses ditolak" };
     }
 

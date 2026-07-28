@@ -163,6 +163,27 @@ export default function SettingsView({ user, institution, onUpdateProfile }: Set
       });
   }, [selectedDistrictId]);
 
+  // Fetch postcode automatically when village, district, or regency changes
+  useEffect(() => {
+    if (!village || !district) return;
+    const cleanRegency = regency.replace(/KABUPATEN\s+|KOTA\s+/i, "").trim();
+    const query = `${village} ${district} ${cleanRegency}`;
+    fetch(`/api/wilayah?type=postcode&q=${encodeURIComponent(query)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((resData) => {
+        if (resData && resData.data && resData.data.length > 0) {
+          const match = resData.data.find((item: any) => 
+            item.village.toLowerCase().includes(village.toLowerCase()) ||
+            village.toLowerCase().includes(item.village.toLowerCase())
+          ) || resData.data[0];
+          if (match && match.code) {
+            setPostalCode(match.code.toString());
+          }
+        }
+      })
+      .catch((err) => console.error("Gagal mencocokkan kode pos:", err));
+  }, [village, district, regency]);
+
   const handleSaveProfile = async () => {
     if (!ownerKtp.trim() || !ownerNpwp.trim() || !siaNumber.trim() || !sipaNumber.trim()) {
       alert("Seluruh data wajib diisi!");

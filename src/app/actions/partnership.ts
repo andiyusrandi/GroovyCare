@@ -6,8 +6,8 @@ import { revalidatePath } from "next/cache";
 
 async function verifyAdmin() {
   const session = await getSession();
-  if (!session || session.role !== "PBF_ADMIN") {
-    throw new Error("Akses ditolak: Hanya PBF Admin yang diizinkan");
+  if (!session || (session.role !== "PBF_ADMIN" && session.role !== "SYSTEM_ADMIN")) {
+    throw new Error("Akses ditolak: Hanya PBF Admin atau System Admin yang diizinkan");
   }
 }
 
@@ -159,6 +159,124 @@ export async function getPartnerFiles(partnerId: string) {
       siaFileUrl: institution.siaFileUrl,
       sipaFileUrl: institution.users[0]?.sipaFileUrl || null,
     };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getPartnerDetails(partnerId: string) {
+  await verifyAdmin();
+  try {
+    const institution = await db.institution.findUnique({
+      where: { id: partnerId },
+      include: {
+        users: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            phone: true,
+            sipaNumber: true,
+            sipaExpiry: true,
+            sipaFileUrl: true,
+          },
+        },
+        orders: {
+          orderBy: {
+            createdAt: "desc",
+          },
+          include: {
+            items: {
+              include: {
+                product: true,
+              },
+            },
+            batchAllocations: {
+              include: {
+                batch: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!institution) {
+      throw new Error("Mitra tidak ditemukan");
+    }
+
+    return institution;
+  } catch (error: any) {
+    throw new Error("Gagal mengambil rincian mitra: " + error.message);
+  }
+}
+
+export async function updatePartnerDetails(
+  partnerId: string,
+  data: {
+    name: string;
+    type: string;
+    siaNumber: string;
+    siaExpiry: Date | string;
+    address: string;
+    creditLimit: number;
+    topDays: number;
+    ownerKtp: string | null;
+    ownerNpwp: string | null;
+    bpomCode: string;
+    user?: {
+      name: string;
+      email: string;
+      phone: string | null;
+      sipaNumber: string | null;
+      sipaExpiry: Date | string | null;
+    };
+  }
+) {
+  await verifyAdmin();
+  try {
+    // 1. Update data institusi
+    const updatedInst = await db.institution.update({
+      where: { id: partnerId },
+      data: {
+        name: data.name,
+        type: data.type,
+        siaNumber: data.siaNumber,
+        siaExpiry: new Date(data.siaExpiry),
+        address: data.address,
+        creditLimit: parseFloat(data.creditLimit.toString()),
+        topDays: parseInt(data.topDays.toString(), 10),
+        ownerKtp: data.ownerKtp,
+        ownerNpwp: data.ownerNpwp,
+        bpomCode: data.bpomCode,
+      },
+    });
+
+    // 2. Jika ada data user, update user APJ pertama
+    if (data.user) {
+      const firstUser = await db.user.findFirst({
+        where: { institutionId: partnerId },
+        orderBy: { id: "asc" },
+      });
+
+      if (firstUser) {
+        await db.user.update({
+          where: { id: firstUser.id },
+          data: {
+            name: data.user.name,
+            email: data.user.email,
+            phone: data.user.phone,
+            sipaNumber: data.user.sipaNumber,
+            sipaExpiry: data.user.sipaExpiry ? new Date(data.user.sipaExpiry) : null,
+          },
+        });
+      }
+    }
+
+    revalidatePath("/admin/dashboard");
+    revalidatePath(`/admin/dashboard/partner/${partnerId}`);
+    return { success: true, message: "Data mitra berhasil diperbarui" };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

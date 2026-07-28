@@ -163,3 +163,8 @@ model StockTransaction {
   @@index([productId])
   @@index([batchId])
 }
+
+model SystemSetting {
+  key   String @id
+  value String
+}

@@ -5,6 +5,19 @@ import { useRouter } from "next/navigation";
 
 export default function MobileAppView() {
   const router = useRouter();
+  const [logoUrl, setLogoUrl] = useState("https://res.cloudinary.com/rumahhostcom/image/upload/v1785256133/IMG_20260725_184829_670_odzsui.png");
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data: any) => {
+        if (data && data.success && data.settings?.logo_url) {
+          setLogoUrl(data.settings.logo_url);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const [mounted, setMounted] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(true);
@@ -114,7 +127,7 @@ export default function MobileAppView() {
             <img 
               className="w-full h-full object-contain drop-shadow-lg relative z-10" 
               alt="Logo PBF Online" 
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqp3J7h0LAkNZIsfLr3phSx_orBJvSaucu6KuEJNLO6RzZ-8BP0PJJOC8lwmmy10WwptzrBD0oVLC7e_ggh4a4ffcLVDCqmY6DT8W26r33xWMDkJnsCvieg-o6WPfz20Ild5x7HyAyLF2E2k3Wgvpydt8gTEZC6YfFeL_5zkCfu3J07Zeb4Ovwon6wqbfrnRGRmMZ9OmqJC51GBrhdKkkVP4QuTcI9A0awc7AA32-dxRocokMHu_9a1RMUG9Pp7lk3lOZi5FXhyGo"
+              src={logoUrl}
             />
           </div>
           {/* Brand Name */}

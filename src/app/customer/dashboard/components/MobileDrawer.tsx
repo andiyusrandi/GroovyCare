@@ -59,6 +59,19 @@ export default function MobileDrawer({
   const [isDokumenOpen, setIsDokumenOpen] = useState(false);
   const [isLegalitasOpen, setIsLegalitasOpen] = useState(false);
 
+  const [logoUrl, setLogoUrl] = useState("https://res.cloudinary.com/rumahhostcom/image/upload/v1785256133/IMG_20260725_184829_670_odzsui.png");
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data: any) => {
+        if (data && data.success && data.settings?.logo_url) {
+          setLogoUrl(data.settings.logo_url);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Auto-expand active groups on mount or activeTab changes
   useEffect(() => {
     if (["keranjang", "riwayat", "tagihan", "status"].includes(activeTab)) {
@@ -104,19 +117,19 @@ export default function MobileDrawer({
 
   return (
     <div 
-      className={`fixed inset-0 z-50 md:hidden transition-all duration-300 ${
+      className={`fixed inset-0 z-50 flex md:hidden transition-opacity duration-300 ${
         isOpen ? "pointer-events-auto" : "pointer-events-none"
       }`}
     >
       {/* Backdrop overlay */}
       <div 
-        className={`absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity duration-300 ${
+        onClick={onClose}
+        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${
           isOpen ? "opacity-100" : "opacity-0"
         }`}
-        onClick={onClose}
       />
 
-      {/* Drawer Panel */}
+      {/* Drawer content panel */}
       <div 
         className={`absolute inset-y-0 left-0 w-80 max-w-[85vw] bg-white shadow-2xl flex flex-col justify-between transition-transform duration-300 ease-out transform ${
           isOpen ? "translate-x-0" : "-translate-x-full"
@@ -128,7 +141,7 @@ export default function MobileDrawer({
           <div className="p-5 border-b border-outline-variant/15 flex items-center justify-between">
             <div className="space-y-0.5">
               <img
-                src="https://www.groovyrx.com/store/1/logogroovyrx.png"
+                src={logoUrl}
                 alt="GroovyRx Logo"
                 className="h-7 w-auto object-contain select-none"
               />

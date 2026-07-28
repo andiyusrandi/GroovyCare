@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getProducts } from "@/app/actions/products";
 import { getSession } from "@/lib/auth-session";
+import { db } from "@/lib/db";
 import PublicCatalog from "@/app/PublicCatalog";
 import MobileAppView from "@/app/mobile/MobileAppView";
 import {
@@ -31,10 +32,16 @@ export default async function LandingPage({ searchParams }: PageProps) {
 
   const session = await getSession();
 
+  const prisma = db as any;
+  const logoSetting = await prisma.systemSetting.findUnique({
+    where: { key: "logo_url" },
+  });
+  const logoUrl = logoSetting?.value || "https://res.cloudinary.com/rumahhostcom/image/upload/v1785256133/IMG_20260725_184829_670_odzsui.png";
+
   // Jika ini adalah platform Android, tampilkan onboarding atau redirect ke dashboard jika sudah login.
   if (platform === "android") {
     if (session) {
-      if (session.role === "PBF_ADMIN") {
+      if (session.role === "PBF_ADMIN" || session.role === "SYSTEM_ADMIN") {
         redirect("/admin/dashboard");
       } else {
         redirect("/customer/dashboard");
@@ -64,7 +71,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
               className="flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg outline-none"
             >
               <img
-                src="https://www.groovyrx.com/store/1/logogroovyrx.png"
+                src={logoUrl}
                 alt="GroovyRx Logo"
                 className="h-8 w-auto object-contain"
               />
@@ -100,7 +107,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
           <div className="flex items-center gap-4">
             {session ? (
               <Link
-                href={session.role === "PBF_ADMIN" ? "/admin/dashboard" : "/customer/dashboard"}
+                href={session.role === "PBF_ADMIN" || session.role === "SYSTEM_ADMIN" ? "/admin/dashboard" : "/customer/dashboard"}
                 className="px-5 py-2 bg-primary text-white rounded-full hover:bg-primary/90 active:scale-95 transition-all duration-200 text-xs font-bold shadow-sm"
               >
                 Dashboard

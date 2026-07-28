@@ -3,13 +3,20 @@ import { getSession } from "@/lib/auth-session";
 import { redirect } from "next/navigation";
 import RegisterForm from "@/app/register/RegisterForm";
 import { ShieldCheck, Gavel, HelpCircle } from "lucide-react";
+import { db } from "@/lib/db";
 
 export default async function RegisterPage() {
   const session = await getSession();
 
+  const prisma = db as any;
+  const logoSetting = await prisma.systemSetting.findUnique({
+    where: { key: "logo_url" },
+  });
+  const logoUrl = logoSetting?.value || "https://res.cloudinary.com/rumahhostcom/image/upload/v1785256133/IMG_20260725_184829_670_odzsui.png";
+
   // Redirect jika sudah login
   if (session) {
-    if (session.role === "PBF_ADMIN") {
+    if (session.role === "PBF_ADMIN" || session.role === "SYSTEM_ADMIN") {
       redirect("/admin/dashboard");
     } else {
       redirect("/customer/dashboard");
@@ -30,7 +37,7 @@ export default async function RegisterPage() {
         <div className="flex justify-between items-center px-6 sm:px-8 py-3.5 w-full">
           <Link href="/" className="flex items-center gap-2">
             <img
-              src="https://www.groovyrx.com/store/1/logogroovyrx.png"
+              src={logoUrl}
               alt="GroovyRx Logo"
               className="h-8 w-auto object-contain"
             />

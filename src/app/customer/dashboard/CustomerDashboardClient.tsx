@@ -491,13 +491,13 @@ export default function CustomerDashboardClient({
   const [onboardingStep, setOnboardingStep] = useState(0);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const seen = localStorage.getItem("has_seen_onboarding");
+    if (typeof window !== "undefined" && user?.id) {
+      const seen = localStorage.getItem(`has_seen_onboarding_${user.id}`);
       if (!seen) {
         setShowOnboarding(true);
       }
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (addedProductInfo) {
@@ -3147,7 +3147,9 @@ export default function CustomerDashboardClient({
                       if (onboardingStep < 4) {
                         setOnboardingStep((s) => s + 1);
                       } else {
-                        localStorage.setItem("has_seen_onboarding", "true");
+                        if (user?.id) {
+                          localStorage.setItem(`has_seen_onboarding_${user.id}`, "true");
+                        }
                         setShowOnboarding(false);
                       }
                     }}

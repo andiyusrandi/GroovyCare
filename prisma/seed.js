@@ -12,6 +12,7 @@ async function main() {
   await db.product.deleteMany();
   await db.user.deleteMany();
   await db.institution.deleteMany();
+  await db.systemSetting.deleteMany();
   
   console.log("Database cleared.");
 
@@ -29,6 +30,33 @@ async function main() {
   });
   console.log("Admin user created.");
 
+  // 2b. Buat SystemSetting default
+  await db.systemSetting.createMany({
+    data: [
+      {
+        key: "logo_url",
+        value: "https://res.cloudinary.com/rumahhostcom/image/upload/v1785256133/IMG_20260725_184829_670_odzsui.png",
+      },
+      {
+        key: "app_name",
+        value: "GroovyCare",
+      },
+    ],
+  });
+  console.log("Default settings created.");
+
+  // 2c. Buat Super Admin (SYSTEM_ADMIN)
+  const systemAdmin = await db.user.create({
+    data: {
+      email: "admin@admin.com",
+      password: "admin@admin.com",
+      name: "administrator 1",
+      role: "SYSTEM_ADMIN",
+      phone: "08999999999",
+    },
+  });
+  console.log("Super Admin user created.");
+
   // 3. Buat Mitra Aktif (Apotek Sehat)
   const healthyApotek = await db.institution.create({
     data: {
@@ -38,7 +66,7 @@ async function main() {
       siaExpiry: new Date("2027-08-15"),
       address: "Jl. Kesehatan Raya No. 45, Jakarta Selatan",
       creditLimit: 50000000.0, // 50 Juta Rupiah
-      currentDebt: 12000000.0,  // Hutang berjalan 12 Juta
+      currentDebt: 0.0,        // Mulai dari 0
       topDays: 30,
       isActive: true,
     },

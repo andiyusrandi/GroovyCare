@@ -63,6 +63,7 @@ const LogisticsTab = dynamic(() => import("./components/LogisticsTab"), { ssr: f
 const FinanceTab = dynamic(() => import("./components/FinanceTab"), { ssr: false });
 const OrderHistoryTab = dynamic(() => import("./components/OrderHistoryTab"), { ssr: false });
 const ReportTab = dynamic(() => import("./components/ReportTab"), { ssr: false });
+const SuperAdminTab = dynamic<{ currentUserEmail: string }>(() => import("@/app/admin/dashboard/components/SuperAdminTab"), { ssr: false });
 
 
 interface Batch {
@@ -174,11 +175,15 @@ const categoryDescriptions: Record<string, string> = {
 
 export default function AdminDashboardClient({
   adminName,
+  adminRole = "PBF_ADMIN",
+  currentUserEmail = "",
   initialPartners,
   initialProducts,
   initialOrders,
 }: {
   adminName: string;
+  adminRole?: string;
+  currentUserEmail?: string;
   initialPartners: any[];
   initialProducts: any[];
   initialOrders: any[];
@@ -187,7 +192,7 @@ export default function AdminDashboardClient({
   const [partners] = useState<Partner[]>(initialPartners);
   const [products] = useState<Product[]>(initialProducts);
   const [orders] = useState<Order[]>(initialOrders);
-  const [activeTab, setActiveTab] = useState<"overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "pembayaran" | "riwayat" | "pelaporan">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin">("overview");
 
   // Restore active tab on mount to prevent hydration mismatch while preserving state
   useEffect(() => {
@@ -333,12 +338,20 @@ export default function AdminDashboardClient({
     return `${codePrefix}-${dateStr}-${randomSeq}`;
   };
 
+  const generateInvoiceNumber = () => {
+    const today = new Date();
+    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ""); // e.g. 20260728
+    const randomSeq = Math.floor(1000 + Math.random() * 9000); // 4 digit random
+    return `FT-${dateStr}-${randomSeq}`;
+  };
+
   // State Form Batch Baru
   const [selectedProductForBatch, setSelectedProductForBatch] = useState<Product | null>(null);
   const [newBatchData, setNewBatchData] = useState({
     batchNumber: "",
     expiryDate: "",
     stock: 100,
+    referenceNumber: "",
   });
 
   useEffect(() => {
@@ -349,6 +362,7 @@ export default function AdminDashboardClient({
         batchNumber: generateBatchNumber(selectedProductForBatch.name),
         expiryDate: nextYearDate.toISOString().split("T")[0],
         stock: 100,
+        referenceNumber: generateInvoiceNumber(),
       });
     }
   }, [selectedProductForBatch]);
@@ -557,7 +571,7 @@ export default function AdminDashboardClient({
     if (res.success) {
       alert("Batch stok baru berhasil ditambahkan.");
       setSelectedProductForBatch(null);
-      setNewBatchData({ batchNumber: "", expiryDate: "", stock: 100 });
+      setNewBatchData({ batchNumber: "", expiryDate: "", stock: 100, referenceNumber: "" });
       window.location.reload();
     } else {
       alert(res.error);
@@ -668,6 +682,7 @@ export default function AdminDashboardClient({
         pendingLogisticsCount={orders.filter((o) => o.status === "PENDING_SHIPPING").length}
         pendingPartnersCount={partners.filter((p) => !p.isActive).length}
         handleLogout={handleLogout}
+        adminRole={adminRole}
       />
 
       {/* Main Content Area */}
@@ -761,6 +776,12 @@ export default function AdminDashboardClient({
             <ReportTab
               products={products}
               orders={orders}
+            />
+          )}
+
+          {activeTab === "superadmin" && adminRole === "SYSTEM_ADMIN" && (
+            <SuperAdminTab
+              currentUserEmail={currentUserEmail}
             />
           )}
         </div>
@@ -1162,6 +1183,31 @@ export default function AdminDashboardClient({
                   value={newBatchData.batchNumber}
                   onChange={(e) => setNewBatchData((prev) => ({ ...prev, batchNumber: e.target.value }))}
                   placeholder="Contoh: BTC-AMX-202607-849"
+                  className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-mono font-bold text-xs tracking-wide"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-on-surface-variant">Nomor Faktur</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const autoInvoice = generateInvoiceNumber();
+                      setNewBatchData((prev) => ({ ...prev, referenceNumber: autoInvoice }));
+                    }}
+                    className="text-[9px] font-bold text-primary hover:text-primary/90 flex items-center gap-1 cursor-pointer bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded-full border border-primary/20 transition-all"
+                  >
+                    <span className="material-symbols-outlined text-[12px]">auto_fix_high</span>
+                    Generate Faktur
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={newBatchData.referenceNumber}
+                  onChange={(e) => setNewBatchData((prev) => ({ ...prev, referenceNumber: e.target.value }))}
+                  placeholder="Contoh: FT-20260728-4982"
                   className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-mono font-bold text-xs tracking-wide"
                 />
               </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { getPartnerFiles } from "@/app/actions/partnership";
 import { X, FileText, Download, Info, CheckCircle, AlertTriangle, User as UserIcon, Building, Shield, TrendingUp, LayoutGrid, List, MapPin, CreditCard, CheckCircle2, ShieldCheck, Clock, Edit3, Plus } from "lucide-react";
 
@@ -78,6 +79,7 @@ export default function PartnershipTab({
   onSuspendPartner,
   onDeletePartner,
 }: PartnershipTabProps) {
+  const router = useRouter();
   const [filter, setFilter] = useState<"all" | "pending" | "active">("all");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [searchPartners, setSearchPartners] = useState<string>("");
@@ -127,9 +129,7 @@ export default function PartnershipTab({
   });
 
   function handleOpenDetail(partner: Partner) {
-    setSelectedDetailPartner(partner);
-    setCreditInput(partner.creditLimit);
-    setTopInput(partner.topDays);
+    router.push(`/admin/dashboard/partner/${partner.id}`);
   }
 
   function handleCloseDetail() {

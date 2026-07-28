@@ -9,8 +9,8 @@ import AdminDashboardClient from "@/app/admin/dashboard/AdminDashboardClient";
 export default async function AdminDashboardPage() {
   const session = await getSession();
 
-  // Proteksi rute PBF Admin
-  if (!session || session.role !== "PBF_ADMIN") {
+  // Proteksi rute PBF Admin dan System Admin
+  if (!session || (session.role !== "PBF_ADMIN" && session.role !== "SYSTEM_ADMIN")) {
     redirect("/login");
   }
 
@@ -22,6 +22,8 @@ export default async function AdminDashboardPage() {
   return (
     <AdminDashboardClient
       adminName={session.name}
+      adminRole={session.role}
+      currentUserEmail={session.email}
       initialPartners={partners}
       initialProducts={products}
       initialOrders={orders}

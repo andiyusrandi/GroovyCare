@@ -25,8 +25,8 @@ interface LocalBatch {
 
 async function verifyAdmin() {
   const session = await getSession();
-  if (!session || session.role !== "PBF_ADMIN") {
-    throw new Error("Akses ditolak: Hanya PBF Admin yang diizinkan");
+  if (!session || (session.role !== "PBF_ADMIN" && session.role !== "SYSTEM_ADMIN")) {
+    throw new Error("Akses ditolak: Hanya PBF Admin atau System Admin yang diizinkan");
   }
 }
 
@@ -151,6 +151,7 @@ export async function addBatch(data: {
   batchNumber: string;
   expiryDate: string;
   stock: number;
+  referenceNumber?: string;
 }) {
   await verifyAdmin();
   try {
@@ -178,7 +179,7 @@ export async function addBatch(data: {
         batchId: batch.id,
         type: isPbf ? "IN_PBF" : "IN_IF",
         quantity: parseInt(data.stock.toString(), 10),
-        referenceNumber: `REC-${data.batchNumber}`,
+        referenceNumber: data.referenceNumber || `REC-${data.batchNumber}`,
         sourceTargetName: product.manufacturer,
       }
     });

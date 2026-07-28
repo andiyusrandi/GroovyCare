@@ -3,13 +3,20 @@ import { getSession } from "@/lib/auth-session";
 import { redirect } from "next/navigation";
 import LoginForm from "@/app/login/LoginForm";
 import { ShieldCheck, Gavel } from "lucide-react";
+import { db } from "@/lib/db";
 
 export default async function LoginPage() {
   const session = await getSession();
 
+  const prisma = db as any;
+  const logoSetting = await prisma.systemSetting.findUnique({
+    where: { key: "logo_url" },
+  });
+  const logoUrl = logoSetting?.value || "https://res.cloudinary.com/rumahhostcom/image/upload/v1785256133/IMG_20260725_184829_670_odzsui.png";
+
   // Redirect jika sudah login
   if (session) {
-    if (session.role === "PBF_ADMIN") {
+    if (session.role === "PBF_ADMIN" || session.role === "SYSTEM_ADMIN") {
       redirect("/admin/dashboard");
     } else {
       redirect("/customer/dashboard");
@@ -109,7 +116,7 @@ export default async function LoginPage() {
             <div className="hidden md:flex flex-col items-center">
               <Link href="/">
                 <img
-                  src="https://www.groovyrx.com/store/1/logogroovyrx.png"
+                  src={logoUrl}
                   alt="GroovyRx Logo"
                   className="h-12 w-auto object-contain hover:scale-[1.02] transition-transform duration-200"
                 />

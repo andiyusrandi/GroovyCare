@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 
 export async function GET() {
   try {
+    const prisma = db as any;
     // 1. Bersihkan database
     await db.orderBatchAllocation.deleteMany();
     await db.orderItem.deleteMany();
@@ -11,6 +12,7 @@ export async function GET() {
     await db.product.deleteMany();
     await db.user.deleteMany();
     await db.institution.deleteMany();
+    await prisma.systemSetting.deleteMany();
 
     // 2. Buat PBF Admin
     const pbfAdmin = await db.user.create({
@@ -25,6 +27,31 @@ export async function GET() {
       },
     });
 
+    // 2b. Buat SystemSetting default
+    await prisma.systemSetting.createMany({
+      data: [
+        {
+          key: "logo_url",
+          value: "https://res.cloudinary.com/rumahhostcom/image/upload/v1785256133/IMG_20260725_184829_670_odzsui.png",
+        },
+        {
+          key: "app_name",
+          value: "GroovyCare",
+        },
+      ],
+    });
+
+    // 2c. Buat Super Admin (SYSTEM_ADMIN)
+    const systemAdmin = await db.user.create({
+      data: {
+        email: "admin@admin.com",
+        password: "admin@admin.com",
+        name: "administrator 1",
+        role: "SYSTEM_ADMIN",
+        phone: "08999999999",
+      },
+    });
+
     // 3. Buat Mitra Aktif (Apotek Sehat)
     const healthyApotek = await db.institution.create({
       data: {
@@ -33,7 +60,7 @@ export async function GET() {
         siaExpiry: new Date("2027-08-15"),
         address: "Jl. Kesehatan Raya No. 45, Jakarta Selatan",
         creditLimit: 50000000.0, // 50 Juta Rupiah
-        currentDebt: 12000000.0,  // Hutang berjalan 12 Juta
+        currentDebt: 0.0,        // Mulai dari 0
         topDays: 30,
         isActive: true,
       },
@@ -232,6 +259,7 @@ export async function GET() {
       message: "Database seeded successfully!",
       users: {
         admin: pbfAdmin.email,
+        superAdmin: systemAdmin.email,
         healthyUser: healthyUser.email,
         newUser: newUser.email,
         expiredUser: expiredUser.email,

@@ -91,7 +91,7 @@ export default function LoginForm() {
     if (!result.success) {
       setError(result.error || "Gagal masuk");
     } else {
-      if (result.role === "PBF_ADMIN") {
+      if (result.role === "PBF_ADMIN" || result.role === "SYSTEM_ADMIN") {
         router.push("/admin/dashboard");
       } else {
         router.push("/customer/dashboard");
@@ -110,7 +110,7 @@ export default function LoginForm() {
     if (!result.success) {
       setError(result.error || "Simulasi login gagal");
     } else {
-      if (result.role === "PBF_ADMIN") {
+      if (result.role === "PBF_ADMIN" || result.role === "SYSTEM_ADMIN") {
         router.push("/admin/dashboard");
       } else {
         router.push("/customer/dashboard");
