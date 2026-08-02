@@ -203,3 +203,59 @@ export async function deleteBatch(batchId: string) {
     return { success: false, error: error.message };
   }
 }
+
+// Auto-Karantina Batch Obat ED < 60 Hari (BPOM CDOB Compliance Engine)
+export async function quarantineNearExpiryBatches(daysThreshold: number = 60) {
+  await verifyAdmin();
+  try {
+    const thresholdDate = new Date(Date.now() + daysThreshold * 24 * 60 * 60 * 1000);
+    
+    // Cari seluruh batch aktif dengan ED <= daysThreshold hari
+    const batchesToQuarantine = await db.batch.findMany({
+      where: {
+        expiryDate: { lte: thresholdDate },
+        stock: { gt: 0 },
+      },
+      include: { product: true },
+    });
+
+    if (batchesToQuarantine.length === 0) {
+      return { success: true, message: `Tidak ada batch obat ED < ${daysThreshold} hari yang perlu dikarantina. Stok aman!`, count: 0 };
+    }
+
+    let quarantinedCount = 0;
+    for (const batch of batchesToQuarantine) {
+      // Catat log stok adjustment karantina CDOB
+      await db.stockTransaction.create({
+        data: {
+          productId: batch.productId,
+          batchId: batch.id,
+          type: "ADJUSTMENT",
+          quantity: -batch.stock,
+          referenceNumber: `QRNT-${batch.batchNumber}`,
+          sourceTargetName: "Karantina Obat ED (BPOM CDOB Compliance)",
+        },
+      });
+
+      // Setel stok batch menjadi 0 agar tidak terbeli/terkirim oleh pelanggan
+      await db.batch.update({
+        where: { id: batch.id },
+        data: { stock: 0 },
+      });
+      quarantinedCount++;
+    }
+
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/customer/dashboard");
+    revalidatePath("/");
+
+    return {
+      success: true,
+      message: `Berhasil mengkarantina ${quarantinedCount} batch obat (ED < ${daysThreshold} hari) dari katalog belanja.`,
+      count: quarantinedCount,
+    };
+  } catch (error: any) {
+    console.error("Quarantine error:", error);
+    return { success: false, error: error.message || "Gagal mengkarantina obat" };
+  }
+}

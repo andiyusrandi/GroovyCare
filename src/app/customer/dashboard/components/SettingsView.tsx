@@ -250,16 +250,20 @@ export default function SettingsView({ user, institution, onUpdateProfile }: Set
   return (
     <div className="space-y-5 animate-fadeIn font-sans pb-12">
       {/* 1. MODERN APOTHECARY HERO PROFILE CARD */}
-      <div className="bg-gradient-to-br from-[#003824] via-[#004a30] to-[#006844] text-white rounded-3xl p-5 shadow-xl shadow-emerald-950/20 border border-emerald-500/30 relative overflow-hidden space-y-4">
+      <div className="bg-gradient-to-r from-primary to-primary/85 text-white rounded-3xl p-5 shadow-xl shadow-emerald-950/20 border border-emerald-500/30 relative overflow-hidden space-y-4">
         {/* Glow decoration */}
         <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute -left-10 -top-10 w-36 h-36 bg-teal-300/10 rounded-full blur-2xl pointer-events-none"></div>
 
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3.5">
-            {/* Avatar Circle */}
-            <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md text-white font-extrabold text-xl flex items-center justify-center shadow-lg border border-white/30 shrink-0">
-              {user.name ? user.name.charAt(0).toUpperCase() : "A"}
+            {/* Cartoon Avatar Circle */}
+            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md p-1 shadow-lg border border-white/40 shrink-0 overflow-hidden">
+              <img 
+                className="w-full h-full object-cover rounded-xl bg-emerald-50" 
+                alt="Cartoon Avatar Apoteker"
+                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.name || "Apoteker")}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
+              />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
@@ -545,7 +549,7 @@ export default function SettingsView({ user, institution, onUpdateProfile }: Set
             </h3>
 
             {/* Visual Bank Card Mockup */}
-            <div className="bg-gradient-to-r from-emerald-700 via-teal-800 to-slate-900 text-white rounded-3xl p-5 shadow-xl space-y-4 max-w-sm relative overflow-hidden border border-emerald-500/30">
+            <div className="bg-gradient-to-r from-primary to-primary/85 text-white rounded-3xl p-5 shadow-xl space-y-4 max-w-sm relative overflow-hidden border border-emerald-500/30">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-[10px] text-emerald-200 font-extrabold uppercase tracking-widest">{bankName}</p>

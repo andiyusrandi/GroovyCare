@@ -91,8 +91,8 @@ export default function ReceiptReportView({
               <Truck className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-xs font-black text-slate-900">PT PharmaDist Farmasi Nusantara</p>
-              <p className="text-[10px] text-slate-500 mt-0.5 font-medium">Pengiriman Logistik PBF • {order.items.length} SKU Obat</p>
+              <p className="text-xs font-black text-slate-900">PT. GROOVYRX PHARMACEUTICAL GROUP (Growmexa)</p>
+              <p className="text-[10px] text-slate-500 mt-0.5 font-medium">Distribusi Obat PBF • {order.items.length} SKU Obat</p>
             </div>
           </div>
           {isColdChain && (

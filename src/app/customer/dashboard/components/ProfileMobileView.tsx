@@ -20,80 +20,90 @@ export default function ProfileMobileView({
   const remainingLimit = institution.creditLimit - institution.currentDebt;
   const limitPercentage = Math.round((remainingLimit / institution.creditLimit) * 100);
 
-  // Format currency in compact M (Millions) or normal IDR
-  const formatCompactRupiah = (value: number) => {
-    if (value >= 1000000) {
-      return `Rp ${(value / 1000000).toFixed(1)}M`;
-    }
-    return `Rp ${value.toLocaleString("id-ID")}`;
+  // Format currency in full standard IDR (e.g. Rp 50.000.000)
+  const formatRupiah = (value: number) => {
+    const val = Math.max(0, Math.round(value || 0));
+    return `Rp ${val.toLocaleString("id-ID")}`;
   };
 
   return (
     <div className="space-y-6 animate-fadeIn font-sans pb-24 px-1">
-      {/* Profile Header Section */}
-      <section className="flex flex-col items-center py-4">
-        <div className="relative mb-4 group">
-          <div className="w-24 h-24 rounded-full border-4 border-primary-container p-1 overflow-hidden">
+      {/* Profile Header Section (Alodokter & Tokopedia Style) */}
+      <section className="flex flex-col items-center py-4 bg-gradient-to-b from-emerald-50/60 to-white rounded-3xl p-4 border border-emerald-100/60 shadow-2xs">
+        <div className="relative mb-3 group">
+          <div className="w-24 h-24 rounded-full border-4 border-emerald-500/30 p-1 bg-white shadow-md overflow-hidden">
             <img 
-              className="w-full h-full object-cover rounded-full" 
-              alt="Apoteker APJ" 
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKMLtg-EStyEeW_Tt07pjCSBaoUSkb3JOC4OD68TI_bXGGAxhPGt25AScLEKA-BkiTAW9e8TIcZQ_405QyAW4U_ClfvDML5-Q2Zby3mCwwXM3z2KKedrdxzSNCNSanIzwVoflnDNZnpkrG7XwaiAdl50nq2grA5CAda2w1gJ8MhaqDADOprRIOshIskDrLTQIbJVy_j9TgPAogaIlshohsaYSfR8L0eLjqNaZO_ZGJPZd0rt6_CkcuKAFcG8rdfAlqjIBgSVCK-n4"
+              className="w-full h-full object-cover rounded-full bg-emerald-50" 
+              alt="Apoteker APJ Cartoon Avatar" 
+              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.name || "Apoteker")}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
             />
           </div>
-          <div className="absolute bottom-0 right-0 bg-primary text-white p-1 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
+          <div className="absolute bottom-0 right-0 bg-emerald-600 text-white p-1 rounded-full border-2 border-white flex items-center justify-center shadow-sm" title="Apoteker APJ Terverifikasi CDOB">
             <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
           </div>
         </div>
-        <div className="text-center">
-          <h2 className="font-heading font-black text-base text-on-surface">{user.name}</h2>
-          <p className="text-on-surface-variant font-bold text-[10px] mt-0.5 uppercase tracking-wide">Apoteker Penanggung Jawab</p>
-          <div className="flex items-center justify-center gap-1 mt-2 text-primary font-bold text-xs">
-            <span className="material-symbols-outlined text-[14px]">medical_services</span>
+        <div className="text-center space-y-1">
+          <h2 className="font-heading font-black text-base text-slate-900 flex items-center justify-center gap-1.5">
+            <span>{user.name}</span>
+            <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-2 py-0.5 rounded-full uppercase border border-emerald-300">APJ</span>
+          </h2>
+          <p className="text-slate-500 font-bold text-[10px] uppercase tracking-wide">Apoteker Penanggung Jawab PBF</p>
+          <div className="inline-flex items-center justify-center gap-1.5 px-3 py-1 bg-emerald-600/10 text-emerald-800 font-extrabold text-xs rounded-full border border-emerald-200 mt-1">
+            <span className="material-symbols-outlined text-[15px] text-emerald-700">medical_services</span>
             <span>{institution.name}</span>
           </div>
         </div>
       </section>
 
-      {/* Account Overview (Tonal Layering) */}
-      <section className="bg-surface-container-low rounded-2xl p-4 flex justify-between items-center border border-outline-variant/10 shadow-sm text-xs font-bold">
+      {/* Account Overview (Tonal Layering Tokopedia Style) */}
+      <section className="bg-white rounded-2xl p-4 flex justify-between items-center border border-slate-200 shadow-2xs text-xs font-bold">
         <div>
-          <p className="text-on-surface-variant text-[9px] uppercase tracking-wider">ID Pelanggan</p>
-          <p className="text-sm font-black text-foreground mt-0.5">{institution.code || "PBF-882910"}</p>
+          <p className="text-slate-400 text-[9px] uppercase tracking-wider font-extrabold">ID Pelanggan</p>
+          <p className="text-sm font-black text-slate-900 mt-0.5 font-mono">{institution.code || "PBF-882910"}</p>
         </div>
         <div className="text-right">
-          <p className="text-on-surface-variant text-[9px] uppercase tracking-wider">Status Kemitraan</p>
+          <p className="text-slate-400 text-[9px] uppercase tracking-wider font-extrabold">Status Kemitraan</p>
           <div className="flex items-center gap-1 justify-end mt-0.5">
             <span className="material-symbols-outlined text-amber-500 text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>stars</span>
-            <span className="text-xs font-black text-on-surface">Gold Partner</span>
+            <span className="text-xs font-black text-emerald-950">Gold Partner CDOB</span>
           </div>
         </div>
       </section>
 
-      {/* Operational Info Cards (Bento Style) */}
-      <section className="grid grid-cols-2 gap-4">
+      {/* Operational Info Cards (Bento Style Alodokter/Tokopedia) */}
+      <section className="grid grid-cols-2 gap-3.5">
         {/* Credit card */}
         <div 
           onClick={() => setActiveTab("tagihan")}
-          className="bg-white border border-outline-variant/30 rounded-2xl p-4 shadow-sm active:scale-95 transition-transform cursor-pointer"
+          className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-2xs active:scale-95 transition-all cursor-pointer hover:border-emerald-300"
         >
-          <div className="flex items-center gap-2 mb-2 text-primary">
+          <div className="flex items-center gap-1.5 mb-1.5 text-emerald-700">
             <span className="material-symbols-outlined text-base">payments</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider">Sisa Kredit</span>
+            <span className="text-[10px] font-black uppercase tracking-wider">Sisa Kredit</span>
           </div>
-          <p className="font-heading font-black text-xs text-foreground truncate">{formatCompactRupiah(remainingLimit)}</p>
-          <div className="mt-2.5 h-1 w-full bg-surface-container-highest rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full" style={{ width: `${limitPercentage}%` }}></div>
+          <p className="font-heading font-black text-xs text-slate-900 truncate font-mono">{formatRupiah(remainingLimit)}</p>
+          <div className="mt-2.5 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${limitPercentage}%` }}></div>
           </div>
         </div>
 
-        {/* Reward points */}
-        <div className="bg-white border border-outline-variant/30 rounded-2xl p-4 shadow-sm active:scale-95 transition-transform">
-          <div className="flex items-center gap-2 mb-2 text-tertiary">
-            <span className="material-symbols-outlined text-base">redeem</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider">Poin Reward</span>
+        {/* SIPA & Validasi CDOB Card (Replacing Poin Reward) */}
+        <div 
+          onClick={() => {
+            setActiveTab("legalitas");
+            setLegalSubTab("sipa");
+          }}
+          className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-2xs active:scale-95 transition-all cursor-pointer hover:border-emerald-300"
+        >
+          <div className="flex items-center gap-1.5 mb-1.5 text-indigo-700">
+            <span className="material-symbols-outlined text-base">badge</span>
+            <span className="text-[10px] font-black uppercase tracking-wider">Izin SIPA APJ</span>
           </div>
-          <p className="font-heading font-black text-xs text-on-surface">12.450</p>
-          <p className="text-tertiary text-[9px] font-bold mt-1">+850 bln ini</p>
+          <p className="font-heading font-black text-[11px] text-slate-900 truncate font-mono">{user.sipaNumber || "SIPA Terverifikasi"}</p>
+          <p className="text-emerald-700 text-[9px] font-extrabold mt-1 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            Validasi CDOB BPOM
+          </p>
         </div>
       </section>
 
@@ -133,7 +143,7 @@ export default function ProfileMobileView({
           <div className="mx-4 h-px bg-outline-variant/15"></div>
           
           <button 
-            onClick={() => alert("Pengelolaan Alamat Pengiriman segera hadir.")}
+            onClick={() => setActiveTab("alamat")}
             className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors border-none bg-transparent cursor-pointer"
           >
             <div className="flex items-center gap-4">

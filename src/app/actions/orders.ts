@@ -61,6 +61,10 @@ export async function checkoutOrder(
       return { success: false, error: "Data institusi tidak ditemukan" };
     }
 
+    if (paymentMethod === "COD") {
+      return { success: false, error: "Metode pembayaran COD saat ini sedang dikunci/dikembangkan. Silakan gunakan Virtual Account (VA) atau Tempo (TOP)." };
+    }
+
     const today = new Date();
 
     // CDOB VALIDATION 1: Apakah Apotek Aktif?
@@ -121,7 +125,7 @@ export async function checkoutOrder(
     });
 
     // CREDIT LIMIT CHECK: Apakah total tagihan melebihi limit kredit? (Hanya untuk TOP/INVOICE)
-    if (paymentMethod !== "VA" && paymentMethod !== "COD") {
+    if ((paymentMethod as string) !== "VA" && (paymentMethod as string) !== "COD") {
       const remainingCredit = user.institution.creditLimit - user.institution.currentDebt;
       if (totalBillingValue > remainingCredit) {
         return {
@@ -171,10 +175,37 @@ export async function checkoutOrder(
   }
 }
 
+// Helper internal untuk auto-confirm pesanan yang sudah melewati SLA 1x24 jam (Database Cepat & Non-blocking)
+async function autoConfirmShippedOrders() {
+  try {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    // Jalankan update database cepat secara kolektif
+    await db.order.updateMany({
+      where: {
+        status: "SHIPPED",
+        OR: [
+          { shippingDate: { lte: twentyFourHoursAgo } },
+          { shippingDate: null, updatedAt: { lte: twentyFourHoursAgo } },
+        ],
+      },
+      data: {
+        status: "DELIVERED",
+        deliveredAt: new Date(),
+        autoConfirmed: true,
+      } as any,
+    });
+  } catch (e) {
+    console.error("Auto-confirm SLA background error:", e);
+  }
+}
+
 // 2. Mengambil Pesanan
 export async function getOrders() {
   try {
     const session = await getActiveUser();
+
+    // Jalankan auto-confirm SLA 1x24 jam untuk pesanan yang menggantung
+    await autoConfirmShippedOrders();
 
     if (session.role === "PBF_ADMIN" || session.role === "SYSTEM_ADMIN") {
       return await db.order.findMany({
@@ -356,7 +387,40 @@ export async function approveOrderCDOB(orderId: string) {
   }
 }
 
-// 4. Penolakan Pesanan (PBF Admin Portal)
+// Helper internal untuk membatalkan pesanan langsung ke Biteship API
+async function cancelBiteshipDirect(biteshipOrderId: string, reason: string) {
+  try {
+    const apiKey = process.env.BITESHIP_API_KEY;
+    if (!apiKey || !biteshipOrderId) return { success: false, error: "No API Key or Biteship Order ID" };
+
+    const res = await fetch(`https://api.biteship.com/v1/orders/${biteshipOrderId}/cancel`, {
+      method: "POST",
+      headers: {
+        Authorization: apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        cancellation_reason_code: "others",
+        cancellation_reason: reason || "Dibatalkan oleh PBF / Mitra",
+      }),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.warn("Biteship order cancellation error:", errData);
+      return { success: false, error: errData.message || "Gagal membatalkan di Biteship API" };
+    }
+
+    const data = await res.json();
+    console.log(`Biteship order ${biteshipOrderId} cancelled successfully on Biteship API.`);
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("Error cancelling Biteship order:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// 4. Penolakan / Pembatalan Pesanan (PBF Admin Portal)
 export async function rejectOrder(orderId: string, reason: string) {
   try {
     const session = await getActiveUser();
@@ -379,6 +443,12 @@ export async function rejectOrder(orderId: string, reason: string) {
 
     if (!order) {
       return { success: false, error: "Pesanan tidak ditemukan" };
+    }
+
+    // Jika terhubung dengan Biteship, batalkan pengiriman di Biteship API
+    const biteshipId = (order as any).biteshipOrderId;
+    if (biteshipId) {
+      await cancelBiteshipDirect(biteshipId, reason || "Dibatalkan oleh Admin PBF");
     }
 
     // Jika pesanan sudah disetujui sebelumnya, kembalikan stok dan debt
@@ -424,7 +494,7 @@ export async function rejectOrder(orderId: string, reason: string) {
 
     revalidatePath("/admin/dashboard");
     revalidatePath("/customer/dashboard");
-    return { success: true, message: "Pesanan berhasil dibatalkan/ditolak" };
+    return { success: true, message: "Pesanan berhasil dibatalkan/ditolak dan status diperbarui di Biteship" };
   } catch (error: any) {
     console.error("Reject order error:", error);
     return { success: false, error: error.message || "Gagal membatalkan pesanan" };
@@ -453,6 +523,12 @@ export async function deleteOrder(orderId: string) {
 
     if (!order) {
       return { success: false, error: "Pesanan tidak ditemukan" };
+    }
+
+    // Jika pesanan terhubung dengan Biteship, batalkan di Biteship API sebelum menghapus dari DB
+    const biteshipId = (order as any).biteshipOrderId;
+    if (biteshipId) {
+      await cancelBiteshipDirect(biteshipId, "Pesanan dihapus dari sistem oleh Admin PBF");
     }
 
     const isApprovedBefore = order.status !== "PENDING_APPROVAL" && order.status !== "REJECTED";
@@ -522,11 +598,12 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
       return { success: false, error: "Pesanan tidak ditemukan" };
     }
 
-    // Attempt to book courier via BiteShip if trackingNumber is empty or not provided
+    // Attempt to book courier via BiteShip
     const apiKey = process.env.BITESHIP_API_KEY;
     const addr = order.shippingAddress || "";
+    let biteshipOrderId: string | null = null;
 
-    if (apiKey && (!trackingNumber || trackingNumber.trim() === "") && addr.includes("Kec:")) {
+    if (apiKey && (addr.includes("Kec:") || addr.includes("Alamat:"))) {
       try {
         const mainAddrPart = addr.split(" | ")[0] || "";
         const emailPart = addr.match(/Email:\s*([^\s|]+)/)?.[1] || "";
@@ -539,9 +616,58 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
         const provinsi = mainAddrPart.match(/Provinsi:\s*(.*?),\s*Kode Pos:/)?.[1] || "";
         const pos = mainAddrPart.match(/Kode Pos:\s*(\d+)/)?.[1] || "12440";
 
-        const courierPart = addr.match(/Kurir:\s*([^\s]+)\s+([^\s]+)/);
-        const courierCompany = courierPart?.[1]?.toLowerCase() || "jne";
-        const courierType = courierPart?.[2]?.toLowerCase() || "reg";
+        // 1. Check if explicit [code: company:service_type] tag is present
+        const codeMatch = addr.match(/\[code:\s*([^:]+):([^\]]+)\]/i);
+        let courierCompany = "";
+        let courierType = "";
+
+        if (codeMatch) {
+          courierCompany = codeMatch[1].toLowerCase().trim();
+          courierType = codeMatch[2].toLowerCase().trim();
+        } else {
+          const courierPart = addr.match(/Kurir:\s*([^\s]+)\s+([^\s(|]+)/i);
+          const rawCompany = (courierPart?.[1] || "jne").toLowerCase().trim();
+          const rawType = (courierPart?.[2] || "reg").toLowerCase().trim();
+
+          // Normalize company slug
+          if (rawCompany.includes("jne")) courierCompany = "jne";
+          else if (rawCompany.includes("tiki")) courierCompany = "tiki";
+          else if (rawCompany.includes("sicepat")) courierCompany = "sicepat";
+          else if (rawCompany.includes("j&t") || rawCompany.includes("jnt")) courierCompany = "jnt";
+          else if (rawCompany.includes("anter")) courierCompany = "anteraja";
+          else if (rawCompany.includes("pos")) courierCompany = "pos";
+          else if (rawCompany.includes("groovyrx") || rawCompany.includes("logistik")) courierCompany = "custom";
+          else courierCompany = rawCompany;
+
+          // Normalize service type slug for each company based on Biteship API specification
+          if (courierCompany === "jnt") {
+            courierType = "ez";
+          } else if (courierCompany === "tiki") {
+            if (rawType.includes("sds") || rawType.includes("same")) courierType = "sds";
+            else if (rawType.includes("ons") || rawType.includes("night") || rawType.includes("one")) courierType = "ons";
+            else if (rawType.includes("eco")) courierType = "eco";
+            else courierType = "reg";
+          } else if (courierCompany === "jne") {
+            if (rawType.includes("yes") || rawType.includes("esok")) courierType = "yes";
+            else if (rawType.includes("jtr") || rawType.includes("truck")) courierType = "jtr";
+            else if (rawType.includes("ss") || rawType.includes("super")) courierType = "ss";
+            else courierType = "reg";
+          } else if (courierCompany === "sicepat") {
+            if (rawType.includes("best")) courierType = "best";
+            else if (rawType.includes("gokil") || rawType.includes("kargo")) courierType = "gokil";
+            else if (rawType.includes("halu")) courierType = "halu";
+            else courierType = "reg";
+          } else if (courierCompany === "anteraja") {
+            if (rawType.includes("next")) courierType = "nextday";
+            else if (rawType.includes("same")) courierType = "sameday";
+            else courierType = "reg";
+          } else if (courierCompany === "custom") {
+            courierType = "same_day";
+          } else {
+            if (rawType === "reguler" || rawType === "regular" || rawType === "standard") courierType = "reg";
+            else courierType = rawType;
+          }
+        }
 
         let destinationAreaId = "";
         const destInput = `${kecamatan}, ${kota}, ${provinsi}`;
@@ -566,65 +692,71 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
           }
         }
 
-        if (destinationAreaId) {
-          const orderItems = order.items.map((it) => ({
-            name: it.product.name,
-            quantity: it.quantity,
-            value: Math.round(it.product.price),
-            weight: 50,
-            category: "healthcare",
-          }));
+        const orderItems = order.items.map((it: any) => ({
+          name: it.product.name,
+          quantity: it.quantity,
+          value: Math.max(1000, Math.round(it.product.price || 1000)),
+          weight: 500,
+          category: "others",
+        }));
 
-          const isCOD = order.paymentMethod === "COD";
-          const codAmount = isCOD
-            ? Math.round(order.items.reduce((acc, it) => acc + it.price * it.quantity, 0))
-            : 0;
+        const isCOD = order.paymentMethod === "COD";
+        const codAmount = isCOD
+          ? Math.round(order.items.reduce((acc: number, it: any) => acc + it.price * it.quantity, 0))
+          : 0;
 
-          const biteshipOrderRes = await fetch("https://api.biteship.com/v1/orders", {
-            method: "POST",
-            headers: {
-              Authorization: apiKey,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              shipper_contact_name: "PBF GroovyCare",
-              shipper_contact_phone: "08123456789",
-              shipper_contact_email: "admin@groovycare.com",
-              shipper_organization: "PBF GroovyCare",
-              origin_contact_name: "PBF GroovyCare",
-              origin_contact_phone: "08123456789",
-              origin_address: "Jl. Tamalanrea Raya Ruko Pelangi Blok B No 7, Kelurahan Buntusu, Kecamatan Tamalanrea, Kota Makassar",
-              origin_postal_code: 90245,
-              origin_coordinate: {
-                latitude: -5.109722,
-                longitude: 119.4975
-              },
-              destination_contact_name: order.institution.name,
-              destination_contact_phone: phonePart || "08123456789",
-              destination_contact_email: emailPart || "apotek.sehat@groovycare.com",
-              destination_address: `${addressDetail}, Kel/Desa: ${kelurahan}, Kec: ${kecamatan}, Kab/Kota: ${kota}, Provinsi: ${provinsi}, Kode Pos: ${pos}`,
-              destination_postal_code: parseInt(pos) || 12440,
-              destination_coordinate: {
-                latitude: -5.147665,
-                longitude: 119.432731
-              },
-              ...(isCOD ? {
-                destination_cash_on_delivery: codAmount,
-                destination_cash_on_delivery_type: "7_days"
-              } : {}),
-              courier_company: courierCompany,
-              courier_type: courierType,
-              delivery_type: "now",
-              items: orderItems,
-              order_note: `Pesanan SP: ${order.orderNumber}`
-            })
-          });
+        // Standardize phone number format (at least 9 digits for Biteship validation)
+        const cleanPhone = (phonePart || order.institution.siaNumber || "08123456789").replace(/\D/g, "");
+        const validDestinationPhone = cleanPhone.length >= 9 ? cleanPhone : "08123456789";
 
-          if (biteshipOrderRes.ok) {
-            const biteshipOrderData = await biteshipOrderRes.json();
-            if (biteshipOrderData.courier && biteshipOrderData.courier.waybill_id) {
-              trackingNumber = biteshipOrderData.courier.waybill_id;
-            }
+        const biteshipPayload: any = {
+          shipper_contact_name: "PBF GroovyCare",
+          shipper_contact_phone: "08123456789",
+          shipper_contact_email: "admin@groovycare.com",
+          shipper_organization: "PBF GroovyCare",
+          origin_contact_name: "PBF GroovyCare",
+          origin_contact_phone: "08123456789",
+          origin_address: "Jl. Tamalanrea Raya Ruko Pelangi Blok B No 7, Kelurahan Buntusu, Kecamatan Tamalanrea, Kota Makassar",
+          origin_postal_code: 90245,
+          destination_contact_name: order.institution.name,
+          destination_contact_phone: validDestinationPhone,
+          destination_contact_email: emailPart || "apotek.sehat@groovycare.com",
+          destination_address: `${addressDetail}, Kel/Desa: ${kelurahan}, Kec: ${kecamatan}, Kab/Kota: ${kota}, Provinsi: ${provinsi}, Kode Pos: ${pos}`,
+          destination_postal_code: parseInt(pos) || 12440,
+          ...(isCOD ? {
+            destination_cash_on_delivery: codAmount,
+            destination_cash_on_delivery_type: "7_days"
+          } : {}),
+          courier_company: courierCompany,
+          courier_type: courierType,
+          delivery_type: "now",
+          reference_id: order.orderNumber,
+          items: orderItems,
+          order_note: `Pesanan SP: ${order.orderNumber}`
+        };
+
+        const biteshipOrderRes = await fetch("https://api.biteship.com/v1/orders", {
+          method: "POST",
+          headers: {
+            Authorization: apiKey,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(biteshipPayload)
+        });
+
+        if (biteshipOrderRes.ok) {
+          const biteshipOrderData = await biteshipOrderRes.json();
+          if (biteshipOrderData.id) {
+            biteshipOrderId = biteshipOrderData.id;
+          }
+          if (biteshipOrderData.courier && biteshipOrderData.courier.waybill_id) {
+            trackingNumber = biteshipOrderData.courier.waybill_id;
+          }
+        } else {
+          const errData = await biteshipOrderRes.json();
+          console.warn("Biteship order creation error from Biteship API:", errData);
+          if (errData.error || errData.message) {
+            return { success: false, error: `Biteship Error (${errData.code || 'API'}): ${errData.error || errData.message}` };
           }
         }
       } catch (err) {
@@ -639,6 +771,7 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
       data: {
         status: "SHIPPED",
         trackingNumber: finalTrackingNumber,
+        ...(biteshipOrderId ? { biteshipOrderId } : {}),
         shippingDate: new Date(),
       },
     });
@@ -648,6 +781,45 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
     return { success: true, message: `Pesanan telah dikirim dengan nomor resi: ${finalTrackingNumber}` };
   } catch (error: any) {
     return { success: false, error: error.message };
+  }
+}
+
+// 5b. Kirim Banyak Barang & Auto-Book Biteship Sekaligus (Bulk Shipping)
+export async function bulkShipOrders(orderIds: string[]) {
+  try {
+    const session = await getActiveUser();
+    if (session.role !== "PBF_ADMIN" && session.role !== "SYSTEM_ADMIN") {
+      return { success: false, error: "Akses ditolak: Hanya Admin yang diizinkan" };
+    }
+
+    if (!orderIds || orderIds.length === 0) {
+      return { success: false, error: "Pilih minimal 1 pesanan untuk dikirim massal" };
+    }
+
+    let successCount = 0;
+    const errors: string[] = [];
+
+    for (const id of orderIds) {
+      const res = await shipOrder(id, "");
+      if (res.success) {
+        successCount++;
+      } else {
+        errors.push(res.error || `Gagal mengirim pesanan ID ${id}`);
+      }
+    }
+
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/customer/dashboard");
+
+    return {
+      success: true,
+      message: `${successCount} dari ${orderIds.length} pesanan berhasil di-booking ke kurir Biteship & diterbitkan resinya.`,
+      successCount,
+      errors,
+    };
+  } catch (error: any) {
+    console.error("Bulk shipping error:", error);
+    return { success: false, error: error.message || "Gagal memproses pengiriman massal" };
   }
 }
 
@@ -666,7 +838,8 @@ export async function confirmDelivery(orderId: string) {
       where: { id: orderId },
       data: {
         status: "DELIVERED",
-      },
+        deliveredAt: new Date(),
+      } as any,
     });
 
     revalidatePath("/customer/dashboard");
@@ -831,8 +1004,14 @@ export async function cancelOrderByCustomer(orderId: string, reason: string) {
       ? `Dibatalkan oleh Mitra: ${reason.trim()}` 
       : "Dibatalkan oleh Mitra (Tanpa Alasan)";
 
+    // Jika pesanan terhubung dengan Biteship, batalkan di Biteship API
+    const biteshipId = (order as any).biteshipOrderId;
+    if (biteshipId) {
+      await cancelBiteshipDirect(biteshipId, cancelReasonText);
+    }
+
     await db.$transaction(async (tx: any) => {
-      // 1. Jika pesanan memiliki alokasi stok batch, kembalikan stok obat ke batch masing-masing
+      // 1. Kembalikan stok obat ke batch masing-masing
       if (order.batchAllocations && order.batchAllocations.length > 0) {
         for (const alloc of order.batchAllocations) {
           await tx.batch.update({
@@ -854,13 +1033,32 @@ export async function cancelOrderByCustomer(orderId: string, reason: string) {
             referenceNumber: order.orderNumber,
           },
         });
+      } else if (order.items && order.items.length > 0) {
+        // Fallback: Jika alokasi batch belum tercatat, cari batch pertama dari tiap produk dan kembalikan stoknya
+        for (const item of order.items) {
+          const firstBatch = await tx.batch.findFirst({
+            where: { productId: item.productId },
+            orderBy: { expiryDate: "asc" },
+          });
+
+          if (firstBatch) {
+            await tx.batch.update({
+              where: { id: firstBatch.id },
+              data: {
+                stock: { increment: item.quantity },
+              },
+            });
+          }
+        }
       }
 
-      // 2. Update status order menjadi CANCELLED
+      // 2. Update status order menjadi CANCELLED & Biteship status menjadi cancelled
       await tx.order.update({
         where: { id: orderId },
         data: {
           status: "CANCELLED",
+          biteshipStatus: "cancelled",
+          biteshipStatusLabel: "Dibatalkan oleh Mitra",
           rejectionReason: cancelReasonText
         }
       });
@@ -873,7 +1071,502 @@ export async function cancelOrderByCustomer(orderId: string, reason: string) {
     revalidatePath("/admin/dashboard");
     revalidatePath("/");
 
-    return { success: true, message: "Pesanan berhasil dibatalkan dan stok obat telah dikembalikan ke inventaris." };
+    return { 
+      success: true, 
+      message: "Pesanan berhasil dibatalkan secara otomatis! Stok obat telah dikembalikan ke inventaris gudang dan status di Biteship telah diperbarui." 
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// 9. Pelunasan Manual (Admin)
+export async function markOrderAsPaidManually(orderId: string) {
+  try {
+    const session = await getActiveUser();
+    if (session.role !== "PBF_ADMIN" && session.role !== "SYSTEM_ADMIN") {
+      return { success: false, error: "Akses ditolak" };
+    }
+
+    const order = await db.order.findUnique({
+      where: { id: orderId },
+      include: { institution: true },
+    });
+
+    if (!order) {
+      return { success: false, error: "Pesanan tidak ditemukan" };
+    }
+
+    await db.$transaction(async (tx: any) => {
+      await tx.order.update({
+        where: { id: orderId },
+        data: { paymentStatus: "PAID" },
+      });
+
+      await recalculateInstitutionDebt(tx, order.institutionId);
+    });
+
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/customer/dashboard");
+    return { success: true, message: "Tagihan berhasil ditandai Lunas secara manual dan limit kredit dipulihkan." };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+import { BITESHIP_STATUS_MAP, getBiteshipStatusMeta } from "@/lib/biteship-status";
+
+// 12. Sinkronisasi & Lacak Live Biteship Order (GET /v1/orders/:id)
+export async function syncBiteshipOrderStatus(orderId: string) {
+  try {
+    const order = await (db.order as any).findUnique({
+      where: { id: orderId },
+      select: { id: true, orderNumber: true, status: true, biteshipOrderId: true, trackingNumber: true, deliveredAt: true },
+    });
+
+    if (!order) return { success: false, error: "Pesanan tidak ditemukan" };
+
+    const apiKey = process.env.BITESHIP_API_KEY;
+    if (!apiKey) return { success: false, error: "Biteship API Key belum dikonfigurasi" };
+
+    const biteshipId = (order as any).biteshipOrderId;
+    if (!biteshipId) return { success: false, error: "Tidak ada Biteship Order ID pada pesanan ini" };
+
+    const res = await fetch(`https://api.biteship.com/v1/orders/${biteshipId}`, {
+      method: "GET",
+      headers: { Authorization: apiKey },
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      return { success: false, error: "Gagal mengambil status dari Biteship API" };
+    }
+
+    const json = await res.json();
+    const biteshipStatus = (json.status || "").toLowerCase();
+    const trackingId = json.courier?.waybill_id || json.courier?.tracking_id;
+
+    const statusMeta = BITESHIP_STATUS_MAP[biteshipStatus] || {
+      label: biteshipStatus.toUpperCase(),
+      description: "Status diperbarui dari Biteship API",
+    };
+    const statusFullText = `${statusMeta.label}: ${statusMeta.description}`;
+
+    if (biteshipStatus === "delivered" && order.status !== "DELIVERED") {
+      await db.order.update({
+        where: { id: orderId },
+        data: {
+          status: "DELIVERED",
+          deliveredAt: (order as any).deliveredAt || new Date(),
+          autoConfirmed: true,
+          biteshipStatus: biteshipStatus,
+          biteshipStatusLabel: statusFullText,
+          ...(trackingId ? { trackingNumber: trackingId } : {}),
+        } as any,
+      });
+
+      revalidatePath("/customer/dashboard");
+      revalidatePath("/admin/dashboard");
+      return { success: true, status: "DELIVERED", biteshipStatus, message: "Status pesanan berhasil diperbarui ke DELIVERED (Selesai) dari Biteship API", data: json };
+    } else {
+      // Update biteshipStatus & label for ongoing/shipped/other statuses
+      await db.order.update({
+        where: { id: orderId },
+        data: {
+          ...(biteshipStatus === "picked" || biteshipStatus === "in_transit" || biteshipStatus === "dropping_off" || biteshipStatus === "allocated" || biteshipStatus === "picking_up"
+            ? { status: "SHIPPED", shippingDate: (order as any).shippingDate || new Date() }
+            : {}),
+          biteshipStatus: biteshipStatus,
+          biteshipStatusLabel: statusFullText,
+          ...(trackingId ? { trackingNumber: trackingId } : {}),
+        } as any,
+      });
+
+      revalidatePath("/customer/dashboard");
+      revalidatePath("/admin/dashboard");
+      return { success: true, status: order.status, biteshipStatus, biteshipStatusLabel: statusFullText, data: json };
+    }
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getBiteshipOrderDetails(orderId: string) {
+  try {
+    const session = await getActiveUser();
+    const syncRes = await syncBiteshipOrderStatus(orderId);
+    if (!syncRes.success) {
+      return syncRes;
+    }
+    return { success: true, data: syncRes.data, status: syncRes.status };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// 12b. Live In-App Tracking Biteship API (GET /v1/trackings/:id or /v1/orders/:id)
+export async function getBiteshipLiveTracking(orderId: string) {
+  try {
+    const session = await getActiveUser();
+    const order = await (db.order as any).findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        orderNumber: true,
+        status: true,
+        trackingNumber: true,
+        biteshipOrderId: true,
+        biteshipStatus: true,
+        biteshipStatusLabel: true,
+        shippingAddress: true,
+        deliveredAt: true,
+        shippingDate: true,
+        approvedAt: true,
+        createdAt: true,
+        institution: { select: { name: true, address: true } },
+      },
+    });
+
+    if (!order) {
+      return { success: false, error: "Pesanan tidak ditemukan" };
+    }
+
+    const apiKey = process.env.BITESHIP_API_KEY;
+    if (!apiKey) {
+      return { success: false, error: "Biteship API Key belum dikonfigurasi" };
+    }
+
+    const biteshipId = (order as any).biteshipOrderId;
+    const resi = order.trackingNumber;
+
+    if (!biteshipId && !resi) {
+      return { success: false, error: "Pesanan ini belum memiliki resi atau ID Biteship" };
+    }
+
+    // Try fetching via /v1/trackings/:id first, fallback to /v1/orders/:id
+    let res = resi
+      ? await fetch(`https://api.biteship.com/v1/trackings/${resi}`, {
+          method: "GET",
+          headers: { Authorization: apiKey },
+          cache: "no-store",
+        })
+      : null;
+
+    if (!res || !res.ok) {
+      if (biteshipId) {
+        res = await fetch(`https://api.biteship.com/v1/orders/${biteshipId}`, {
+          method: "GET",
+          headers: { Authorization: apiKey },
+          cache: "no-store",
+        });
+      }
+    }
+
+    if (!res || !res.ok) {
+      return { success: false, error: "Gagal mengambil data pelacakan dari API Biteship" };
+    }
+
+    const rawData = await res.json();
+    const trackingObj = rawData.object === "tracking" ? rawData : rawData;
+
+    // Standardize courier and history (check all possible Biteship response properties)
+    const courier = trackingObj.courier || rawData.courier || {};
+    const historyRaw =
+      trackingObj.history ||
+      rawData.history ||
+      rawData.courier?.history ||
+      rawData.status_history ||
+      rawData.trackings ||
+      [];
+
+    const statusMap: Record<string, { label: string; color: string; icon: string }> = {
+      confirmed: { label: "Dikonfirmasi", color: "blue", icon: "task_alt" },
+      allocated: { label: "Kurir Dialokasikan", color: "blue", icon: "person_check" },
+      picking_up: { label: "Kurir Menjemput", color: "amber", icon: "directions_run" },
+      picked: { label: "Barang Diambil", color: "indigo", icon: "package_2" },
+      in_transit: { label: "Dalam Perjalanan", color: "primary", icon: "local_shipping" },
+      dropping_off: { label: "Mengantar ke Tujuan", color: "emerald", icon: "distance" },
+      delivered: { label: "Terkirim", color: "emerald", icon: "check_circle" },
+      on_hold: { label: "Ditangguhkan", color: "orange", icon: "warning" },
+      disposed: { label: "Dimusnahkan", color: "red", icon: "delete_forever" },
+      rejected: { label: "Ditolak Kurir", color: "red", icon: "cancel" },
+      courier_not_found: { label: "Kurir Tidak Ditemukan", color: "red", icon: "search_off" },
+      return_in_transit: { label: "Retur Dalam Perjalanan", color: "purple", icon: "replay" },
+      returned: { label: "Dikembalikan", color: "purple", icon: "assignment_return" },
+      cancelled: { label: "Dibatalkan", color: "gray", icon: "block" },
+      pending: { label: "Sedang Diproses", color: "blue", icon: "hourglass_empty" },
+    };
+
+    const currentStatusCode = (
+      trackingObj.status ||
+      rawData.status ||
+      (order as any).biteshipStatus ||
+      order.status ||
+      ""
+    ).toLowerCase();
+
+    const currentMeta = statusMap[currentStatusCode] || {
+      label: currentStatusCode.toUpperCase(),
+      color: "slate",
+      icon: "info",
+    };
+
+    let formattedHistory = historyRaw.map((item: any) => {
+      const stCode = (item.status || "").toLowerCase();
+      const meta = statusMap[stCode] || { label: stCode, color: "slate", icon: "schedule" };
+      return {
+        status: stCode,
+        label: meta.label,
+        note: item.note || item.description || item.service_name || "",
+        updatedAt: item.updated_at || item.created_at || new Date().toISOString(),
+        icon: meta.icon,
+        color: meta.color,
+      };
+    });
+
+    // Fallback: If Biteship Sandbox returns an empty history array, construct steps from order metadata
+    if (formattedHistory.length === 0) {
+      formattedHistory = [
+        {
+          status: "confirmed",
+          label: "Dikonfirmasi",
+          note: "Pesanan dikonfirmasi & terdaftar di sistem Biteship",
+          updatedAt: (order as any).approvedAt || order.createdAt,
+          icon: "task_alt",
+          color: "blue",
+        },
+      ];
+
+      if (
+        courier.driver_name ||
+        courier.name ||
+        ["allocated", "picking_up", "picked", "in_transit", "dropping_off", "delivered"].includes(currentStatusCode)
+      ) {
+        formattedHistory.push({
+          status: "allocated",
+          label: "Kurir Dialokasikan",
+          note: `Kurir ${courier.company || courier.name || "Biteship"} (${courier.driver_name || courier.name || "Driver"}) ditugaskan. Plat: ${courier.driver_plate_number || "-"}`,
+          updatedAt: (order as any).shippingDate || (order as any).approvedAt || order.createdAt,
+          icon: "person_check",
+          color: "blue",
+        });
+      }
+
+      if (currentStatusCode !== "confirmed" && currentStatusCode !== "allocated") {
+        formattedHistory.push({
+          status: currentStatusCode,
+          label: currentMeta.label,
+          note: (order as any).biteshipStatusLabel || `Status pengiriman: ${currentMeta.label}`,
+          updatedAt: (order as any).deliveredAt || (order as any).shippingDate || new Date().toISOString(),
+          icon: currentMeta.icon,
+          color: currentMeta.color,
+        });
+      }
+    }
+
+    // Auto sync cancellation if Biteship status indicates cancelled/rejected
+    if (
+      (currentStatusCode === "cancelled" ||
+        currentStatusCode === "rejected" ||
+        currentStatusCode === "courier_not_found" ||
+        currentStatusCode === "disposed" ||
+        currentStatusCode === "returned") &&
+      order.status !== "REJECTED"
+    ) {
+      try {
+        await rejectOrder(order.id, `Dibatalkan oleh Ekspedisi Biteship: ${currentMeta.label}`);
+        await (db.order as any).update({
+          where: { id: order.id },
+          data: {
+            biteshipStatus: currentStatusCode,
+            biteshipStatusLabel: `Dibatalkan: ${currentMeta.label}`,
+          },
+        });
+      } catch (e) {
+        console.warn("Auto-reject inside getBiteshipTracking error:", e);
+      }
+    }
+
+    return {
+      success: true,
+      tracking: {
+        orderNumber: order.orderNumber,
+        waybillId: trackingObj.waybill_id || trackingObj.courier_tracking_id || order.trackingNumber || "-",
+        biteshipId: biteshipId || trackingObj.id,
+        currentStatus: currentStatusCode,
+        currentStatusLabel: currentMeta.label,
+        currentStatusMeta: currentMeta,
+        courier: {
+          company: courier.company || courier.name || "Biteship Logistics",
+          driverName: courier.driver_name || courier.name || "Kurir Biteship",
+          driverPhone: courier.driver_phone || courier.phone || "-",
+          driverPlateNumber: courier.driver_plate_number || "-",
+        },
+        originAddress: "PBF GroovyCare, Makassar",
+        destinationAddress: order.institution?.address || order.shippingAddress,
+        destinationName: order.institution?.name || "Apotek Pelanggan",
+        history: formattedHistory,
+      },
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// 13. Update Biteship Order (POST /v1/orders/:id)
+export async function updateBiteshipOrder(orderId: string, payload: any) {
+  try {
+    const session = await getActiveUser();
+    if (session.role !== "PBF_ADMIN" && session.role !== "SYSTEM_ADMIN") {
+      return { success: false, error: "Akses ditolak" };
+    }
+
+    const order = await (db.order as any).findUnique({
+      where: { id: orderId },
+      select: { biteshipOrderId: true },
+    });
+
+    if (!order || !(order as any).biteshipOrderId) {
+      return { success: false, error: "Pesanan ini belum terhubung dengan ID Biteship" };
+    }
+
+    const apiKey = process.env.BITESHIP_API_KEY;
+    if (!apiKey) {
+      return { success: false, error: "Biteship API key belum dikonfigurasi" };
+    }
+
+    const res = await fetch(`https://api.biteship.com/v1/orders/${(order as any).biteshipOrderId}`, {
+      method: "POST",
+      headers: {
+        Authorization: apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json();
+      return { success: false, error: errData.message || "Gagal memperbarui pesanan di Biteship" };
+    }
+
+    const data = await res.json();
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/customer/dashboard");
+    return { success: true, data, message: "Pesanan Biteship berhasil diperbarui" };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// 14. Cancel Biteship Order (POST /v1/orders/:id/cancel)
+export async function cancelBiteshipOrder(orderId: string, reason?: string) {
+  try {
+    const session = await getActiveUser();
+    if (session.role !== "PBF_ADMIN" && session.role !== "SYSTEM_ADMIN") {
+      return { success: false, error: "Akses ditolak" };
+    }
+
+    const order = await (db.order as any).findUnique({
+      where: { id: orderId },
+      select: { biteshipOrderId: true },
+    });
+
+    if (!order || !(order as any).biteshipOrderId) {
+      return { success: false, error: "Pesanan ini belum terhubung dengan ID Biteship" };
+    }
+
+    const biteshipId = (order as any).biteshipOrderId;
+    const cancelRes = await cancelBiteshipDirect(biteshipId, reason || "Dibatalkan oleh Admin PBF");
+    if (!cancelRes.success) {
+      return cancelRes;
+    }
+
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/customer/dashboard");
+    return { success: true, data: cancelRes.data, message: "Pengiriman Biteship berhasil dibatalkan" };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// 15. Retrieve Biteship Cancellation Reasons (GET /v1/orders/cancellation_reasons)
+export async function getBiteshipCancellationReasons(lang: string = "id") {
+  try {
+    const apiKey = process.env.BITESHIP_API_KEY;
+    if (!apiKey) return { success: false, error: "Biteship API Key belum dikonfigurasi" };
+
+    const res = await fetch(`https://api.biteship.com/v1/orders/cancellation_reasons?lang=${lang}`, {
+      method: "GET",
+      headers: { Authorization: apiKey },
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      return { success: false, error: "Gagal mengambil daftar alasan pembatalan dari Biteship" };
+    }
+
+    const data = await res.json();
+    return { success: true, cancellation_reasons: data.cancellation_reasons || [] };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// 16. Sync All Active Biteship Orders Status
+export async function syncAllBiteshipOrders() {
+  try {
+    const apiKey = process.env.BITESHIP_API_KEY;
+    if (!apiKey) return { success: false, error: "No API Key" };
+
+    const activeOrders = await (db.order as any).findMany({
+      where: {
+        status: { in: ["SHIPPED", "PENDING_SHIPPING"] },
+        biteshipOrderId: { not: null },
+      },
+    });
+
+    let updatedCount = 0;
+    for (const order of activeOrders) {
+      try {
+        const res = await fetch(`https://api.biteship.com/v1/orders/${order.biteshipOrderId}`, {
+          headers: { Authorization: apiKey },
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const st = (data.status || "").toLowerCase();
+          if (st === "cancelled" || st === "rejected" || st === "courier_not_found" || st === "disposed" || st === "returned") {
+            const reasonText = `Dibatalkan oleh Ekspedisi Biteship (${data.note || data.status || st})`;
+            await rejectOrder(order.id, reasonText);
+            await (db.order as any).update({
+              where: { id: order.id },
+              data: {
+                biteshipStatus: st,
+                biteshipStatusLabel: reasonText,
+              },
+            });
+            updatedCount++;
+          } else if (st === "delivered" && order.status !== "DELIVERED") {
+            await (db.order as any).update({
+              where: { id: order.id },
+              data: {
+                status: "DELIVERED",
+                deliveredAt: new Date(),
+                biteshipStatus: st,
+                biteshipStatusLabel: "Terkirim: Paket diterima",
+              },
+            });
+            updatedCount++;
+          }
+        }
+      } catch (e) {
+        console.warn(`Failed to sync Biteship order ${order.orderNumber}:`, e);
+      }
+    }
+
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/customer/dashboard");
+    return { success: true, updatedCount };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

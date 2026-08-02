@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { getClinicalDescription } from "@/lib/kfaUtils";
 import { getKfaProductDetail, KfaProductDetail } from "@/app/actions/kfa";
+import { triggerHapticImpact } from "@/lib/mobile-haptics";
 
 interface Batch {
   id: string;
@@ -1335,42 +1336,24 @@ export default function ProductCatalog({
       {/* 2. MOBILE VIEW: Modern E-Commerce Medicine Catalog                        */}
       {/* ========================================================================= */}
       <div className="block md:hidden space-y-4 px-1 pb-16">
-        {/* Sticky Search & Chips Container */}
-        <div className="space-y-3 bg-white/90 backdrop-blur-md p-3 rounded-2xl border border-slate-200/60 shadow-xs sticky top-16 z-20">
-          {/* Mobile Search Bar */}
-          <div className="relative">
-            <span className="material-symbols-outlined absolute left-3.5 top-2.5 text-slate-400 text-lg">search</span>
-            <input
-              className="w-full h-10 pl-10 pr-4 bg-slate-100/80 rounded-xl border border-slate-200/50 font-sans text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none"
-              placeholder="Cari nama obat, zat aktif, pabrik..."
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 border-none bg-transparent cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-sm">close</span>
-              </button>
-            )}
-          </div>
-
+        {/* Sticky Category Chips Filter Bar (Solid White - No Bleed-Through) */}
+        <div className="bg-white py-2.5 px-3 rounded-2xl border border-slate-200/80 shadow-md sticky top-[104px] z-20">
           {/* Category Chips Scroll */}
-          <div className="flex gap-2 overflow-x-auto hide-scrollbar -mx-3 px-3 pb-0.5">
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar -mx-1 px-1 py-0.5">
             {chips.map((c) => {
               const isActive = activeChip === c.label;
               return (
                 <button
                   key={c.label}
                   type="button"
-                  onClick={() => setActiveChip(c.label)}
-                  className={`whitespace-nowrap px-3.5 py-1.5 rounded-full font-sans text-[10px] font-bold transition-all cursor-pointer border-none flex items-center gap-1 ${
+                  onClick={() => {
+                    triggerHapticImpact();
+                    setActiveChip(c.label);
+                  }}
+                  className={`whitespace-nowrap px-3.5 py-1.5 rounded-full font-sans text-[10px] font-bold transition-all cursor-pointer border-none flex items-center gap-1 shrink-0 ${
                     isActive
-                      ? "bg-slate-900 text-white shadow-sm shadow-slate-900/20 scale-105"
-                      : "bg-slate-100/90 text-slate-600 hover:bg-slate-200/80"
+                      ? "bg-slate-900 text-white shadow-xs scale-105"
+                      : "bg-slate-100/90 text-slate-600 hover:bg-slate-200/80 active:scale-95"
                   }`}
                 >
                   {c.label === "Cold Chain" ? (

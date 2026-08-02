@@ -1,9 +1,11 @@
 "use client";
 
 import { printCDOBDocument } from "@/lib/pdf-generator";
+import BiteshipTrackingModal from "@/app/components/BiteshipTrackingModal";
 
 import { useState } from "react";
-import { Search, Eye, FileText, X, CheckCircle2, ShieldAlert } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, Eye, FileText, X, CheckCircle2, ShieldAlert, RefreshCw } from "lucide-react";
 
 interface OrderItem {
   id: string;
@@ -77,10 +79,13 @@ export default function OrderHistoryTab({
   onRejectOrder,
   onDeleteOrder,
 }: OrderHistoryTabProps) {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(null);
   const [activeDropdownOrderId, setActiveDropdownOrderId] = useState<string | null>(null);
+  const [trackingModalOrderId, setTrackingModalOrderId] = useState<string | null>(null);
 
   // Multi-select & Bulk delete state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -107,7 +112,11 @@ export default function OrderHistoryTab({
       order.institution.name.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
-      statusFilter === "ALL" ? true : order.status === statusFilter;
+      statusFilter === "ALL" 
+        ? true 
+        : statusFilter === "BITESHIP_CANCELLED"
+        ? order.status === "REJECTED" && ((order.rejectionReason || "").toLowerCase().includes("biteship") || (order.rejectionReason || "").toLowerCase().includes("ekspedisi"))
+        : order.status === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
@@ -152,7 +161,7 @@ export default function OrderHistoryTab({
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, order?: any) => {
     switch (status) {
       case "PENDING_APPROVAL":
         return (
@@ -178,12 +187,18 @@ export default function OrderHistoryTab({
             ✓ Diterima
           </span>
         );
-      case "REJECTED":
-        return (
+      case "REJECTED": {
+        const isBiteship = (order?.rejectionReason || "").toLowerCase().includes("biteship") || (order?.rejectionReason || "").toLowerCase().includes("ekspedisi");
+        return isBiteship ? (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black bg-red-100 text-red-800 border border-red-300 shadow-2xs">
+            🚨 Dibatalkan Biteship
+          </span>
+        ) : (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-            Rejected
+            Rejected / Ditolak
           </span>
         );
+      }
       case "CANCELLED":
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-50 text-red-700 border border-red-200">
@@ -269,6 +284,7 @@ export default function OrderHistoryTab({
             className="px-3 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
           >
             <option value="ALL">Semua Status Order</option>
+            <option value="BITESHIP_CANCELLED">🚨 Dibatalkan Biteship</option>
             <option value="PENDING_APPROVAL">Menunggu Approval</option>
             <option value="PENDING_SHIPPING">Proses Logistik (Packing)</option>
             <option value="SHIPPED">Sedang Dikirim</option>
@@ -276,6 +292,26 @@ export default function OrderHistoryTab({
             <option value="CANCELLED">Dibatalkan Mitra</option>
             <option value="REJECTED">Ditolak Admin</option>
           </select>
+
+          <button
+            type="button"
+            onClick={async () => {
+              setIsRefreshing(true);
+              try {
+                const { syncAllBiteshipOrders } = await import("@/app/actions/orders");
+                await syncAllBiteshipOrders();
+              } catch (e) {
+                console.warn("Sync error:", e);
+              }
+              router.refresh();
+              setTimeout(() => setIsRefreshing(false), 800);
+            }}
+            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer border-none"
+            title="Refresh Data & Sync Status Biteship"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            <span>{isRefreshing ? "Syncing..." : "Refresh Status"}</span>
+          </button>
         </div>
       </div>
 
@@ -393,7 +429,7 @@ export default function OrderHistoryTab({
                         {getPaymentStatusBadge(order.paymentStatus)}
                       </td>
                       <td className="px-6 py-4 text-center whitespace-nowrap">
-                        {getStatusBadge(order.status)}
+                        {getStatusBadge(order.status, order)}
                       </td>
                       <td className="px-6 py-4 text-center whitespace-nowrap">
                         <button
@@ -589,6 +625,16 @@ export default function OrderHistoryTab({
             {/* Modal Footer */}
             <div className="flex justify-between items-center pt-2 border-t border-outline-variant/10">
               <div className="flex gap-2">
+                {selectedDetailOrder.trackingNumber && (
+                  <button
+                    type="button"
+                    onClick={() => setTrackingModalOrderId(selectedDetailOrder.id)}
+                    className="px-3 py-1.5 bg-primary text-white hover:bg-primary/90 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer shadow-sm flex items-center gap-1 border-none"
+                  >
+                    <span className="material-symbols-outlined text-[15px]">radar</span>
+                    Lacak In-App
+                  </button>
+                )}
                 {selectedDetailOrder.status !== "REJECTED" && (
                   <button
                     type="button"
@@ -703,6 +749,13 @@ export default function OrderHistoryTab({
           </div>
         );
       })()}
+
+      {/* Modal Live Tracking Biteship In-App */}
+      <BiteshipTrackingModal
+        orderId={trackingModalOrderId}
+        isOpen={!!trackingModalOrderId}
+        onClose={() => setTrackingModalOrderId(null)}
+      />
     </div>
   );
 }

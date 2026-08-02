@@ -62,6 +62,29 @@ model Institution {
   bpomCode     String    @default("") // Kode BPOM Resmi PBF/Sarana
   users        User[]
   orders       Order[]
+  shippingAddresses ShippingAddress[]
+}
+
+model ShippingAddress {
+  id              String      @id @default(uuid())
+  institutionId   String
+  institution     Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  label           String      // "Apotek Utama", "Gudang Transit", "Cabang 2", dll.
+  recipientName   String      // Nama Penerima Lapangan / APJ
+  recipientPhone  String      // No HP/WA Penerima
+  fullAddress     String      // Alamat Lengkap (Jalan, No Ruko, RT/RW, Patokan)
+  province        String?     // Provinsi
+  city            String?     // Kota / Kabupaten
+  district        String?     // Kecamatan
+  postalCode      String?     // Kode Pos
+  latitude        Float?      // Koordinat Lintang (untuk Biteship API)
+  longitude       Float?      // Koordinat Bujur (untuk Biteship API)
+  isMain          Boolean     @default(false) // Alamat Utama
+  cdobNote        String?     // Catatan Izin SIA/Sarana CDOB
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([institutionId])
 }
 
 model Product {
@@ -111,8 +134,17 @@ model Order {
   approvedAt        DateTime?
   rejectionReason   String?
   shippingAddress   String
+  shippingLatitude  Float?
+  shippingLongitude Float?
+  recipientName     String?
+  recipientPhone    String?
   trackingNumber    String?
+  biteshipOrderId   String?
   shippingDate      DateTime?
+  deliveredAt       DateTime?
+  autoConfirmed     Boolean                @default(false)
+  biteshipStatus    String?                // Status granular dari Biteship API (misal: picking_up, in_transit, dropping_off, on_hold, etc)
+  biteshipStatusLabel String?              // Teks penjelasan status dalam Bahasa Indonesia
   paymentProofUrl   String?                // Base64 bukti bayar
   paymentStatus     String                 @default("UNPAID") // "UNPAID" | "PENDING_VERIFICATION" | "PAID"
   paymentMethod     String                 @default("VA")     // "VA" | "TOP" | "INVOICE"

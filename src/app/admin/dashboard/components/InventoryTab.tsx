@@ -33,6 +33,7 @@ interface InventoryTabProps {
   handleDeleteProduct: (id: string) => void;
   handleDeleteBatch: (id: string) => void;
   onEditProduct: (p: any) => void;
+  onQuarantineNearExpiry?: (days?: number) => Promise<void>;
 }
 
 export default function InventoryTab({
@@ -43,6 +44,7 @@ export default function InventoryTab({
   handleDeleteProduct,
   handleDeleteBatch,
   onEditProduct,
+  onQuarantineNearExpiry,
 }: InventoryTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Semua Kategori");
@@ -240,6 +242,38 @@ export default function InventoryTab({
           <div className="absolute -right-2 -bottom-2 w-16 h-16 bg-rose-50 rounded-full opacity-40 group-hover:scale-125 transition-transform duration-500 pointer-events-none" />
         </div>
       </div>
+
+      {/* Auto-Quarantine ED Alert Banner (BPOM CDOB Engine) */}
+      {(soonExpiredCount > 0 || expiredCount > 0) && onQuarantineNearExpiry && (
+        <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-5 sm:p-6 shadow-md border border-purple-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fadeIn">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-400/40 text-purple-300 flex items-center justify-center shrink-0 mt-0.5">
+              <span className="material-symbols-outlined text-xl">shield_locked</span>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-heading font-extrabold text-sm text-white">ED Warning Engine BPOM CDOB</h3>
+                <span className="bg-purple-500/30 text-purple-200 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border border-purple-400/30">
+                  {soonExpiredCount + expiredCount} Batch Berisiko
+                </span>
+              </div>
+              <p className="text-xs text-purple-200/85 font-medium leading-relaxed max-w-2xl">
+                Terdapat <strong className="text-white font-bold">{soonExpiredCount} batch mendekati kadaluarsa (&lt; 90 hari)</strong> dan <strong className="text-rose-300 font-bold">{expiredCount} batch kedaluwarsa</strong>. Gunakan fitur Karantina Otomatis untuk menonaktifkan stok dari katalog belanja pelanggan guna mencegah sanksi BPOM.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => onQuarantineNearExpiry(60)}
+              className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer shadow-md active:scale-95 border-none flex items-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-[16px]">do_not_disturb_on</span>
+              <span>Auto-Karantina Obat (&lt; 60 Hari)</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Table & Bento Section */}
       <div className="bg-white rounded-3xl shadow-xs border border-slate-200/80 overflow-hidden">

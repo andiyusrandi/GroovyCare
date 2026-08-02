@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X, Search, CheckCircle, Package, Scan, Snowflake, Truck, AlertTriangle } from "lucide-react";
+import BiteshipTrackingModal from "@/app/components/BiteshipTrackingModal";
 
 interface OrderItem {
   id: string;
@@ -59,9 +60,11 @@ interface LogisticsTabProps {
   setActivePackingOrder: (order: Order | null) => void;
   scannedItems: Record<string, number>;
   simulateScanItem: (allocId: string, neededQty: number) => void;
+  autoScanAllItems?: () => void;
   resiInput: string;
   setResiInput: (val: string) => void;
   handleShipOrder: () => void;
+  onBulkShipOrders?: (orderIds: string[]) => Promise<void>;
   startPacking: (order: Order) => void;
   onRejectOrder: (orderId: string, reason: string) => Promise<void>;
   onDeleteOrder: (orderId: string) => Promise<void>;
@@ -73,9 +76,11 @@ export default function LogisticsTab({
   setActivePackingOrder,
   scannedItems,
   simulateScanItem,
+  autoScanAllItems,
   resiInput,
   setResiInput,
   handleShipOrder,
+  onBulkShipOrders,
   startPacking,
   onRejectOrder,
   onDeleteOrder,
@@ -84,12 +89,31 @@ export default function LogisticsTab({
   const shippedCount = orders.filter((o) => o.status === "SHIPPED").length;
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [trackingModalOrderId, setTrackingModalOrderId] = useState<string | null>(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [isBulkShipping, setIsBulkShipping] = useState(false);
 
   const filteredOrders = pendingShipping.filter(
     (o) =>
       o.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       o.institution.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const isAllSelected = filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedOrderIds([]);
+    } else {
+      setSelectedOrderIds(filteredOrders.map((o) => o.id));
+    }
+  };
+
+  const toggleSelectOrder = (id: string) => {
+    setSelectedOrderIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
 
   return (
     <div className="space-y-6 animate-fadeIn text-xs">
@@ -161,8 +185,29 @@ export default function LogisticsTab({
       <div className="flex flex-col xl:flex-row gap-6 min-h-[500px]">
         {/* Shipment Queue (Left column - 1.6 flex) */}
         <div className="flex-[1.6] bg-surface-container-lowest rounded-2xl border border-outline-variant/20 shadow-sm flex flex-col overflow-hidden">
-          <div className="px-5 py-4 border-b border-outline-variant/10 flex justify-between items-center bg-white">
-            <h3 className="font-heading font-extrabold text-sm text-on-surface">Antrean Pengiriman</h3>
+          <div className="px-5 py-4 border-b border-outline-variant/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white">
+            <div className="flex items-center gap-3">
+              <h3 className="font-heading font-extrabold text-sm text-on-surface">Antrean Pengiriman</h3>
+              {selectedOrderIds.length > 0 && onBulkShipOrders && (
+                <button
+                  type="button"
+                  disabled={isBulkShipping}
+                  onClick={async () => {
+                    setIsBulkShipping(true);
+                    try {
+                      await onBulkShipOrders(selectedOrderIds);
+                    } finally {
+                      setIsBulkShipping(false);
+                    }
+                  }}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-extrabold text-[10px] flex items-center gap-1 transition-all cursor-pointer shadow-sm border-none active:scale-95 disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[14px]">local_shipping</span>
+                  <span>{isBulkShipping ? "Memproses..." : `Request Pick-Up Biteship Massal (${selectedOrderIds.length} Order)`}</span>
+                </button>
+              )}
+            </div>
+
             <div className="relative w-48">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant/75 w-3.5 h-3.5" />
               <input
@@ -184,7 +229,15 @@ export default function LogisticsTab({
               <table className="w-full text-left border-collapse table-auto">
                 <thead className="bg-surface-container-low text-on-surface-variant font-bold border-b border-outline-variant/20">
                   <tr>
-                    <th className="px-5 py-3 w-28">No. Pesanan</th>
+                    <th className="px-3 py-3 w-8 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected}
+                        onChange={toggleSelectAll}
+                        className="rounded border-outline-variant text-primary focus:ring-primary cursor-pointer w-3.5 h-3.5"
+                      />
+                    </th>
+                    <th className="px-3 py-3 w-28">No. Pesanan</th>
                     <th className="px-5 py-3">Tujuan Pengiriman</th>
                     <th className="px-5 py-3 text-center w-16">Item</th>
                     <th className="px-5 py-3 w-28">Metode</th>
@@ -194,6 +247,7 @@ export default function LogisticsTab({
                 <tbody className="divide-y divide-outline-variant/10 text-on-surface">
                   {filteredOrders.map((order) => {
                     const isSelected = activePackingOrder?.id === order.id;
+                    const isChecked = selectedOrderIds.includes(order.id);
                     const isColdChain = order.items.some(
                       (item) =>
                         item.product.name.toLowerCase().includes("vaksin") ||
@@ -212,10 +266,20 @@ export default function LogisticsTab({
                         onClick={() => startPacking(order)}
                         className={`transition-colors cursor-pointer ${isSelected
                             ? "border-l-4 border-primary bg-primary-container/10 font-medium"
+                            : isChecked
+                            ? "bg-blue-50/50"
                             : "hover:bg-surface-container-low/50"
                           }`}
                       >
-                        <td className="px-5 py-4 font-bold text-primary font-mono">{order.orderNumber}</td>
+                        <td className="px-3 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleSelectOrder(order.id)}
+                            className="rounded border-outline-variant text-primary focus:ring-primary cursor-pointer w-3.5 h-3.5"
+                          />
+                        </td>
+                        <td className="px-3 py-4 font-bold text-primary font-mono">{order.orderNumber}</td>
                         <td className="px-5 py-4">
                           <p className="font-bold text-foreground">{order.institution.name}</p>
                           <p className="text-[10px] text-on-surface-variant truncate max-w-[180px]">{order.shippingAddress}</p>
@@ -289,8 +353,19 @@ export default function LogisticsTab({
                   </p>
                 </div>
 
-                {/* Admin Actions: Batalkan / Hapus */}
-                <div className="flex gap-1.5 ml-2">
+                {/* Admin Actions: 1-Click Auto Scan, Batalkan, Hapus */}
+                <div className="flex items-center gap-1.5 ml-2">
+                  {autoScanAllItems && (
+                    <button
+                      type="button"
+                      onClick={autoScanAllItems}
+                      title="Validasi Scan Otomatis Seluruh Batch FEFO"
+                      className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-extrabold flex items-center gap-1 transition-all cursor-pointer shadow-xs border-none"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">bolt</span>
+                      <span>1-Click Scan FEFO</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       const reason = prompt("Masukkan alasan pembatalan pesanan (stok akan dikembalikan):");
@@ -381,28 +456,44 @@ export default function LogisticsTab({
                     <div className="bg-emerald-50 border border-emerald-150 rounded-xl p-3 flex items-start gap-2">
                       <CheckCircle className="w-4.5 h-4.5 text-primary shrink-0 mt-0.5" />
                       <p className="text-[10px] text-primary font-bold">
-                        Pengepakan Selesai! Seluruh batch FEFO telah valid ter-scan. Masukkan resi logistik di bawah untuk kirim obat.
+                        Pengepakan Selesai! Seluruh batch FEFO telah valid ter-scan. Klik tombol untuk mem-booking kurir Biteship otomatis atau masukkan resi manual.
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <input
                         type="text"
                         value={resiInput}
                         onChange={(e) => setResiInput(e.target.value)}
-                        placeholder="Contoh: JNE-COLD-998822"
+                        placeholder="Kosongkan untuk Auto-Book Biteship / ketik resi manual..."
                         className="flex-1 px-3 py-2 bg-surface-container border border-outline-variant/30 rounded-xl text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary outline-none"
                       />
                       <button
                         onClick={handleShipOrder}
-                        className="bg-primary text-white px-4 py-2 rounded-xl font-bold shadow-md hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                        className="bg-primary text-white px-4 py-2 rounded-xl font-bold shadow-md hover:brightness-110 active:scale-95 transition-all cursor-pointer text-xs flex items-center justify-center gap-1 shrink-0"
                       >
-                        Kirim Obat
+                        <span className="material-symbols-outlined text-[16px]">local_shipping</span>
+                        Kirim & Request Pick Up Biteship
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-2 text-[10px] text-on-surface-variant font-bold italic">
-                    *Pindai seluruh barcode batch obat di atas untuk menyelesaikan pengemasan.
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-1">
+                    <p className="text-[10px] text-on-surface-variant font-bold italic">
+                      *Pindai barcode batch obat di atas atau klik auto-validate jika pesanan standar:
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (autoScanAllItems) autoScanAllItems();
+                        setTimeout(() => {
+                          handleShipOrder();
+                        }, 100);
+                      }}
+                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-md active:scale-95 shrink-0 border-none"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">bolt</span>
+                      <span>Auto-Validate FEFO & Request Pick Up Biteship</span>
+                    </button>
                   </div>
                 )}
                 <p className="text-center text-[8px] text-on-surface-variant mt-2 uppercase tracking-wide font-black">Mode Simulasi Scan Aktif</p>
@@ -419,6 +510,13 @@ export default function LogisticsTab({
           )}
         </div>
       </div>
+
+      {/* Modal Live Tracking Biteship In-App */}
+      <BiteshipTrackingModal
+        orderId={trackingModalOrderId}
+        isOpen={!!trackingModalOrderId}
+        onClose={() => setTrackingModalOrderId(null)}
+      />
     </div>
   );
 }

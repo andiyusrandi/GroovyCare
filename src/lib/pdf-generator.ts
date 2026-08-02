@@ -59,12 +59,25 @@ export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JA
     year: "numeric",
   });
 
+  const isRejected = order.status === "REJECTED";
+  const isBiteshipCancel = isRejected && ((order.rejectionReason || "").toLowerCase().includes("biteship") || (order.rejectionReason || "").toLowerCase().includes("ekspedisi"));
+  
+  const watermarkHtml = isRejected ? `
+    <div class="watermark-cancelled">
+      <div>${isBiteshipCancel ? "DIBATALKAN EKSPEDISI BITESHIP" : "PESANAN DITOLAK / DIBATALKAN"}</div>
+      <div style="font-size: 11px; font-weight: 700; margin-top: 4px; text-transform: none;">
+        ${order.rejectionReason || "Dibatalkan oleh pihak pengiriman"}
+      </div>
+    </div>
+  ` : "";
+
   let documentHtml = "";
 
   if (type === "SP") {
     // 1. SURAT PESANAN (SP) TEMPLATE
     documentHtml = `
       <div class="document-container">
+        ${watermarkHtml}
         <!-- Letterhead (Customer / Apothecary) -->
         <div class="letterhead flex justify-between items-start border-b-2 border-slate-800 pb-4">
           <div class="max-w-[70%]">
@@ -90,15 +103,16 @@ export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JA
         <div class="grid grid-cols-2 gap-4 text-[10px] leading-relaxed my-4 text-slate-700">
           <div>
             <p class="text-slate-400 font-bold uppercase text-[8px] tracking-wider">Kepada Yth:</p>
-            <p class="font-extrabold text-slate-900">PT PHARMADIST INDONESIA (PBF)</p>
-            <p>Izin PBF: 91201083921820003</p>
-            <p>Jl. Terpadu Healthcare No. 42, Jakarta Selatan</p>
+            <p class="font-extrabold text-slate-900">PT. GROOVYRX PHARMACEUTICAL GROUP (Growmexa)</p>
+            <p>Bidang Usaha: Distribusi Obat (PBF)</p>
+            <p>JL. TAMALANREA RAYA RUKO PELANGI BLOK B NO 7, Kel. Buntusu, Kec. Tamalanrea, Kota Makassar, Sulawesi Selatan, 90245</p>
+            <p>Telp: 0851 5100 5960 | Email: groovyrxpharmaceutical@gmail.com</p>
           </div>
           <div class="pl-4 border-l border-slate-200">
             <p class="text-slate-400 font-bold uppercase text-[8px] tracking-wider">Detail Pemesanan:</p>
             <p>Tanggal SP: <strong>${orderDate}</strong></p>
-            <p>Sifat Pesanan: <strong>Biasa / Rantai Dingin</strong></p>
-            <p>Jalur Distribusi: <strong>B2B Online Portal</strong></p>
+            <p>Sifat Pesanan: <strong>Biasa / Rantai Dingin (Cold Chain)</strong></p>
+            <p>Jalur Distribusi: <strong>Portal B2B Growmexa Online</strong></p>
           </div>
         </div>
 
@@ -170,14 +184,16 @@ export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JA
     // 2. INVOICE (e-FAKTUR) TEMPLATE
     documentHtml = `
       <div class="document-container">
-        <!-- Letterhead (PBF PharmaDist) -->
+        ${watermarkHtml}
+        <!-- Letterhead (Growmexa - PT. GROOVYRX PHARMACEUTICAL GROUP) -->
         <div class="letterhead flex justify-between items-start border-b-2 border-primary pb-4">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-primary text-white flex items-center justify-center font-heading font-extrabold text-xl rounded-xl">P</div>
+            <div class="w-10 h-10 bg-primary text-white flex items-center justify-center font-heading font-extrabold text-xl rounded-xl">G</div>
             <div>
-              <h1 class="font-heading font-extrabold text-sm text-slate-900">PT PHARMADIST INDONESIA</h1>
-              <p class="text-[9px] text-slate-500 font-medium">Distributor & Pedagang Besar Farmasi (PBF) Resmi</p>
-              <p class="text-[8px] text-slate-400 mt-0.5">Izin PBF: 91201083921820003 | Sertifikat CDOB: 420/CDOB/BPOM/2026</p>
+              <h1 class="font-heading font-extrabold text-sm text-slate-900">PT. GROOVYRX PHARMACEUTICAL GROUP</h1>
+              <p class="text-[9px] text-slate-600 font-bold">Growmexa • Distributor & Pedagang Besar Farmasi (PBF) Resmi</p>
+              <p class="text-[8px] text-slate-500 mt-0.5">JL. TAMALANREA RAYA RUKO PELANGI BLOK B NO 7, Makassar | Telp: 0851 5100 5960</p>
+              <p class="text-[8px] text-slate-500">Email: groovyrxpharmaceutical@gmail.com</p>
             </div>
           </div>
           <div class="text-right">
@@ -240,11 +256,11 @@ export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JA
         <!-- Totals & Payment Grid -->
         <div class="flex justify-between items-start my-6">
           <div class="max-w-[50%] text-[9px] text-slate-500 leading-relaxed border border-slate-200 rounded-xl p-3 bg-slate-50">
-            <strong>Informasi Pembayaran Bank:</strong><br/>
+            <strong>Informasi Pembayaran Rekening PBF:</strong><br/>
             Pembayaran jatuh tempo pada tanggal <strong>${dueDate}</strong>.<br/>
-            Transfer dapat ditujukan ke Rekening PBF Finance:<br/>
-            <strong>Bank Mandiri Cab. Healthcare: 123-000-456-7890</strong><br/>
-            a/n PT PHARMADIST INDONESIA
+            Transfer ke Rekening Resmi PBF:<br/>
+            <strong>Bank Mandiri: 123-000-456-7890</strong><br/>
+            a/n PT. GROOVYRX PHARMACEUTICAL GROUP
           </div>
           <div class="w-64 text-[10px] text-slate-700 space-y-1.5">
             <div class="flex justify-between">
@@ -275,17 +291,17 @@ export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JA
             <p class="text-[8px] text-slate-500">SIPA: ${order.createdBy.sipaNumber || "-"}</p>
           </div>
           <div class="text-right">
-            <p class="text-slate-400 uppercase text-[8px] tracking-wider">Hormat Kami, PBF Finance,</p>
+            <p class="text-slate-400 uppercase text-[8px] tracking-wider">Hormat Kami, Growmexa PBF Finance,</p>
             <div class="h-16 flex items-center justify-end py-1 relative">
               <!-- Mock PBF Corporate Blue Stamp -->
-              <div class="w-16 h-16 rounded-full border-2 border-dashed border-primary/50 text-primary/60 font-extrabold text-[8px] uppercase tracking-wider flex flex-col items-center justify-center rotate-12 absolute -top-2 right-4 select-none opacity-85">
-                <span>PBF</span>
-                <span class="text-[6px] text-slate-400">PHARMADIST</span>
-                <span>LUNAS</span>
+              <div class="w-20 h-16 rounded-full border-2 border-dashed border-primary/50 text-primary/60 font-extrabold text-[7px] uppercase tracking-wider flex flex-col items-center justify-center rotate-12 absolute -top-2 right-2 select-none opacity-85">
+                <span>GROOVYRX</span>
+                <span class="text-[5px] text-slate-400">GROWMEXA</span>
+                <span>VERIFIED</span>
               </div>
             </div>
-            <p class="border-t border-slate-400 pt-1 font-bold text-slate-900">Finance & Billing Manager</p>
-            <p class="text-[8px] text-slate-500">PT PHARMADIST INDONESIA</p>
+            <p class="border-t border-slate-400 pt-1 font-bold text-slate-900">Finance Manager</p>
+            <p class="text-[8px] text-slate-500">PT. GROOVYRX PHARMACEUTICAL GROUP</p>
           </div>
         </div>
       </div>
@@ -328,14 +344,15 @@ export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JA
 
     documentHtml = `
       <div class="document-container">
-        <!-- Letterhead (PBF PharmaDist) -->
+        ${watermarkHtml}
+        <!-- Letterhead (Growmexa PBF) -->
         <div class="letterhead flex justify-between items-start border-b-2 border-primary pb-4">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-primary text-white flex items-center justify-center font-heading font-extrabold text-xl rounded-xl">P</div>
+            <div class="w-10 h-10 bg-primary text-white flex items-center justify-center font-heading font-extrabold text-xl rounded-xl">G</div>
             <div>
-              <h1 class="font-heading font-extrabold text-sm text-slate-900">PT PHARMADIST INDONESIA</h1>
-              <p class="text-[9px] text-slate-500 font-medium">Distributor & Pedagang Besar Farmasi (PBF) Resmi</p>
-              <p class="text-[8px] text-slate-400 mt-0.5">Izin PBF: 91201083921820003 | Sertifikat CDOB: 420/CDOB/BPOM/2026</p>
+              <h1 class="font-heading font-extrabold text-sm text-slate-900">PT. GROOVYRX PHARMACEUTICAL GROUP</h1>
+              <p class="text-[9px] text-slate-600 font-bold">Growmexa • Distributor & Pedagang Besar Farmasi (PBF) Resmi</p>
+              <p class="text-[8px] text-slate-500 mt-0.5">JL. TAMALANREA RAYA RUKO PELANGI BLOK B NO 7, Makassar | Telp: 0851 5100 5960</p>
             </div>
           </div>
           <div class="text-right">
@@ -413,6 +430,16 @@ export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JA
             <p class="text-[7px] text-slate-400 italic">( Tanda Tangan & Stempel Apotek )</p>
           </div>
         </div>
+
+        <!-- Footer -->
+        <div class="mt-8 border-t border-slate-300 pt-3 flex justify-between items-center text-[8px] text-slate-400 font-mono">
+          <div>
+            <span>Growmexa CDOB System • PT. GROOVYRX PHARMACEUTICAL GROUP</span>
+          </div>
+          <div>
+            <span>Dicetak secara otomatis oleh Portal PBF Growmexa pada ${approvedDate}</span>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -459,6 +486,24 @@ export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JA
           border-radius: 16px;
           border: 1px solid #e2e8f0;
           position: relative;
+        }
+        .watermark-cancelled {
+          position: absolute;
+          top: 35%;
+          left: 5%;
+          right: 5%;
+          transform: rotate(-20deg);
+          text-align: center;
+          border: 6px solid #dc2626;
+          color: #dc2626;
+          padding: 16px 24px;
+          font-size: 26px;
+          font-weight: 900;
+          opacity: 0.30;
+          pointer-events: none;
+          text-transform: uppercase;
+          border-radius: 16px;
+          z-index: 50;
         }
         @media print {
           body {

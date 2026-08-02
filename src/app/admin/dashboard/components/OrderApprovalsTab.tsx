@@ -456,17 +456,7 @@ export default function OrderApprovalsTab({
                               <p className="text-[10px] text-on-surface-variant/70">Bayar ke kurir saat barang sampai</p>
                             </div>
                           </>
-                        ) : (
-                          <>
-                            <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-bold text-xs border border-purple-200 shrink-0">
-                              INV
-                            </div>
-                            <div>
-                              <p className="font-bold text-foreground text-xs">Invoice Billing</p>
-                              <p className="text-[10px] text-on-surface-variant/70">Tempo TOP 30 Hari (Term)</p>
-                            </div>
-                          </>
-                        )}
+                        ) : null}
                       </div>
                     </div>
 

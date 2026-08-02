@@ -1,4 +1,7 @@
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { getSession } from "@/lib/auth-session";
 import { redirect } from "next/navigation";
 import { getAllPartners } from "@/app/actions/partnership";

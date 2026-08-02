@@ -52,7 +52,7 @@ export async function getSnapToken(orderId: string) {
     }
 
     // Hitung Subtotal
-    const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const subtotal = order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
     // Hitung PPN 11%
     const vat = Math.round(subtotal * 0.11);
 
@@ -63,7 +63,7 @@ export async function getSnapToken(orderId: string) {
     if (feeMatch && feeMatch[1]) {
       shippingFee = parseInt(feeMatch[1].replace(/[.,]/g, "")) || 0;
     } else if (addr.includes("Kurir: Standard Flat Rate")) {
-      const isColdChain = order.items.some(item =>
+      const isColdChain = order.items.some((item: any) =>
         item.product.name.includes("Insulin") || item.product.code.includes("AMX")
       );
       shippingFee = isColdChain ? 85000 : 50000;
@@ -75,7 +75,7 @@ export async function getSnapToken(orderId: string) {
     const grossAmount = subtotal + vat + shippingFee;
 
     // Persiapkan detail barang untuk Midtrans
-    const itemDetails = order.items.map((item) => ({
+    const itemDetails = order.items.map((item: any) => ({
       id: item.productId,
       price: Math.round(item.price),
       quantity: item.quantity,

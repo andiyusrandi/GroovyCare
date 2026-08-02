@@ -678,20 +678,10 @@ export default function PurchaseHistoryView({
                   )}
 
                   <div className="flex gap-2">
-                    {(order.status === "DELIVERED" || order.status === "SHIPPED") && (
-                      <button
-                        type="button"
-                        onClick={() => setViewingFaktur(order)}
-                        className="flex-1 py-2.5 bg-white border border-outline-variant/30 text-on-surface-variant hover:text-foreground font-bold rounded-xl text-xs flex items-center justify-center gap-1 cursor-pointer"
-                      >
-                        <Download className="w-3.5 h-3.5 text-primary" />
-                        <span>e-Faktur</span>
-                      </button>
-                    )}
                     <button
                       type="button"
                       onClick={() => setViewingDetailOrder(order)}
-                      className="flex-1 py-2.5 bg-surface-container-high hover:bg-surface-variant text-on-surface rounded-xl font-bold transition-all text-xs border-none cursor-pointer"
+                      className="w-full py-2.5 bg-surface-container-high hover:bg-surface-variant text-on-surface rounded-xl font-bold transition-all text-xs border-none cursor-pointer"
                     >
                       Detail Pesanan
                     </button>

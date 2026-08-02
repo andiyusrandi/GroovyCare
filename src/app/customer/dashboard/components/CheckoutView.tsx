@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getCourierMeta } from "@/lib/courier-logos";
+import CourierLogoBadge from "@/components/CourierLogoBadge";
+import AddressManagerModal from "@/components/AddressManagerModal";
+import AddressFormModal from "@/components/AddressFormModal";
+import { MapPin, Navigation, ShieldCheck, Plus, Edit3 } from "lucide-react";
+import { triggerHapticImpact } from "@/lib/mobile-haptics";
 
 interface Batch {
   id: string;
@@ -34,8 +40,8 @@ interface CheckoutViewProps {
   setHasSigned: (val: boolean) => void;
   setSignatureDataUrl: (val: string) => void;
   setIsDrawingModalOpen: (val: boolean) => void;
-  paymentMethod: "VA" | "TOP" | "INVOICE" | "COD";
-  setPaymentMethod: (val: "VA" | "TOP" | "INVOICE" | "COD") => void;
+  paymentMethod: "VA" | "TOP" | "COD";
+  setPaymentMethod: (val: "VA" | "TOP" | "COD") => void;
   checkoutError: string | null;
   isSubmittingOrder: boolean;
   handleCheckout: (shippingAddress: string) => void;
@@ -69,19 +75,70 @@ export default function CheckoutView({
   const isLimitInsufficient = totalBilling > availableLimit;
 
   useEffect(() => {
-    if (isLimitInsufficient && (paymentMethod === "TOP" || paymentMethod === "INVOICE")) {
+    if (isLimitInsufficient && (paymentMethod === "TOP" || false)) {
       setPaymentMethod("VA");
     }
   }, [isLimitInsufficient, paymentMethod, setPaymentMethod]);
   // States for shipping address details
-  const [shippingProvince, setShippingProvince] = useState("");
-  const [shippingRegency, setShippingRegency] = useState("");
-  const [shippingDistrict, setShippingDistrict] = useState("");
-  const [shippingVillage, setShippingVillage] = useState("");
-  const [shippingPostalCode, setShippingPostalCode] = useState("");
+  const [shippingProvince, setShippingProvince] = useState("Sulawesi Selatan");
+  const [shippingRegency, setShippingRegency] = useState("Makassar");
+  const [shippingDistrict, setShippingDistrict] = useState("Tamalanrea");
+  const [shippingVillage, setShippingVillage] = useState("Tamalanrea");
+  const [shippingPostalCode, setShippingPostalCode] = useState("90245");
   const [shippingAddressDetail, setShippingAddressDetail] = useState(institution.address || "");
-  const [businessEmail, setBusinessEmail] = useState(user.email || "");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [businessEmail, setBusinessEmail] = useState(user.email || "mitra@groovyrx.com");
+  const [phoneNumber, setPhoneNumber] = useState(user.phone || "085151005960");
+  const [isManualFormOpen, setIsManualFormOpen] = useState(false);
+
+  // Address Book Integration
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<any | null>(null);
+  const [isAddressManagerOpen, setIsAddressManagerOpen] = useState(false);
+  const [isAddressFormOpen, setIsAddressFormOpen] = useState(false);
+  const [addressToEdit, setAddressToEdit] = useState<any>(null);
+
+  const handleSelectAddress = (addr: any) => {
+    setSelectedAddress(addr);
+    setShippingProvince(addr.province || "Sulawesi Selatan");
+    setShippingRegency(addr.city || "Makassar");
+    setShippingDistrict(addr.district || "Tamalanrea");
+    setShippingPostalCode(addr.postalCode || "90245");
+    setShippingAddressDetail(addr.fullAddress);
+    if (addr.recipientPhone) setPhoneNumber(addr.recipientPhone);
+  };
+
+  const fetchAddresses = async () => {
+    if (!institution?.id) return;
+    try {
+      const { getShippingAddresses } = await import("@/app/actions/shipping-addresses");
+      const res = await getShippingAddresses(institution.id);
+      if (res.success && res.addresses.length > 0) {
+        setSavedAddresses(res.addresses);
+        const stillExists = selectedAddress ? res.addresses.find((a: any) => a.id === selectedAddress.id) : null;
+        const main = res.addresses.find((a: any) => a.isMain) || res.addresses[0];
+        if (stillExists) {
+          handleSelectAddress(stillExists);
+        } else {
+          handleSelectAddress(main);
+        }
+      } else {
+        setSavedAddresses([]);
+        setSelectedAddress(null);
+        setShippingProvince("");
+        setShippingRegency("");
+        setShippingDistrict("");
+        setShippingVillage("");
+        setShippingPostalCode("");
+        setShippingAddressDetail("");
+      }
+    } catch (err) {
+      console.error("Gagal load alamat checkout:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAddresses();
+  }, [institution?.id]);
 
   const [provincesList, setProvincesList] = useState<{ id: string; name: string }[]>([]);
   const [regenciesList, setRegenciesList] = useState<{ id: string; name: string }[]>([]);
@@ -209,20 +266,12 @@ export default function CheckoutView({
   const totalWeight = Math.max(1000, cart.reduce((acc, item) => acc + item.quantity * 50, 0));
 
   useEffect(() => {
-    const hasAddress =
-      shippingProvince.trim() !== "" &&
-      shippingRegency.trim() !== "" &&
-      shippingDistrict.trim() !== "";
-
-    if (!hasAddress) {
-      setBiteshipRates([]);
-      setSelectedRate(null);
-      setShippingFee(isColdChain ? 85000 : 50000);
-      return;
-    }
-
     setIsLoadingRates(true);
     setRatesError(null);
+
+    const destProv = shippingProvince.trim() || selectedAddress?.province || "Sulawesi Selatan";
+    const destCity = shippingRegency.trim() || selectedAddress?.city || "Kota Makassar";
+    const destDist = shippingDistrict.trim() || selectedAddress?.district || "Tamalanrea";
 
     fetch("/api/biteship/rates", {
       method: "POST",
@@ -230,9 +279,9 @@ export default function CheckoutView({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        destination_province: shippingProvince,
-        destination_city: shippingRegency,
-        destination_district: shippingDistrict,
+        destination_province: destProv,
+        destination_city: destCity,
+        destination_district: destDist,
         weight: totalWeight,
       }),
     })
@@ -267,24 +316,22 @@ export default function CheckoutView({
       .finally(() => {
         setIsLoadingRates(false);
       });
-  }, [shippingProvince, shippingRegency, shippingDistrict, totalWeight, isColdChain]);
+  }, [shippingProvince, shippingRegency, shippingDistrict, selectedAddress, totalWeight, isColdChain]);
 
   const isShippingFormValid =
-    shippingProvince.trim() !== "" &&
-    shippingRegency.trim() !== "" &&
-    shippingDistrict.trim() !== "" &&
-    shippingVillage.trim() !== "" &&
-    shippingPostalCode.trim() !== "" &&
-    shippingAddressDetail.trim() !== "" &&
-    businessEmail.trim() !== "" &&
-    phoneNumber.trim() !== "" &&
-    (isLoadingRates || biteshipRates.length === 0 || selectedRate !== null);
+    selectedAddress !== null ||
+    shippingAddressDetail.trim() !== "" ||
+    (institution && institution.address && institution.address.trim() !== "");
 
   const courierString = selectedRate
-    ? ` | Kurir: ${selectedRate.courier_name.toUpperCase()} ${selectedRate.courier_service_name} (${selectedRate.shipment_duration} hari) - Rp ${selectedRate.price.toLocaleString("id-ID")}`
+    ? ` | Kurir: ${selectedRate.courier_name.toUpperCase()} ${selectedRate.courier_service_name} [code: ${selectedRate.courier_code}:${selectedRate.courier_service_code || selectedRate.type || 'reg'}] (${selectedRate.shipment_duration} hari) - Rp ${selectedRate.price.toLocaleString("id-ID")}`
     : " | Kurir: Standard Flat Rate";
 
-  const consolidatedAddress = `Alamat: ${shippingAddressDetail}, Kel/Desa: ${shippingVillage}, Kec: ${shippingDistrict}, Kab/Kota: ${shippingRegency}, Provinsi: ${shippingProvince}, Kode Pos: ${shippingPostalCode} | Email: ${businessEmail} | Telp: ${phoneNumber}${courierString}`;
+  const activeAddressText = selectedAddress
+    ? `${selectedAddress.fullAddress} (Penerima: ${selectedAddress.recipientName} - ${selectedAddress.recipientPhone})`
+    : `Alamat: ${shippingAddressDetail}, Kec: ${shippingDistrict}, Kab/Kota: ${shippingRegency}, Provinsi: ${shippingProvince} | Email: ${businessEmail} | Telp: ${phoneNumber}`;
+
+  const consolidatedAddress = `${activeAddressText}${courierString}`;
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -423,7 +470,7 @@ export default function CheckoutView({
                     </div>
                   </div>
                   
-                  <p className="mt-4">Memesan obat-obatan kepada PBF PharmaDist Nusantara (PBF Online) sebagai berikut:</p>
+                  <p className="mt-4">Memesan obat-obatan kepada PT. GROOVYRX PHARMACEUTICAL GROUP (Growmexa) sebagai berikut:</p>
                   
                   <table className="w-full border-collapse border border-on-surface text-[10px] mt-2">
                     <thead>
@@ -502,147 +549,178 @@ export default function CheckoutView({
 
           {/* Lokasi Pengiriman & Kontak */}
           <div className="bg-white rounded-3xl border border-outline-variant/20 shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-outline-variant/15 bg-surface-container-low/40">
+            <div className="p-5 border-b border-outline-variant/15 bg-surface-container-low/40 flex justify-between items-center">
               <h2 className="font-heading font-bold text-sm text-foreground">Lokasi Pengiriman &amp; Kontak</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHapticImpact();
+                  setIsAddressManagerOpen(true);
+                }}
+                className="text-[11px] font-extrabold text-emerald-700 hover:underline bg-transparent border-none cursor-pointer flex items-center gap-1"
+              >
+                <MapPin className="w-3.5 h-3.5" /> Ubah Alamat
+              </button>
             </div>
             <div className="p-5 space-y-3.5">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-on-surface-variant mb-1">Provinsi</label>
-                  <select
-                    required
-                    value={selectedProvinceId}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      setSelectedProvinceId(id);
-                      const name = provincesList.find((p) => p.id === id)?.name || "";
-                      setShippingProvince(name);
-                      setSelectedRegencyId("");
-                      setShippingRegency("");
-                      setSelectedDistrictId("");
-                      setShippingDistrict("");
-                      setShippingVillage("");
-                    }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs"
-                  >
-                    <option value="">Pilih Provinsi</option>
-                    {provincesList.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
+              {/* Selected Address Display Card */}
+              {selectedAddress && (
+                <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-xs space-y-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-black text-emerald-950 text-[11px]">{selectedAddress.label}</span>
+                    {selectedAddress.isMain && (
+                      <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase bg-emerald-200 text-emerald-900">
+                        Utama
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-bold text-slate-800">{selectedAddress.recipientName} • <span className="font-mono">{selectedAddress.recipientPhone}</span></p>
+                  <p className="text-[11px] text-slate-600 leading-snug">{selectedAddress.fullAddress}</p>
                 </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-on-surface-variant mb-1">Kabupaten/Kota</label>
-                  <select
-                    required
-                    disabled={!selectedProvinceId}
-                    value={selectedRegencyId}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      setSelectedRegencyId(id);
-                      const name = regenciesList.find((r) => r.id === id)?.name || "";
-                      setShippingRegency(name);
-                      setSelectedDistrictId("");
-                      setShippingDistrict("");
-                      setShippingVillage("");
-                    }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs disabled:opacity-50"
-                  >
-                    <option value="">Pilih Kabupaten/Kota</option>
-                    {regenciesList.map((r) => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))}
-                  </select>
-                </div>
+              )}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsManualFormOpen(!isManualFormOpen)}
+                  className="text-[10px] font-bold text-slate-500 hover:text-emerald-700 underline bg-transparent border-none cursor-pointer"
+                >
+                  {isManualFormOpen ? "▲ Sembunyikan Input Manual Wilayah" : "▼ Edit Detail Wilayah Manual (Opsional)"}
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-on-surface-variant mb-1">Kecamatan</label>
-                  <select
-                    required
-                    disabled={!selectedRegencyId}
-                    value={selectedDistrictId}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      setSelectedDistrictId(id);
-                      const name = districtsList.find((d) => d.id === id)?.name || "";
-                      setShippingDistrict(name);
-                      setShippingVillage("");
-                    }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs disabled:opacity-50"
-                  >
-                    <option value="">Pilih Kecamatan</option>
-                    {districtsList.map((d) => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-on-surface-variant mb-1">Kelurahan/Desa</label>
-                  <select
-                    required
-                    disabled={!selectedDistrictId}
-                    value={shippingVillage}
-                    onChange={(e) => setShippingVillage(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs disabled:opacity-50"
-                  >
-                    <option value="">Pilih Kelurahan/Desa</option>
-                    {villagesList.map((v) => (
-                      <option key={v.id} value={v.name}>{v.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              {isManualFormOpen && (
+                <div className="pt-3 border-t border-slate-100 space-y-3.5 animate-fadeIn">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-on-surface-variant mb-1">Provinsi</label>
+                      <select
+                        value={selectedProvinceId}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          setSelectedProvinceId(id);
+                          const name = provincesList.find((p) => p.id === id)?.name || "";
+                          setShippingProvince(name);
+                          setSelectedRegencyId("");
+                          setShippingRegency("");
+                          setSelectedDistrictId("");
+                          setShippingDistrict("");
+                          setShippingVillage("");
+                        }}
+                        className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs"
+                      >
+                        <option value="">Pilih Provinsi</option>
+                        {provincesList.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-on-surface-variant mb-1">Kabupaten/Kota</label>
+                      <select
+                        disabled={!selectedProvinceId}
+                        value={selectedRegencyId}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          setSelectedRegencyId(id);
+                          const name = regenciesList.find((r) => r.id === id)?.name || "";
+                          setShippingRegency(name);
+                          setSelectedDistrictId("");
+                          setShippingDistrict("");
+                          setShippingVillage("");
+                        }}
+                        className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs disabled:opacity-50"
+                      >
+                        <option value="">Pilih Kabupaten/Kota</option>
+                        {regenciesList.map((r) => (
+                          <option key={r.id} value={r.id}>{r.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-1">
-                  <label className="block text-[10px] font-bold text-on-surface-variant mb-1">Kode Pos</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Kode Pos"
-                    value={shippingPostalCode}
-                    onChange={(e) => setShippingPostalCode(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs font-mono"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-[10px] font-bold text-on-surface-variant mb-1">No. Telepon Penerima</label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="0812xxxxxx"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs font-mono"
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-on-surface-variant mb-1">Kecamatan</label>
+                      <select
+                        disabled={!selectedRegencyId}
+                        value={selectedDistrictId}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          setSelectedDistrictId(id);
+                          const name = districtsList.find((d) => d.id === id)?.name || "";
+                          setShippingDistrict(name);
+                          setShippingVillage("");
+                        }}
+                        className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs disabled:opacity-50"
+                      >
+                        <option value="">Pilih Kecamatan</option>
+                        {districtsList.map((d) => (
+                          <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-on-surface-variant mb-1">Kelurahan/Desa</label>
+                      <select
+                        disabled={!selectedDistrictId}
+                        value={shippingVillage}
+                        onChange={(e) => setShippingVillage(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs disabled:opacity-50"
+                      >
+                        <option value="">Pilih Kelurahan/Desa</option>
+                        {villagesList.map((v) => (
+                          <option key={v.id} value={v.name}>{v.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-on-surface-variant mb-1">Email Bisnis</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="email@bisnis.com"
-                  value={businessEmail}
-                  onChange={(e) => setBusinessEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs font-mono"
-                />
-              </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-1">
+                      <label className="block text-[10px] font-bold text-on-surface-variant mb-1">Kode Pos</label>
+                      <input
+                        type="text"
+                        placeholder="Kode Pos"
+                        value={shippingPostalCode}
+                        onChange={(e) => setShippingPostalCode(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs font-mono"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-[10px] font-bold text-on-surface-variant mb-1">No. Telepon Penerima</label>
+                      <input
+                        type="tel"
+                        placeholder="0812xxxxxx"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs font-mono"
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-on-surface-variant mb-1">Alamat Rumah / Apotek Lengkap</label>
-                <textarea
-                  required
-                  rows={2}
-                  placeholder="Alamat lengkap lokasi pengiriman..."
-                  value={shippingAddressDetail}
-                  onChange={(e) => setShippingAddressDetail(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs leading-normal"
-                />
-              </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-on-surface-variant mb-1">Email Bisnis</label>
+                    <input
+                      type="email"
+                      placeholder="email@bisnis.com"
+                      value={businessEmail}
+                      onChange={(e) => setBusinessEmail(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-on-surface-variant mb-1">Alamat Rumah / Apotek Lengkap</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Alamat lengkap lokasi pengiriman..."
+                      value={shippingAddressDetail}
+                      onChange={(e) => setShippingAddressDetail(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-outline-variant/30 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-xs leading-normal"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -674,6 +752,7 @@ export default function CheckoutView({
                 <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
                   {biteshipRates.map((rate, i) => {
                     const isSelected = selectedRate?.courier_code === rate.courier_code && selectedRate?.courier_service_code === rate.courier_service_code;
+                    const courierMeta = getCourierMeta(rate.courier_code, rate.courier_name);
                     return (
                       <div
                         key={i}
@@ -688,9 +767,7 @@ export default function CheckoutView({
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center font-extrabold text-[10px] text-primary uppercase shrink-0">
-                            {rate.courier_code}
-                          </div>
+                          <CourierLogoBadge courierCode={rate.courier_code} courierName={rate.courier_name} />
                           <div>
                             <span className="text-xs font-bold text-foreground block">
                               {rate.courier_name.toUpperCase()} - {rate.courier_service_name}
@@ -774,78 +851,51 @@ export default function CheckoutView({
                 </div>
               </label>
 
-              {/* Invoice Billing */}
-              <label className={`block ${isLimitInsufficient ? "cursor-not-allowed opacity-55" : "cursor-pointer group"}`}>
+
+
+              {/* COD (Dikunci/Nonaktif) */}
+              <label className="block cursor-not-allowed opacity-60 group">
                 <input
                   type="radio"
                   name="payment"
-                  disabled={isLimitInsufficient}
-                  checked={paymentMethod === "INVOICE"}
-                  onChange={() => !isLimitInsufficient && setPaymentMethod("INVOICE")}
+                  disabled
+                  checked={false}
+                  onChange={() => {}}
                   className="hidden peer"
                 />
-                <div className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${
-                  isLimitInsufficient
-                    ? "border-outline-variant/20 bg-slate-50/50 text-on-surface-variant/40"
-                    : "border-outline-variant/30 peer-checked:border-primary peer-checked:bg-primary-container/5 hover:bg-surface-container-low/30"
-                }`}>
-                  <div className="w-10 h-10 bg-surface-container-low rounded-xl flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-tertiary text-[24px]">receipt_long</span>
+                <div className="flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 transition-all">
+                  <div className="w-10 h-10 bg-slate-200 rounded-xl flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-slate-400 text-[24px]">payments</span>
                   </div>
                   <div className="flex-1 text-xs">
-                    <p className="font-bold text-foreground">Invoice Billing</p>
-                    <p className="text-[10px] text-outline mt-0.5">Tempo TOP {institution.topDays} Hari (Term)</p>
-                    {isLimitInsufficient && (
-                      <span className="text-[9px] text-error font-extrabold block mt-0.5">Sisa limit tidak mencukupi</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-slate-500">Cash on Delivery (COD)</p>
+                      <span className="bg-slate-200 text-slate-700 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[11px]">lock</span> Dikunci Sementara
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Metode pembayaran COD sedang tidak tersedia sementara waktu.</p>
                   </div>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                    isLimitInsufficient ? "border-slate-200 bg-slate-100" : "border-outline-variant/40 peer-checked:border-primary peer-checked:bg-primary"
-                  }`}>
-                    {!isLimitInsufficient && <div className="w-2 h-2 bg-white rounded-full"></div>}
-                  </div>
+                  <div className="w-5 h-5 rounded-full border-2 border-slate-300 bg-slate-100 flex items-center justify-center shrink-0"></div>
                 </div>
               </label>
 
-              {/* COD */}
-              <label className="block cursor-pointer group">
-                <input
-                  type="radio"
-                  name="payment"
-                  checked={paymentMethod === "COD"}
-                  onChange={() => setPaymentMethod("COD")}
-                  className="hidden peer"
-                />
-                <div className="flex items-center gap-4 p-4 rounded-2xl border-2 border-outline-variant/30 peer-checked:border-primary peer-checked:bg-primary-container/5 hover:bg-surface-container-low/30 transition-all">
-                  <div className="w-10 h-10 bg-surface-container-low rounded-xl flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-emerald-600 text-[24px]">payments</span>
-                  </div>
-                  <div className="flex-1 text-xs">
-                    <p className="font-bold text-foreground">Cash on Delivery (COD)</p>
-                    <p className="text-[10px] text-outline mt-0.5">Bayar tunai ke kurir saat barang sampai (BiteShip COD)</p>
-                  </div>
-                  <div className="w-5 h-5 rounded-full border-2 border-outline-variant/40 peer-checked:border-primary peer-checked:bg-primary flex items-center justify-center shrink-0">
-                    <div className="w-2 h-2 bg-white rounded-full"></div>
-                  </div>
-                </div>
-              </label>
-
-              {isLimitInsufficient && (paymentMethod === "TOP" || paymentMethod === "INVOICE") && (
+              {isLimitInsufficient && (paymentMethod === "TOP" || false) && (
                 <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl flex items-start gap-2.5 shadow-sm font-sans mt-3">
                   <span className="material-symbols-outlined text-amber-600 shrink-0 text-[18px]">info</span>
                   <div className="text-[10px] leading-relaxed">
                     <span className="font-extrabold block mb-0.5">Sisa Limit Kredit Tidak Mencukupi</span>
-                    Total belanja Anda (**Rp {totalBilling.toLocaleString("id-ID")}**) melebihi sisa limit kredit Anda (**Rp {availableLimit.toLocaleString("id-ID")}**). Metode pembayaran tempo otomatis dikunci. Silakan gunakan metode **Bank Transfer (Virtual Account)** atau **COD** untuk menyelesaikan transaksi ini.
+                    Total belanja Anda (**Rp {totalBilling.toLocaleString("id-ID")}**) melebihi sisa limit kredit Anda (**Rp {availableLimit.toLocaleString("id-ID")}**). Metode pembayaran tempo otomatis dikunci. Silakan gunakan metode **Bank Transfer (Virtual Account)** untuk menyelesaikan transaksi ini.
                   </div>
                 </div>
               )}
 
-              {isLimitInsufficient && (paymentMethod === "VA" || paymentMethod === "COD") && (
+              {isLimitInsufficient && paymentMethod === "VA" && (
                 <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-2xl flex items-start gap-2.5 shadow-sm font-sans mt-3">
                   <span className="material-symbols-outlined text-emerald-600 shrink-0 text-[18px]">verified</span>
                   <div className="text-[10px] leading-relaxed">
                     <span className="font-extrabold block mb-0.5 text-emerald-800">Bypass Limit Kredit Aktif</span>
-                    Metode pembayaran **{paymentMethod === "VA" ? "Bank Transfer (Virtual Account)" : "Cash on Delivery (COD)"}** tidak menggunakan limit kredit Anda. Anda dapat melanjutkan pemesanan ini secara normal tanpa terblokir.
+                    Metode pembayaran **Bank Transfer (Virtual Account)** tidak menggunakan limit kredit Anda. Anda dapat melanjutkan pemesanan ini secara normal tanpa terblokir.
                   </div>
                 </div>
               )}
@@ -929,6 +979,43 @@ export default function CheckoutView({
         </aside>
 
       </div>
+
+      {/* Address Book Manager Modal */}
+      <AddressManagerModal
+        isOpen={isAddressManagerOpen}
+        onClose={() => setIsAddressManagerOpen(false)}
+        addresses={savedAddresses}
+        selectedAddressId={selectedAddress?.id}
+        onSelectAddress={handleSelectAddress}
+        onAddNewAddress={() => {
+          setAddressToEdit(null);
+          setIsAddressFormOpen(true);
+        }}
+        onEditAddress={(addr) => {
+          setAddressToEdit(addr);
+          setIsAddressFormOpen(true);
+        }}
+        onDeleteAddress={async (id) => {
+          if (!confirm("Hapus alamat ini?")) return;
+          const { deleteShippingAddress } = await import("@/app/actions/shipping-addresses");
+          await deleteShippingAddress(id);
+          fetchAddresses();
+        }}
+        onSetMainAddress={async (id) => {
+          const { setMainShippingAddress } = await import("@/app/actions/shipping-addresses");
+          await setMainShippingAddress(id, institution.id);
+          fetchAddresses();
+        }}
+      />
+
+      {/* Address Form Modal */}
+      <AddressFormModal
+        isOpen={isAddressFormOpen}
+        onClose={() => setIsAddressFormOpen(false)}
+        addressToEdit={addressToEdit}
+        institutionId={institution?.id}
+        onSaveSuccess={fetchAddresses}
+      />
     </div>
   );
 }

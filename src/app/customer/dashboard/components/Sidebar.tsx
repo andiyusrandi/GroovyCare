@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { LogOut, Plus } from "lucide-react";
 
 interface SidebarProps {
-  activeTab: "dashboard" | "belanja" | "status" | "riwayat" | "tagihan" | "dokumen" | "legalitas" | "pengaturan" | "keranjang";
-  setActiveTab: (tab: "dashboard" | "belanja" | "status" | "riwayat" | "tagihan" | "dokumen" | "legalitas" | "pengaturan" | "keranjang") => void;
+  activeTab: "dashboard" | "belanja" | "status" | "riwayat" | "tagihan" | "dokumen" | "legalitas" | "pengaturan" | "keranjang" | "alamat";
+  setActiveTab: (tab: "dashboard" | "belanja" | "status" | "riwayat" | "tagihan" | "dokumen" | "legalitas" | "pengaturan" | "keranjang" | "alamat") => void;
   isCheckoutOpen: boolean;
   setIsCheckoutOpen: (open: boolean) => void;
   viewingDetailOrder: any;
@@ -56,15 +56,15 @@ export default function Sidebar({
   }, []);
 
   return (
-    <aside className="fixed inset-y-0 left-0 w-64 bg-gradient-to-br from-primary via-primary/95 to-primary/90 border-r border-white/10 z-40 hidden md:flex flex-col py-6">
+    <aside className="fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200 shadow-sm z-40 hidden md:flex flex-col py-6">
       <div className="px-6 mb-2 space-y-1">
         <img
           src={logoUrl}
           alt="GroovyRx Logo"
           className="object-contain select-none"
-          style={{ width: "145px", filter: "drop-shadow(1px 1px 1px black)" }}
+          style={{ width: "145px" }}
         />
-        {/* <p className="text-[9px] text-white/50 uppercase tracking-widest font-extrabold pl-1">
+        {/* <p className="text-[9px] text-slate-500 uppercase tracking-widest font-extrabold pl-1">
           Enterprise Client
         </p> */}
       </div>
@@ -72,7 +72,7 @@ export default function Sidebar({
       <nav className="flex-1 px-3 space-y-5 overflow-y-auto hide-scrollbar">
         {/* Section: Utama */}
         <div className="space-y-1">
-          <span className="text-[9px] text-white/50 uppercase tracking-widest font-bold px-3 block mb-1.5">
+          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold px-3 block mb-1.5">
             Utama
           </span>
           <button
@@ -83,8 +83,8 @@ export default function Sidebar({
               setIsCartOpen(false);
             }}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 cursor-pointer text-left outline-none text-xs font-bold ${activeTab === "dashboard" && !isCheckoutOpen && !viewingDetailOrder
-              ? "bg-white text-primary shadow-sm"
-              : "text-white/75 hover:bg-white/10 hover:text-white"
+              ? "bg-primary/10 text-primary shadow-sm"
+              : "text-slate-600 hover:bg-slate-50 hover:text-primary"
               }`}
           >
             <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: (activeTab === "dashboard" && !isCheckoutOpen && !viewingDetailOrder) ? "'FILL' 1" : "'FILL' 0" }}>dashboard</span>
@@ -99,8 +99,8 @@ export default function Sidebar({
               setIsCartOpen(false);
             }}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 cursor-pointer text-left outline-none text-xs font-bold ${activeTab === "belanja" && !isCheckoutOpen && !viewingDetailOrder
-              ? "bg-white text-primary shadow-sm"
-              : "text-white/75 hover:bg-white/10 hover:text-white"
+              ? "bg-primary/10 text-primary shadow-sm"
+              : "text-slate-600 hover:bg-slate-50 hover:text-primary"
               }`}
           >
             <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: (activeTab === "belanja" && !isCheckoutOpen && !viewingDetailOrder) ? "'FILL' 1" : "'FILL' 0" }}>medication</span>
@@ -111,14 +111,14 @@ export default function Sidebar({
         {/* Section: Transaksi */}
         <div className="space-y-1">
           <div className="flex items-center justify-between pr-3 mb-1.5">
-            <span className="text-[9px] text-white/50 uppercase tracking-widest font-bold px-3 block">
+            <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold px-3 block">
               Transaksi
             </span>
             {(cartItemCount > 0 || pendingPaymentCount > 0 || activeOrdersCount > 0) && (
               <span className="w-1.5 h-1.5 bg-error rounded-full animate-pulse" />
             )}
           </div>
-          <div className="pl-3 border-l border-white/10 ml-3 space-y-1">
+          <div className="pl-3 border-l border-slate-100 ml-3 space-y-1">
             {/* Keranjang */}
             <button
               onClick={() => {
@@ -126,8 +126,8 @@ export default function Sidebar({
                 setIsCartOpen(false);
               }}
               className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "keranjang"
-                ? "bg-white text-primary font-bold shadow-sm"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-primary/10 text-primary font-bold shadow-sm"
+                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
                 }`}
             >
               <div className="flex items-center gap-2.5">
@@ -144,7 +144,7 @@ export default function Sidebar({
             {/* Draft Pesanan */}
             <button
               onClick={() => alert("Fitur Draft Pesanan akan segera tersedia.")}
-              className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition-all text-xs font-semibold text-white/70 hover:bg-white/10 hover:text-white cursor-pointer"
+              className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition-all text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-primary cursor-pointer"
             >
               <div className="flex items-center gap-2.5">
                 <span className="material-symbols-outlined text-[16px]">drafts</span>
@@ -161,8 +161,8 @@ export default function Sidebar({
                 setIsCartOpen(false);
               }}
               className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "riwayat" && !viewingDetailOrder
-                ? "bg-white text-primary font-bold shadow-sm"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-primary/10 text-primary font-bold shadow-sm"
+                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
                 }`}
             >
               <div className="flex items-center gap-2.5">
@@ -185,8 +185,8 @@ export default function Sidebar({
                 setIsCartOpen(false);
               }}
               className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "tagihan" && !viewingDetailOrder
-                ? "bg-white text-primary font-bold shadow-sm"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-primary/10 text-primary font-bold shadow-sm"
+                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
                 }`}
             >
               <div className="flex items-center gap-2.5">
@@ -204,8 +204,8 @@ export default function Sidebar({
                 setIsCartOpen(false);
               }}
               className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "status" && !viewingDetailOrder
-                ? "bg-white text-primary font-bold shadow-sm"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-primary/10 text-primary font-bold shadow-sm"
+                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
                 }`}
             >
               <div className="flex items-center gap-2.5">
@@ -223,10 +223,10 @@ export default function Sidebar({
 
         {/* Section: Dokumen */}
         <div className="space-y-1">
-          <span className="text-[9px] text-white/50 uppercase tracking-widest font-bold px-3 block mb-1.5">
+          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold px-3 block mb-1.5">
             Dokumen Legal
           </span>
-          <div className="pl-3 border-l border-white/10 ml-3 space-y-1">
+          <div className="pl-3 border-l border-slate-100 ml-3 space-y-1">
             {/* Surat Pesanan */}
             <button
               onClick={() => {
@@ -237,8 +237,8 @@ export default function Sidebar({
                 setIsCartOpen(false);
               }}
               className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "dokumen" && docSubTab === "sp"
-                ? "bg-white text-primary font-bold shadow-sm"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-primary/10 text-primary font-bold shadow-sm"
+                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
                 }`}
             >
               <span className="material-symbols-outlined text-[16px]">description</span>
@@ -255,8 +255,8 @@ export default function Sidebar({
                 setIsCartOpen(false);
               }}
               className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "dokumen" && docSubTab === "esign"
-                ? "bg-white text-primary font-bold shadow-sm"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-primary/10 text-primary font-bold shadow-sm"
+                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
                 }`}
             >
               <div className="flex items-center gap-2.5">
@@ -280,8 +280,8 @@ export default function Sidebar({
                 setIsCartOpen(false);
               }}
               className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "dokumen" && docSubTab === "do"
-                ? "bg-white text-primary font-bold shadow-sm"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-primary/10 text-primary font-bold shadow-sm"
+                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
                 }`}
             >
               <span className="material-symbols-outlined text-[16px]">local_shipping</span>
@@ -298,8 +298,8 @@ export default function Sidebar({
                 setIsCartOpen(false);
               }}
               className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "dokumen" && docSubTab === "faktur"
-                ? "bg-white text-primary font-bold shadow-sm"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-primary/10 text-primary font-bold shadow-sm"
+                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
                 }`}
             >
               <span className="material-symbols-outlined text-[16px]">receipt</span>
@@ -310,10 +310,10 @@ export default function Sidebar({
 
         {/* Section: Legalitas */}
         <div className="space-y-1">
-          <span className="text-[9px] text-white/50 uppercase tracking-widest font-bold px-3 block mb-1.5">
+          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold px-3 block mb-1.5">
             👥 Legalitas
           </span>
-          <div className="pl-3 border-l border-white/10 ml-3 space-y-1">
+          <div className="pl-3 border-l border-slate-100 ml-3 space-y-1">
             {/* Data Instansi */}
             <button
               onClick={() => {
@@ -324,8 +324,8 @@ export default function Sidebar({
                 setIsCartOpen(false);
               }}
               className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "legalitas" && legalSubTab === "instansi"
-                ? "bg-white text-primary font-bold shadow-sm"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-primary/10 text-primary font-bold shadow-sm"
+                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
                 }`}
             >
               <span className="material-symbols-outlined text-[16px]">domain</span>
@@ -342,8 +342,8 @@ export default function Sidebar({
                 setIsCartOpen(false);
               }}
               className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "legalitas" && legalSubTab === "sia"
-                ? "bg-white text-primary font-bold shadow-sm"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-primary/10 text-primary font-bold shadow-sm"
+                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
                 }`}
             >
               <span className="material-symbols-outlined text-[16px]">badge</span>
@@ -360,8 +360,8 @@ export default function Sidebar({
                 setIsCartOpen(false);
               }}
               className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "legalitas" && legalSubTab === "sipa"
-                ? "bg-white text-primary font-bold shadow-sm"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-primary/10 text-primary font-bold shadow-sm"
+                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
                 }`}
             >
               <span className="material-symbols-outlined text-[16px]">health_and_safety</span>
@@ -378,24 +378,41 @@ export default function Sidebar({
                 setIsCartOpen(false);
               }}
               className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "legalitas" && legalSubTab === "profile"
-                ? "bg-white text-primary font-bold shadow-sm"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-primary/10 text-primary font-bold shadow-sm"
+                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
                 }`}
             >
               <span className="material-symbols-outlined text-[16px]">account_circle</span>
               <span>Profil APJ</span>
+            </button>
+
+            {/* Buku Alamat Pengiriman */}
+            <button
+              onClick={() => {
+                setActiveTab("alamat");
+                setIsCheckoutOpen(false);
+                setViewingDetailOrder(null);
+                setIsCartOpen(false);
+              }}
+              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "alamat"
+                ? "bg-primary/10 text-primary font-bold shadow-sm"
+                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
+                }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">location_on</span>
+              <span>Buku Alamat</span>
             </button>
           </div>
         </div>
 
         {/* Section: Dukungan */}
         <div className="space-y-1">
-          <span className="text-[9px] text-white/50 uppercase tracking-widest font-bold px-3 block mb-1.5">
+          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold px-3 block mb-1.5">
             Dukungan
           </span>
           <button
             onClick={() => alert("Ajukan retur atau komplain: Hubungi cs@groovyrx.com / WA: +62-812-3456-7890")}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 cursor-pointer text-left outline-none text-xs font-bold text-white/70 hover:bg-white/10 hover:text-white"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 cursor-pointer text-left outline-none text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-primary"
           >
             <span className="material-symbols-outlined text-[18px]">support_agent</span>
             <span>Retur &amp; Komplain</span>
@@ -408,8 +425,8 @@ export default function Sidebar({
               setIsCartOpen(false);
             }}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 cursor-pointer text-left outline-none text-xs font-bold ${activeTab === "pengaturan" && !isCheckoutOpen && !viewingDetailOrder
-              ? "bg-white text-primary shadow-sm"
-              : "text-white/75 hover:bg-white/10 hover:text-white"
+              ? "bg-primary/10 text-primary shadow-sm"
+              : "text-slate-600 hover:bg-slate-50 hover:text-primary"
               }`}
           >
             <span className="material-symbols-outlined text-[18px]">settings</span>
@@ -426,7 +443,7 @@ export default function Sidebar({
             setViewingDetailOrder(null);
             setIsCartOpen(false);
           }}
-          className="w-full bg-white text-primary py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-white/90 transition-all active:scale-95 cursor-pointer shadow-md"
+          className="w-full bg-primary text-white py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all active:scale-95 cursor-pointer shadow-md"
         >
           <Plus className="w-3.5 h-3.5" />
           Pesanan Baru

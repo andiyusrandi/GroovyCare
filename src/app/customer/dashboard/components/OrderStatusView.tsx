@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { Clock, Truck, CheckCircle, AlertTriangle, PenTool, Search } from "lucide-react";
 import { printCDOBDocument } from "@/lib/pdf-generator";
+import { syncBiteshipOrderStatus } from "@/app/actions/orders";
+import BiteshipTrackingModal from "@/app/components/BiteshipTrackingModal";
+import { getBiteshipStatusMeta } from "@/lib/biteship-status";
 
 interface Batch {
   id: string;
@@ -49,14 +52,15 @@ export default function OrderStatusView({
   setCancelingOrder,
 }: OrderStatusViewProps) {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [trackingModalOrderId, setTrackingModalOrderId] = useState<string | null>(null);
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId(prev => prev === orderId ? null : orderId);
   };
 
-  // Only show active/ongoing orders or show all with priority to active
+  // Active orders vs Past completed orders
   const activeOrders = orders.filter(o => o.status !== "DELIVERED" && o.status !== "REJECTED");
-  const pastOrders = orders.filter(o => o.status === "DELIVERED" || o.status === "REJECTED" || o.status === "PENDING_APPROVAL" || o.status === "SHIPPED");
+  const pastOrders = orders.filter(o => o.status === "DELIVERED" || o.status === "REJECTED");
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -153,9 +157,17 @@ export default function OrderStatusView({
                             <span className="material-symbols-outlined text-sm">inventory_2</span> Packing Gudang
                           </span>
                         )}
-                        {order.status === "SHIPPED" && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 ring-4 ring-blue-50">
-                            <Truck className="w-3.5 h-3.5" /> Sedang Dikirim
+                        {order.status === "SHIPPED" && (() => {
+                          const meta = getBiteshipStatusMeta((order as any).biteshipStatus, order.status);
+                          return (
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold ${meta.badgeClass}`}>
+                              <Truck className="w-3.5 h-3.5" /> {meta.label}
+                            </span>
+                          );
+                        })()}
+                        {order.status === "REJECTED" && (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                            <span className="material-symbols-outlined text-sm">cancel</span> Dibatalkan / Ditolak
                           </span>
                         )}
                         {order.status === "CANCELLED" && (
@@ -221,8 +233,10 @@ export default function OrderStatusView({
                             {order.status === "SHIPPED" ? "🚚" : "4"}
                           </div>
                           <div>
-                            <p className="font-bold text-foreground">4. Pengiriman</p>
-                            <p className="text-[9px] text-on-surface-variant mt-0.5">{order.status === "SHIPPED" ? "Kurir berjalan" : "Antre pengiriman"}</p>
+                            <p className="font-bold text-foreground">4. {getBiteshipStatusMeta((order as any).biteshipStatus, order.status).label}</p>
+                            <p className="text-[9px] text-on-surface-variant mt-0.5 font-medium">
+                              {(order as any).biteshipStatusLabel || getBiteshipStatusMeta((order as any).biteshipStatus, order.status).description}
+                            </p>
                           </div>
                         </div>
 
@@ -253,14 +267,46 @@ export default function OrderStatusView({
 
                       {/* Info Resi Kurir & Expedisi */}
                       {order.trackingNumber && (
-                        <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex items-center justify-between gap-2 text-xs font-mono">
+                        <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
                           <div className="flex items-center gap-2">
                             <Truck className="w-4 h-4 text-primary shrink-0" />
                             <span className="text-[11px] font-bold text-slate-800">Resi Expedisi: {order.trackingNumber}</span>
                           </div>
-                          <span className="text-[9px] text-emerald-800 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full uppercase">
-                            Kurir Logistik PBF
-                          </span>
+                          {order.biteshipOrderId ? (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    const res = await syncBiteshipOrderStatus(order.id);
+                                    if (res.success) {
+                                      alert(res.message || "Status berhasil disinkronkan dengan Biteship API!");
+                                      window.location.reload();
+                                    } else {
+                                      alert("Gagal sinkronisasi: " + res.error);
+                                    }
+                                  } catch (err: any) {
+                                    alert("Error: " + err.message);
+                                  }
+                                }}
+                                className="text-[9px] text-primary font-bold bg-white hover:bg-slate-100 border border-primary/30 px-2.5 py-1 rounded-full uppercase flex items-center gap-1 cursor-pointer transition-colors"
+                                title="Sinkronkan status terbaru dari Biteship API"
+                              >
+                                <span className="material-symbols-outlined text-[11px]">sync</span> Sync Biteship
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setTrackingModalOrderId(order.id)}
+                                className="text-[9px] text-white font-extrabold bg-primary hover:bg-primary/90 px-3 py-1 rounded-full uppercase flex items-center gap-1 no-underline shadow-sm border-none cursor-pointer"
+                              >
+                                <span className="material-symbols-outlined text-[11px]">radar</span> Live Tracking In-App
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[9px] text-emerald-800 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full uppercase">
+                              Kurir Logistik PBF
+                            </span>
+                          )}
                         </div>
                       )}
 
@@ -312,7 +358,7 @@ export default function OrderStatusView({
                             </button>
                           )}
 
-                          {order.status === "PENDING_APPROVAL" && setCancelingOrder && (
+                          {(order.status === "PENDING_APPROVAL" || order.status === "PENDING_SHIPPING") && setCancelingOrder && (
                             <button
                               type="button"
                               onClick={() => setCancelingOrder(order)}
@@ -323,13 +369,18 @@ export default function OrderStatusView({
                           )}
 
                           {order.status === "SHIPPED" && (
-                            <button
-                              type="button"
-                              onClick={() => handleConfirmDelivery(order.id)}
-                              className="px-4 py-2 bg-primary hover:bg-primary/95 text-white font-bold rounded-xl shadow-sm cursor-pointer transition-transform active:scale-[0.98]"
-                            >
-                              Konfirmasi Terima Barang
-                            </button>
+                            <div className="flex flex-col items-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleConfirmDelivery(order.id)}
+                                className="px-4 py-2 bg-primary hover:bg-primary/95 text-white font-bold rounded-xl shadow-sm cursor-pointer transition-transform active:scale-[0.98]"
+                              >
+                                Konfirmasi Terima Barang
+                              </button>
+                              <span className="text-[9px] text-on-surface-variant/70 italic">
+                                Selesai otomatis via Biteship / SLA 1x24 jam
+                              </span>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -466,6 +517,13 @@ export default function OrderStatusView({
           </div>
         </div>
       </section>
+
+      {/* Modal Live Tracking Biteship In-App */}
+      <BiteshipTrackingModal
+        orderId={trackingModalOrderId}
+        isOpen={!!trackingModalOrderId}
+        onClose={() => setTrackingModalOrderId(null)}
+      />
 
     </div>
   );

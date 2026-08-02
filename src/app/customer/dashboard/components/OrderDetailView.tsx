@@ -2,6 +2,24 @@
 
 import { useState } from "react";
 import { printCDOBDocument } from "@/lib/pdf-generator";
+import BiteshipTrackingModal from "@/app/components/BiteshipTrackingModal";
+import CdobDocumentModal from "@/components/CdobDocumentModal";
+import { 
+  Package, 
+  Truck, 
+  CheckCircle2, 
+  FileText, 
+  Clock, 
+  MapPin, 
+  Copy, 
+  Download, 
+  Radar, 
+  ShieldCheck,
+  CheckCircle,
+  Receipt
+} from "lucide-react";
+import { triggerHapticImpact } from "@/lib/mobile-haptics";
+import { getBiteshipStatusMeta } from "@/lib/biteship-status";
 
 interface OrderDetailViewProps {
   order: any;
@@ -19,6 +37,8 @@ export default function OrderDetailView({
   setCancelingOrder,
 }: OrderDetailViewProps) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+  const [docModalType, setDocModalType] = useState<"SP" | "INVOICE" | "SURAT_JALAN" | null>(null);
   const subtotal = order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
   const vat = Math.round(subtotal * 0.11);
   const isColdChain = order.items.some((item: any) =>
@@ -71,8 +91,18 @@ export default function OrderDetailView({
             </h3>
           </div>
           <div className="flex flex-wrap gap-2.5">
+            {(order.biteshipOrderId || order.trackingNumber) && (
+              <button
+                type="button"
+                onClick={() => setIsTrackingModalOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 rounded-xl transition-colors text-xs font-bold shadow-sm cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[16px] animate-pulse">radar</span>
+                Lacak In-App Live
+              </button>
+            )}
             <button
-              onClick={() => printCDOBDocument(order, "INVOICE")}
+              onClick={() => setDocModalType("INVOICE")}
               className="flex items-center gap-1.5 px-4 py-2 border border-outline-variant/40 hover:bg-surface-container-low text-on-surface rounded-xl transition-colors text-xs font-bold shadow-sm cursor-pointer bg-white"
             >
               <span className="material-symbols-outlined text-[16px]">print</span>
@@ -85,7 +115,7 @@ export default function OrderDetailView({
               <span className="material-symbols-outlined text-[16px]">help</span>
               Bantuan
             </button>
-            {order.status === "PENDING_APPROVAL" && setCancelingOrder && (
+            {(order.status === "PENDING_APPROVAL" || order.status === "PENDING_SHIPPING") && setCancelingOrder && (
               <button
                 type="button"
                 onClick={() => setCancelingOrder(order)}
@@ -263,7 +293,7 @@ export default function OrderDetailView({
                       ? "Limit Kredit / TOP"
                       : order.paymentMethod === "COD"
                         ? "Cash on Delivery (COD)"
-                        : "Invoice Billing"}
+                        : "COD"}
                 </p>
               </div>
               <div className="col-span-2 md:col-span-1">
@@ -452,7 +482,7 @@ export default function OrderDetailView({
                   </div>
                   <button
                     type="button"
-                    onClick={() => printCDOBDocument(order, "SP")}
+                    onClick={() => setDocModalType("SP")}
                     className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer border-none bg-transparent flex items-center p-1"
                     title="Download Surat Pesanan"
                   >
@@ -474,7 +504,7 @@ export default function OrderDetailView({
                   {!isPendingApproval && !isRejected ? (
                     <button
                       type="button"
-                      onClick={() => printCDOBDocument(order, "INVOICE")}
+                      onClick={() => setDocModalType("INVOICE")}
                       className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer border-none bg-transparent flex items-center p-1"
                       title="Download Invoice"
                     >
@@ -499,7 +529,7 @@ export default function OrderDetailView({
                   {!isPendingApproval && !isRejected ? (
                     <button
                       type="button"
-                      onClick={() => printCDOBDocument(order, "SURAT_JALAN")}
+                      onClick={() => setDocModalType("SURAT_JALAN")}
                       className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer border-none bg-transparent flex items-center p-1"
                       title="Download Surat Jalan"
                     >
@@ -516,47 +546,57 @@ export default function OrderDetailView({
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. MOBILE VIEW: Live Tracking Delivery Page                               */}
+      {/* 2. MOBILE VIEW: Live Tracking Delivery Page (Tokopedia / Grab Style)       */}
       {/* ========================================================================= */}
-      <div className="block md:hidden space-y-6 px-1 pb-10">
-        {/* Status Overview Card */}
-        <section className="bg-white p-4 rounded-2xl shadow-sm border border-outline-variant/30">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Status Pengiriman</span>
-            <span className={`px-3 py-1 rounded-full text-[9px] font-bold ${isDelivered
-                ? "bg-[#ecfdf5] text-[#10b981]"
-                : isShipped
-                  ? "bg-[#ecfdf5] text-[#10b981] animate-pulse"
-                  : "bg-orange-50 text-orange-600"
-              }`}>
-              {isDelivered ? "Selesai" : isShipped ? "Sedang Dikirim" : isRejected ? "Ditolak" : "Diproses PBF"}
-            </span>
+      <div className="block md:hidden space-y-4 px-1 pb-12 font-sans">
+        {/* Status Hero Card (Tokopedia / Alodokter Soft Clean White Style) */}
+        <section className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200/80 space-y-3 relative overflow-hidden">
+          <div className="flex justify-between items-start gap-2 relative z-10">
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Surat Pesanan (SP)</p>
+              <h2 className="text-sm font-black text-slate-800 font-mono mt-0.5">{order.orderNumber}</h2>
+            </div>
+            {(() => {
+              const meta = getBiteshipStatusMeta(order.biteshipStatus, order.status);
+              return (
+                <span className={`px-3 py-1 rounded-full text-[9.5px] font-black uppercase tracking-tight shadow-2xs ${meta.badgeClass}`}>
+                  {meta.label}
+                </span>
+              );
+            })()}
           </div>
-          <p className="font-heading font-black text-sm text-primary">
-            {isDelivered
-              ? "Paket Telah Tiba"
-              : isShipped
-                ? "Estimasi Tiba: 14:20 WIB"
-                : "Sedang Diproses di Gudang"}
-          </p>
-          <p className="text-[10px] text-on-surface-variant font-medium mt-1">
-            {isDelivered
-              ? "Pesanan obat telah diterima dan ditandatangani oleh APJ."
-              : isShipped
-                ? "Driver sedang dalam perjalanan menuju lokasi apotek Anda."
-                : "Pesanan Anda sedang diverifikasi standar FEFO oleh petugas gudang."}
-          </p>
+
+          <div className="pt-2.5 border-t border-slate-100 relative z-10 space-y-1">
+            <p className="text-xs font-black text-emerald-800 flex items-center gap-1.5">
+              <Truck className="w-4 h-4 text-emerald-600 shrink-0" />
+              {getBiteshipStatusMeta(order.biteshipStatus, order.status).label}
+            </p>
+            <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+              {order.biteshipStatusLabel || getBiteshipStatusMeta(order.biteshipStatus, order.status).description}
+            </p>
+          </div>
+
+          {(order.biteshipOrderId || order.trackingNumber) && (
+            <button
+              type="button"
+              onClick={() => {
+                triggerHapticImpact();
+                setIsTrackingModalOpen(true);
+              }}
+              className="mt-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-2xl transition-all text-xs font-black shadow-sm shadow-emerald-600/20 cursor-pointer flex items-center justify-center gap-2 border-none"
+            >
+              <Radar className="w-4 h-4 animate-spin" />
+              Lacak Live GPS (Biteship)
+            </button>
+          )}
         </section>
 
-        {/* Visual Stepper */}
-        <section className="px-2">
+        {/* Tokopedia Horizontal Stepper */}
+        <section className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs">
           <div className="relative">
-            {/* Progress Line Background */}
-            <div className="absolute top-3 left-[12.5%] right-[12.5%] h-0.5 bg-surface-container-highest z-0" />
-
-            {/* Progress Line Active */}
+            <div className="absolute top-3.5 left-[12.5%] right-[12.5%] h-0.5 bg-slate-100 z-0" />
             <div
-              className="absolute top-3 left-[12.5%] h-0.5 bg-primary z-0 transition-all duration-500"
+              className="absolute top-3.5 left-[12.5%] h-0.5 bg-emerald-500 z-0 transition-all duration-500"
               style={{
                 width: isDelivered
                   ? "75%"
@@ -569,243 +609,206 @@ export default function OrderDetailView({
             />
 
             <div className="relative flex justify-between z-10 text-center">
-              {/* Step 1: Diproses */}
+              {/* Step 1 */}
               <div className="flex flex-col items-center w-1/4">
-                <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center mb-2 shadow-sm text-white">
-                  <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
+                <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center mb-1.5 shadow-xs text-white">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-[9px] font-bold text-on-surface-variant">Diproses</span>
+                <span className="text-[9.5px] font-extrabold text-slate-800">Diproses</span>
               </div>
 
-              {/* Step 2: Dikemas */}
+              {/* Step 2 */}
               <div className="flex flex-col items-center w-1/4">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-2 shadow-sm text-white ${isPendingShipping || isShipped || isDelivered ? "bg-primary" : "bg-surface-container-highest text-on-surface-variant/40"
-                  }`}>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center mb-1.5 shadow-xs text-white ${
+                  isPendingShipping || isShipped || isDelivered ? "bg-emerald-600" : "bg-slate-100 text-slate-400"
+                }`}>
                   {isPendingShipping || isShipped || isDelivered ? (
-                    <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
                   ) : (
-                    <span className="material-symbols-outlined text-[12px]">inventory_2</span>
+                    <Package className="w-3.5 h-3.5" />
                   )}
                 </div>
-                <span className="text-[9px] font-bold text-on-surface-variant">Dikemas</span>
+                <span className="text-[9.5px] font-extrabold text-slate-800">Dikemas</span>
               </div>
 
-              {/* Step 3: Dikirim */}
+              {/* Step 3 */}
               <div className="flex flex-col items-center w-1/4">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-2 shadow-sm text-white ${isDelivered
-                    ? "bg-primary"
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center mb-1.5 shadow-xs text-white ${
+                  isDelivered
+                    ? "bg-emerald-600"
                     : isShipped
-                      ? "border-2 border-primary bg-white relative text-primary"
-                      : "bg-surface-container-highest text-on-surface-variant/40"
-                  }`}>
-                  {isDelivered ? (
-                    <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
-                  ) : isShipped ? (
-                    <span className="material-symbols-outlined text-[12px] animate-pulse">local_shipping</span>
-                  ) : (
-                    <span className="material-symbols-outlined text-[12px]">local_shipping</span>
-                  )}
+                      ? "bg-blue-600 ring-4 ring-blue-100 animate-pulse"
+                      : "bg-slate-100 text-slate-400"
+                }`}>
+                  <Truck className="w-3.5 h-3.5" />
                 </div>
-                <span className={`text-[9px] font-bold ${isShipped ? "text-primary font-black" : "text-on-surface-variant"}`}>Dikirim</span>
+                <span className={`text-[9.5px] font-extrabold ${isShipped ? "text-blue-700" : "text-slate-800"}`}>
+                  {isShipped ? getBiteshipStatusMeta(order.biteshipStatus, order.status).label : "Dikirim"}
+                </span>
               </div>
 
-              {/* Step 4: Selesai */}
+              {/* Step 4 */}
               <div className="flex flex-col items-center w-1/4">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-2 shadow-sm text-white ${isDelivered ? "bg-primary" : "bg-surface-container-highest text-on-surface-variant/40"
-                  }`}>
-                  {isDelivered ? (
-                    <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
-                  ) : (
-                    <span className="material-symbols-outlined text-[12px]">task_alt</span>
-                  )}
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center mb-1.5 shadow-xs text-white ${
+                  isDelivered ? "bg-emerald-600" : "bg-slate-100 text-slate-400"
+                }`}>
+                  <ShieldCheck className="w-3.5 h-3.5" />
                 </div>
-                <span className={`text-[9px] font-bold ${isDelivered ? "text-primary font-black" : "text-outline"}`}>Selesai</span>
+                <span className={`text-[9.5px] font-extrabold ${isDelivered ? "text-emerald-700" : "text-slate-400"}`}>Selesai</span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Live Tracking Map (Hanya jika SHIPPED atau DELIVERED) */}
-        {(isShipped || isDelivered) && (
-          <section className="relative h-64 w-full rounded-2xl overflow-hidden shadow-md group border border-outline-variant/20">
-            <div
-              className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-              style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida/AP1WRLtz66vjIfz4RDN8Ug3hIUZbFY_WHUjXsWT2ZbzSrAEm8tFExVqysC_srhLJzpeJDPcN8Kfv73ns5mvjqQ50D7B5oQFiBUcCdnMcMfXu_75qvfEB7BC4tGZh8gRezmV40I9LfcbW2CgF5HToYHtFSYLZMyvEWX8AYpkJeAfKE9kONeGDW1EJpkTuFZQKNho7F_k-bxzX3golEIXrchQqBPx8JDlj5qUkjKXhOx2M2ERFPTTo5eGO5kt4TSE')" }}
-            ></div>
+        {/* Informasi Logistik & Alamat (Grab Delivery Info Style) */}
+        <section className="bg-white rounded-3xl border border-slate-200 divide-y divide-slate-100 overflow-hidden shadow-xs text-xs">
+          <div className="p-4 bg-slate-50/50">
+            <h3 className="font-black text-slate-800 text-xs">Informasi Pengiriman & Resi</h3>
+          </div>
 
-            {/* Glass Overlay Info */}
-            <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md p-3 rounded-xl flex items-center gap-3 border border-white/40 shadow-lg">
-              <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-base">local_shipping</span>
-              </div>
-              <div>
-                <p className="font-heading font-black text-xs text-primary">Posisi Terkini</p>
-                <p className="text-[10px] text-on-surface-variant font-bold">Jl. Gatot Subroto, Jakarta Selatan</p>
-              </div>
-            </div>
-
-            {/* Floating Marker Animation */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-              <div className="relative">
-                <span className="material-symbols-outlined text-primary text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
-                <div className="absolute -inset-1 bg-primary/20 rounded-full animate-ping"></div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Courier Section (Hanya jika SHIPPED atau DELIVERED) */}
-        {(isShipped || isDelivered) && (
-          <section className="flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-outline-variant/30">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-primary/20">
-                <img
-                  className="w-full h-full object-cover"
-                  alt="Edi Santoso"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAtJ3Cyu3h50NHLSCr7nHtnD4m-UDxcpCr-kxXiIB6hcWLhrcgzSrG9_fZf5xqIdJz0f_8uYABM8Vydu1ZAdAbODBknAmRpoU3wD0Si_Gr3iFJanRcOxaTGQB16qw2PNa1-2lbDK6CIZJOfhT9cWXB3POlTpjwhaqzHuPjKpkyae1A5epgrmdGS7-ZAW9-RqsUeoJAYIxcjVQ9XOVyxhr9pwyyzdkEn1oXGXvNqpgtB0cATd-84MtLBAMTYkGI8qCfTntUw5bmL1Ok"
-                />
-              </div>
-              <div>
-                <h3 className="font-heading font-black text-xs">Edi Santoso</h3>
-                <p className="text-[9px] text-on-surface-variant font-bold">Kurir Internal PBF</p>
-              </div>
-            </div>
-            <button
-              onClick={() => alert("Menghubungi Kurir Edi Santoso (+62 812-9988-7766) via Whatsapp...")}
-              className="flex items-center gap-1 bg-primary text-white px-3.5 py-1.5 rounded-full font-bold text-[9px] hover:opacity-90 active:scale-95 transition-all border-none cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[14px]">phone</span>
-              Hubungi
-            </button>
-          </section>
-        )}
-
-        {/* Shipment Logistics Info */}
-        <section className="space-y-3">
-          <h2 className="font-heading font-black text-xs text-on-surface px-1">Informasi Logistik</h2>
-          <div className="bg-white rounded-2xl border border-outline-variant/30 divide-y divide-outline-variant/15 overflow-hidden shadow-sm text-xs font-bold">
-            <div className="p-4 flex flex-col gap-1">
-              <span className="text-[9px] text-on-surface-variant uppercase font-bold">No. Resi / Tracking</span>
-              <div className="flex justify-between items-center">
-                <span className="font-mono text-sm text-foreground">{order.trackingNumber || "PBF-LOG-88219"}</span>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(order.trackingNumber || "PBF-LOG-88219");
-                    alert("No. Resi disalin!");
-                  }}
-                  className="material-symbols-outlined text-primary text-[18px] border-none bg-transparent cursor-pointer"
-                >
-                  content_copy
-                </button>
-              </div>
-            </div>
-
-            <div className="p-4 flex flex-col gap-1">
-              <span className="text-[9px] text-on-surface-variant uppercase font-bold">Layanan</span>
-              <span className="text-xs text-foreground flex items-center gap-2">
-                {isColdChain ? "Reguler (Cold-Chain)" : "Reguler (Standard)"}
-                <span className="bg-tertiary-container text-on-tertiary-container px-2 py-0.5 rounded text-[8px] font-black uppercase">Verified</span>
+          <div className="p-4 flex justify-between items-center">
+            <div>
+              <span className="text-[9.5px] text-slate-400 font-bold uppercase tracking-wider block">No. Resi / Airwaybill</span>
+              <span className="font-mono text-xs font-black text-slate-900 mt-0.5 block">
+                {order.trackingNumber || "Logistik Internal PBF"}
               </span>
             </div>
+            {order.trackingNumber && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHapticImpact();
+                  navigator.clipboard.writeText(order.trackingNumber);
+                  alert("No. Resi disalin ke clipboard!");
+                }}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-xl text-slate-700 font-bold text-[10px] flex items-center gap-1 border-none cursor-pointer"
+              >
+                <Copy className="w-3 h-3 text-slate-600" />
+                Salin
+              </button>
+            )}
+          </div>
 
-            <div className="p-4 flex flex-col gap-1">
-              <span className="text-[9px] text-on-surface-variant uppercase font-bold">Alamat Tujuan</span>
-              <span className="text-xs text-foreground">{order.institution?.name || "Apotek Mitra"}</span>
-              <span className="text-[10px] text-on-surface-variant font-medium leading-relaxed mt-0.5">
-                {order.shippingAddress || "Jl. Sudirman No. 12, Senayan, Jakarta Pusat"}
-              </span>
-            </div>
+          <div className="p-4">
+            <span className="text-[9.5px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Kurir Expedisi</span>
+            <span className="text-xs text-slate-800 font-extrabold flex items-center gap-2">
+              {isColdChain ? "Reguler (Cold-Chain Rantai Dingin ❄)" : "Reguler (Standard PBF)"}
+              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase">Verified CDOB</span>
+            </span>
+          </div>
+
+          <div className="p-4 space-y-1">
+            <span className="text-[9.5px] text-slate-400 font-bold uppercase tracking-wider block">Alamat Penerima</span>
+            <span className="text-xs text-slate-900 font-black block">{order.institution?.name || "Apotek Mitra"}</span>
+            <p className="text-[10.5px] text-slate-600 leading-relaxed font-medium">
+              {order.shippingAddress || order.institution?.address || "Alamat belum disetel"}
+            </p>
           </div>
         </section>
 
-        {/* Items in Shipment */}
-        <section className="space-y-3">
-          <div className="flex justify-between items-center px-1">
-            <h2 className="font-heading font-black text-xs text-on-surface">Daftar Barang ({order.items.length})</h2>
+        {/* Daftar Produk Pesanan */}
+        <section className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <h3 className="font-black text-slate-800 text-xs">Rincian Obat ({order.items.length} Item)</h3>
+            <span className="font-mono text-xs font-black text-emerald-700">
+              Total: Rp {totalBilling.toLocaleString("id-ID")}
+            </span>
           </div>
-          <div className="space-y-2.5">
+
+          <div className="divide-y divide-slate-100">
             {order.items.map((item: any, idx: number) => {
               const isItemColdChain = item.product?.category === "COLD_CHAIN" || item.product?.category?.toLowerCase() === "cold chain" || item.product?.name?.toLowerCase().includes("insulin") || item.product?.code?.toLowerCase().includes("amx") || item.product?.name?.toLowerCase().includes("vaccine");
               return (
-                <div key={idx} className="bg-white p-3.5 rounded-2xl border border-outline-variant/30 flex justify-between items-center shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isItemColdChain ? "bg-tertiary-container/20 text-tertiary" : "bg-surface-container-high text-on-surface-variant"
-                      }`}>
-                      <span className="material-symbols-outlined text-base">
-                        {isItemColdChain ? "ac_unit" : "pill"}
-                      </span>
+                <div key={idx} className="p-3.5 flex justify-between items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 ${isItemColdChain ? "bg-cyan-50 text-cyan-600 border border-cyan-200" : "bg-emerald-50 text-emerald-700 border border-emerald-100"}`}>
+                      <Package className="w-4 h-4" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs font-bold text-foreground leading-snug">{item.product.name}</p>
-                        {isItemColdChain && (
-                          <span className="bg-[#fff1f2] text-[#f43f5e] px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter">Cold Chain</span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-on-surface-variant font-medium mt-0.5">{item.quantity} {item.product.unit.split(" ")[0]}</p>
+                    <div className="min-w-0">
+                      <p className="text-xs font-extrabold text-slate-800 truncate">{item.product.name}</p>
+                      <p className="text-[10px] text-slate-500 font-medium">{item.quantity} {item.product.unit.split(" ")[0]} x Rp {item.price.toLocaleString("id-ID")}</p>
                     </div>
                   </div>
-                  <span className="material-symbols-outlined text-outline-variant text-base">chevron_right</span>
+                  <span className="font-mono text-xs font-black text-slate-900 shrink-0">
+                    Rp {(item.price * item.quantity).toLocaleString("id-ID")}
+                  </span>
                 </div>
               );
             })}
           </div>
         </section>
 
-        {/* Delivery Timeline */}
-        <section className="space-y-3">
-          <h2 className="font-heading font-black text-xs text-on-surface px-1">Riwayat Pengiriman</h2>
-          <div className="bg-white p-5 rounded-2xl border border-outline-variant/30 shadow-sm text-xs font-bold">
-            <div className="space-y-6">
-              <div className="flex gap-4 relative">
-                <div className="absolute left-[11px] top-6 bottom-[-24px] w-[2.5px] bg-outline-variant/20"></div>
-                <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center z-10 text-white shadow-sm shrink-0">
-                  <div className="w-2 h-2 bg-white rounded-full"></div>
-                </div>
-                <div>
-                  <p className="text-[10px] text-primary font-black">10:15 WIB</p>
-                  <p className="text-[11px] text-foreground font-bold mt-0.5">Paket telah keluar dari gudang (Hub Jakarta)</p>
-                  <p className="text-[9px] text-on-surface-variant font-medium mt-0.5">Petugas: Bambang S.</p>
-                </div>
-              </div>
+        {/* Dokumen CDOB Download - 3 Dokumen Resmi */}
+        <section className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-black text-slate-800 text-xs">Dokumen CDOB Official</h3>
+            <span className="text-[8.5px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              3 Dokumen Resmi
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-2">
+            {/* 1. Surat Pesanan (SP) */}
+            <button
+              type="button"
+              onClick={() => {
+                triggerHapticImpact();
+                setDocModalType("SP");
+              }}
+              className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 active:scale-95 border border-slate-200 flex flex-col gap-1 items-start cursor-pointer transition-all"
+            >
+              <FileText className="w-4 h-4 text-emerald-700" />
+              <span className="text-[10px] font-black text-slate-800 leading-tight">Surat Pesanan</span>
+              <span className="text-[8px] text-emerald-600 font-extrabold">SP-CDOB</span>
+            </button>
 
-              <div className="flex gap-4 relative">
-                <div className="absolute left-[11px] top-6 bottom-[-24px] w-[2.5px] bg-outline-variant/20"></div>
-                <div className="w-6 h-6 rounded-full bg-surface-container-highest flex items-center justify-center z-10 text-outline-variant shadow-sm shrink-0">
-                  <div className="w-2 h-2 bg-outline-variant rounded-full"></div>
-                </div>
-                <div>
-                  <p className="text-[10px] text-on-surface-variant font-bold">09:00 WIB</p>
-                  <p className="text-[11px] text-on-surface-variant font-bold mt-0.5">Paket telah dikemas dan diverifikasi</p>
-                </div>
-              </div>
+            {/* 2. Invoice / e-Faktur */}
+            <button
+              type="button"
+              onClick={() => {
+                triggerHapticImpact();
+                setDocModalType("INVOICE");
+              }}
+              className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 active:scale-95 border border-slate-200 flex flex-col gap-1 items-start cursor-pointer transition-all"
+            >
+              <Receipt className="w-4 h-4 text-blue-700" />
+              <span className="text-[10px] font-black text-slate-800 leading-tight">e-Faktur</span>
+              <span className="text-[8px] text-blue-600 font-extrabold">Invoice</span>
+            </button>
 
-              <div className="flex gap-4 relative">
-                <div className="w-6 h-6 rounded-full bg-surface-container-highest flex items-center justify-center z-10 text-outline-variant shadow-sm shrink-0">
-                  <div className="w-2 h-2 bg-outline-variant rounded-full"></div>
-                </div>
-                <div>
-                  <p className="text-[10px] text-on-surface-variant font-bold">08:30 WIB</p>
-                  <p className="text-[11px] text-on-surface-variant font-bold mt-0.5">Pesanan dikonfirmasi oleh sistem PBF</p>
-                </div>
-              </div>
-            </div>
+            {/* 3. Surat Jalan PBF (SJ) */}
+            <button
+              type="button"
+              onClick={() => {
+                triggerHapticImpact();
+                setDocModalType("SURAT_JALAN");
+              }}
+              className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 active:scale-95 border border-slate-200 flex flex-col gap-1 items-start cursor-pointer transition-all"
+            >
+              <Truck className="w-4 h-4 text-amber-700" />
+              <span className="text-[10px] font-black text-slate-800 leading-tight">Surat Jalan</span>
+              <span className="text-[8px] text-amber-600 font-extrabold">SJ-PBF</span>
+            </button>
           </div>
         </section>
 
-        {/* Action Button: Konfirmasi Penerimaan */}
-        {isShipped && (
-          <div className="pt-4 pb-6 px-1">
-            <button 
-              type="button"
-              onClick={() => setShowConfirmModal(true)}
-              className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-black text-xs rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all border-none cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-lg">task_alt</span>
-              <span>Konfirmasi Terima Barang (CDOB)</span>
-            </button>
+        {/* Automatic CDOB Verification Badge */}
+        <div className="pt-2 pb-6">
+          <div className="w-full p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-2xl flex items-center justify-between gap-3 text-emerald-800">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                <CheckCircle2 className="w-4 h-4 stroke-[2.2]" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-black text-emerald-900 leading-tight">Status Penerimaan CDOB Otomatis</p>
+                <p className="text-[10px] text-emerald-700 font-medium truncate mt-0.5">Disinkronkan via Webhook Kurir & System PBF</p>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 bg-emerald-200/60 text-emerald-900 rounded-md text-[8.5px] font-black uppercase tracking-wider shrink-0">
+              Auto CDOB
+            </span>
           </div>
-        )}
+        </div>
       </div>
 
       {/* MODERN CDOB CONFIRMATION POPUP MODAL */}
@@ -882,13 +885,13 @@ export default function OrderDetailView({
         <div className="flex justify-between items-center border-b-4 border-slate-900 pb-4 mb-6">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-emerald-700 text-white flex items-center justify-center font-bold text-lg shrink-0">
-              PhN
+              GMX
             </div>
             <div>
-              <h1 className="text-base font-extrabold tracking-tight text-slate-900 uppercase">PT PharmaDist Farmasi Nusantara</h1>
-              <p className="text-[10px] text-slate-600 mt-0.5">Pedagang Besar Farmasi (PBF) Indonesia</p>
-              <p className="text-[9px] text-slate-500 font-medium">Izin PBF: FK.01.01/PBF/1089/2026 | NPWP: 01.234.567.8-092.000</p>
-              <p className="text-[9px] text-slate-500">Jl. Industri Farmasi No. 45, Kawasan Industri Jababeka, Bekasi | Telp: (021) 8984-5678</p>
+              <h1 className="text-base font-extrabold tracking-tight text-slate-900 uppercase">PT. GROOVYRX PHARMACEUTICAL GROUP</h1>
+              <p className="text-[10px] text-slate-700 font-bold">Growmexa • Distributor Obat & PBF Resmi</p>
+              <p className="text-[9px] text-slate-500">JL. TAMALANREA RAYA RUKO PELANGI BLOK B NO 7, Makassar | Telp: 0851 5100 5960</p>
+              <p className="text-[9px] text-slate-500">Email: groovyrxpharmaceutical@gmail.com</p>
             </div>
           </div>
           <div className="text-right border-l border-slate-350 pl-4">
@@ -965,7 +968,7 @@ export default function OrderDetailView({
         {/* SUMMARY PRICING BREAKDOWN */}
         <div className="flex justify-between items-start mb-8">
           <div className="text-[8px] text-slate-400 max-w-sm italic space-y-1 leading-normal">
-            <p>* Faktur ini diterbitkan secara elektronik oleh PBF PharmaDist Nusantara dan dijamin sah sesuai regulasi CDOB &amp; ketentuan perpajakan Dirjen Pajak.</p>
+            <p>* Faktur ini diterbitkan secara elektronik oleh Growmexa (PT. GROOVYRX PHARMACEUTICAL GROUP) dan dijamin sah sesuai regulasi CDOB &amp; ketentuan perpajakan.</p>
             <p>* Segala bentuk retur obat atau klaim kerusakan harus menyertakan dokumen berita acara resmi maksimal 2x24 jam sejak barang diterima.</p>
           </div>
 
@@ -1025,6 +1028,21 @@ export default function OrderDetailView({
           </div>
         </div>
       </div>
+
+      {/* Modal Live Tracking Biteship In-App */}
+      <BiteshipTrackingModal
+        orderId={order?.id}
+        isOpen={isTrackingModalOpen}
+        onClose={() => setIsTrackingModalOpen(false)}
+      />
+
+      {/* Modal In-App Preview & Cetak Dokumen CDOB */}
+      <CdobDocumentModal
+        isOpen={docModalType !== null}
+        onClose={() => setDocModalType(null)}
+        order={order}
+        type={docModalType || "SP"}
+      />
 
     </div>
   );

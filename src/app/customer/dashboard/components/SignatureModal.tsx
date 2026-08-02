@@ -229,8 +229,8 @@ export default function SignatureModal({
                 <span className="font-heading font-black text-sm text-primary uppercase">PBF Online</span>
               </div>
               <div className="text-[8px] text-right text-on-surface-variant leading-tight">
-                <p className="font-bold">PT. PHARMADIST FARMASI NUSANTARA</p>
-                <p>Izin PBF: 123/PBF/JAK-SEL/2023</p>
+                <p className="font-bold">PT. GROOVYRX PHARMACEUTICAL GROUP</p>
+                <p>Brand: Growmexa • Distribusi Obat</p>
               </div>
             </div>
 
@@ -253,11 +253,11 @@ export default function SignatureModal({
             {/* Ordered Items Table */}
             <div className="space-y-1.5 pt-2">
               {cart.map((item, idx) => (
-                <div key={idx} className="flex justify-between border-b border-surface-variant/20 py-1.5 text-[11px] font-bold">
-                  <span className="text-on-surface-variant truncate max-w-[200px]">
+                <div key={idx} className="flex justify-between items-start gap-2 border-b border-surface-variant/20 py-1.5 text-[11px] font-bold">
+                  <span className="text-on-surface-variant flex-1 leading-snug">
                     {idx + 1}. {item.product.name}
                   </span>
-                  <span className="font-mono text-primary">{item.quantity} {item.product.unit.split(" ")[0]}</span>
+                  <span className="font-mono text-primary shrink-0">{item.quantity} {item.product.unit.split(" ")[0]}</span>
                 </div>
               ))}
             </div>

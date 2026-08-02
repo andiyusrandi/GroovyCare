@@ -117,7 +117,7 @@ export default function MobileDrawer({
 
   return (
     <div 
-      className={`fixed inset-0 z-50 flex md:hidden transition-opacity duration-300 ${
+      className={`fixed inset-0 z-[150] flex md:hidden transition-opacity duration-300 ${
         isOpen ? "pointer-events-auto" : "pointer-events-none"
       }`}
     >
@@ -161,11 +161,11 @@ export default function MobileDrawer({
           <div className="p-5 bg-slate-50/50 border-b border-outline-variant/10">
             <div className="flex items-center gap-3.5">
               <div className="relative shrink-0">
-                <div className="w-12 h-12 rounded-full border-2 border-primary-container p-0.5 overflow-hidden bg-white">
+                <div className="w-12 h-12 rounded-full border-2 border-emerald-500/40 p-0.5 overflow-hidden bg-emerald-50 shadow-xs">
                   <img 
                     className="w-full h-full object-cover rounded-full" 
-                    alt="Apoteker APJ" 
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKMLtg-EStyEeW_Tt07pjCSBaoUSkb3JOC4OD68TI_bXGGAxhPGt25AScLEKA-BkiTAW9e8TIcZQ_405QyAW4U_ClfvDML5-Q2Zby3mCwwXM3z2KKedrdxzSNCNSanIzwVoflnDNZnpkrG7XwaiAdl50nq2grA5CAda2w1gJ8MhaqDADOprRIOshIskDrLTQIbJVy_j9TgPAogaIlshohsaYSfR8L0eLjqNaZO_ZGJPZd0rt6_CkcuKAFcG8rdfAlqjIBgSVCK-n4"
+                    alt="Apoteker APJ Cartoon Avatar" 
+                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.name || "Apoteker")}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`}
                   />
                 </div>
                 <div className="absolute bottom-0 right-0 bg-[#006c49] text-white p-0.5 rounded-full border border-white flex items-center justify-center shadow-xs">
@@ -433,6 +433,18 @@ export default function MobileDrawer({
                     <span className="material-symbols-outlined text-[16px]">account_circle</span>
                     <span>Profil APJ</span>
                   </button>
+
+                  <button 
+                    onClick={() => handleNavClick("alamat")}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-all border-none bg-transparent cursor-pointer text-xs font-bold text-left ${
+                      activeTab === "alamat" 
+                        ? "bg-primary/10 text-primary" 
+                        : "text-on-surface-variant hover:bg-white hover:text-foreground hover:shadow-xs"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">location_on</span>
+                    <span>Buku Alamat</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -471,7 +483,7 @@ export default function MobileDrawer({
         </div>
 
         {/* Footer Container */}
-        <div className="p-4 border-t border-outline-variant/15 bg-slate-50 space-y-3.5">
+        <div className="pb-6 pt-4 px-4 border-t border-outline-variant/15 bg-slate-50 space-y-3.5">
           <button
             onClick={() => {
               handleNavClick("belanja");

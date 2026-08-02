@@ -14,8 +14,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "PharmaDist | Sistem B2B PBF Online",
-  description: "Portal B2B PBF Online Terpadu dengan Kepatuhan CDOB BPOM & FEFO",
+  title: "Growmexa | PT. GROOVYRX PHARMACEUTICAL GROUP",
+  description: "Portal B2B Distribusi Obat & PBF Terpadu dengan Kepatuhan CDOB BPOM",
 };
 
 export const viewport: Viewport = {

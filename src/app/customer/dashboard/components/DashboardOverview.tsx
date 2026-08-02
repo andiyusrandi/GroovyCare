@@ -1,11 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { 
+  ShoppingBag, 
+  FileSignature, 
+  CreditCard, 
+  Truck, 
+  ShieldCheck, 
+  FileText 
+} from "lucide-react";
+import { triggerHapticImpact } from "@/lib/mobile-haptics";
+import { getBiteshipStatusMeta } from "@/lib/biteship-status";
 
 interface DashboardOverviewProps {
   institution: any;
   orders: any[];
-  setActiveTab: (tab: "dashboard" | "belanja" | "riwayat" | "tagihan") => void;
+  setActiveTab: (tab: any) => void;
   setViewingDetailOrder: (order: any) => void;
   setViewingFaktur: (order: any) => void;
   handleConfirmDelivery: (orderId: string) => void;
@@ -32,6 +42,26 @@ function calculateOrderTotals(order: any) {
 
   const total = subtotal + vat + shippingFee;
   return { subtotal, vat, shippingFee, total };
+}
+
+function getCourierName(shipment: any): string {
+  if (!shipment) return "KURIR: PBF GROVMEXA EXPRESS";
+  
+  const addr = shipment.shippingAddress || "";
+  const match = addr.match(/Kurir:\s*([^|[\]\n-]+)/i);
+  let courier = match ? match[1].trim() : "";
+
+  if (!courier) {
+    if (shipment.trackingNumber) {
+      courier = `PBF EXPRESS (${shipment.trackingNumber})`;
+    } else if (shipment.biteshipOrderId) {
+      courier = "BITESHIP LOGISTICS";
+    } else {
+      courier = "PBF GROVMEXA EXPRESS";
+    }
+  }
+
+  return `KURIR: ${courier.toUpperCase()}`;
 }
 
 export default function DashboardOverview({
@@ -66,8 +96,9 @@ export default function DashboardOverview({
     return () => clearTimeout(timer);
   }, [progressRatio]);
 
-  // Pengiriman aktif dari database (status SHIPPED / PENDING_SHIPPING)
-  const realActiveShipments = orders.filter((o) => o.status === "SHIPPED" || o.status === "PENDING_SHIPPING");
+  // Pengiriman aktif dari database real: tampilkan maksimal 3 pesanan aktif mitra
+  const activeOnly = orders.filter((o) => o.status !== "CANCELLED" && o.status !== "REJECTED").slice(0, 3);
+  const realActiveShipments = activeOnly.length > 0 ? activeOnly : orders.slice(0, 3);
 
   return (
     <div className="space-y-6 animate-fadeIn font-sans pb-12">
@@ -364,17 +395,6 @@ export default function DashboardOverview({
                               >
                                 Lacak
                               </button>
-                            ) : order.status === "DELIVERED" ? (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setViewingFaktur(order);
-                                }}
-                                className="px-3.5 py-1.5 bg-white border border-outline-variant/40 hover:bg-surface-container-low font-bold rounded-lg transition-all text-[10px] cursor-pointer shadow-sm text-on-surface active:scale-95 duration-100"
-                              >
-                                e-Faktur
-                              </button>
                             ) : (
                               <button
                                 type="button"
@@ -489,67 +509,153 @@ export default function DashboardOverview({
           </div>
         </section>
 
-        {/* Credit Limit Summary */}
-        <section className="bg-white p-5 rounded-2xl shadow-sm border border-outline-variant/20 hover:shadow-md transition-all duration-300">
-          <div className="flex justify-between items-center mb-4">
+        {/* Credit Limit Summary (Tokopedia / Alodokter Class Hero Card) */}
+        <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200/90 hover:shadow-md transition-all duration-300 relative overflow-hidden">
+          {/* Subtle Background Glow Accent */}
+          <div className="absolute -right-8 -top-8 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+          <div className="flex justify-between items-start mb-3 relative z-10">
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Sisa Kredit</span>
-              <span className="text-lg font-black text-primary font-mono">Rp {sisaKredit.toLocaleString("id-ID")}</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Sisa Kredit TOP 30 Hari
+              </span>
+              <span className="text-xl font-black text-slate-900 font-mono mt-0.5">
+                Rp {sisaKredit.toLocaleString("id-ID")}
+              </span>
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-on-surface-variant font-medium">Limit: Rp {institution.creditLimit.toLocaleString("id-ID")}</span>
+              <span className="text-[9.5px] font-bold text-slate-400 block uppercase">Plafon Limit</span>
+              <span className="text-xs font-black text-slate-700 font-mono">Rp {institution.creditLimit.toLocaleString("id-ID")}</span>
             </div>
           </div>
-          <div className="w-full bg-surface-container-high h-2.5 rounded-full overflow-hidden">
+
+          {/* Progress Bar Container */}
+          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200/50 relative z-10">
             <div 
-              className="bg-primary h-full transition-all duration-1000 ease-out rounded-full" 
+              className={`h-full transition-all duration-1000 ease-out rounded-full ${
+                limitUsageRatio > 0.8 ? "bg-rose-500" : limitUsageRatio > 0.5 ? "bg-amber-500" : "bg-emerald-600"
+              }`} 
               style={{ width: `${animateWidth}%` }}
             ></div>
           </div>
-          <div className="mt-3 flex items-center justify-between">
+
+          <div className="mt-3.5 flex items-center justify-between relative z-10 pt-2 border-t border-slate-100">
             <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-secondary text-sm">event_repeat</span>
-              <span className="text-[10px] font-bold text-on-surface-variant">Jatuh tempo {institution.topDays} hari lagi</span>
+              <span className="material-symbols-outlined text-emerald-600 text-sm">event_repeat</span>
+              <span className="text-[10.5px] font-extrabold text-slate-600">Jatuh tempo {institution.topDays || 30} hari lagi</span>
             </div>
             <button 
-              onClick={() => setActiveTab("tagihan")}
-              className="text-primary font-bold text-[10px] hover:underline active:scale-95 duration-100 transition-all border-none bg-transparent cursor-pointer"
+              onClick={() => {
+                triggerHapticImpact();
+                setActiveTab("tagihan");
+              }}
+              className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-[10.5px] rounded-xl shadow-xs active:scale-95 transition-all border-none cursor-pointer flex items-center gap-1"
             >
-              Bayar Sekarang
+              <span>Bayar Tagihan</span>
+              <span className="material-symbols-outlined text-xs">arrow_forward</span>
             </button>
           </div>
         </section>
 
-        {/* Quick Actions Grid */}
-        <section>
-          <h2 className="text-sm font-black mb-4">Akses Cepat</h2>
-          <div className="grid grid-cols-3 gap-3">
+        {/* Quick Actions Grid (6-Tile Premium Dock) */}
+        <section className="space-y-3">
+          <div className="flex justify-between items-center">
+            <h2 className="text-sm font-black text-slate-800 tracking-tight">Akses Cepat</h2>
+            <span className="text-[10px] font-semibold text-slate-400">PBF Mobile Features</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2.5">
+            {/* 1. Katalog Obat PBF */}
             <button 
-              onClick={() => setActiveTab("belanja")}
-              className="flex flex-col items-center justify-center gap-2 p-4 bg-white rounded-2xl shadow-sm active:scale-95 transition-all duration-150 border border-outline-variant/20 cursor-pointer hover:border-primary/30"
+              onClick={() => {
+                triggerHapticImpact();
+                setActiveTab("belanja");
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3.5 bg-white rounded-2xl shadow-2xs active:scale-95 transition-all duration-150 border border-slate-200/80 cursor-pointer hover:border-emerald-500/40 hover:shadow-md group relative"
             >
-              <div className="w-12 h-12 rounded-full bg-primary-container/20 flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-xl">inventory_2</span>
+              <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <ShoppingBag className="w-5 h-5 stroke-[2]" />
               </div>
-              <span className="text-[10px] font-bold text-on-surface text-center">Katalog</span>
+              <span className="text-[10.5px] font-extrabold text-slate-700 text-center leading-tight">Katalog Obat</span>
             </button>
+
+            {/* 2. E-Sign SP (Surat Pesanan CDOB) */}
             <button 
-              onClick={() => setActiveTab("tagihan")}
-              className="flex flex-col items-center justify-center gap-2 p-4 bg-white rounded-2xl shadow-sm active:scale-95 transition-all duration-150 border border-outline-variant/20 cursor-pointer hover:border-primary/30"
+              onClick={() => {
+                triggerHapticImpact();
+                setActiveTab("riwayat");
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3.5 bg-white rounded-2xl shadow-2xs active:scale-95 transition-all duration-150 border border-slate-200/80 cursor-pointer hover:border-emerald-500/40 hover:shadow-md group relative"
             >
-              <div className="w-12 h-12 rounded-full bg-secondary-container/20 flex items-center justify-center text-secondary">
-                <span className="material-symbols-outlined text-xl">payments</span>
+              <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center group-hover:scale-110 transition-transform relative">
+                <FileSignature className="w-5 h-5 stroke-[2]" />
+                {orders.filter((o: any) => o.status === "PENDING_APPROVAL" && !o.spSignature).length > 0 && (
+                  <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[8.5px] font-black leading-none border border-white animate-pulse">
+                    {orders.filter((o: any) => o.status === "PENDING_APPROVAL" && !o.spSignature).length}
+                  </span>
+                )}
               </div>
-              <span className="text-[10px] font-bold text-on-surface text-center">Konfirmasi</span>
+              <span className="text-[10.5px] font-extrabold text-slate-700 text-center leading-tight">E-Sign SP</span>
             </button>
+
+            {/* 3. Pelunasan TOP & Tagihan */}
             <button 
-              onClick={() => setActiveTab("riwayat")}
-              className="flex flex-col items-center justify-center gap-2 p-4 bg-white rounded-2xl shadow-sm active:scale-95 transition-all duration-150 border border-outline-variant/20 cursor-pointer hover:border-primary/30"
+              onClick={() => {
+                triggerHapticImpact();
+                setActiveTab("tagihan");
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3.5 bg-white rounded-2xl shadow-2xs active:scale-95 transition-all duration-150 border border-slate-200/80 cursor-pointer hover:border-emerald-500/40 hover:shadow-md group relative"
             >
-              <div className="w-12 h-12 rounded-full bg-tertiary-container/20 flex items-center justify-center text-tertiary">
-                <span className="material-symbols-outlined text-xl">draw</span>
+              <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <CreditCard className="w-5 h-5 stroke-[2]" />
               </div>
-              <span className="text-[10px] font-bold text-on-surface text-center">E-Sign SP</span>
+              <span className="text-[10.5px] font-extrabold text-slate-700 text-center leading-tight">Bayar TOP</span>
+            </button>
+
+            {/* 4. Lacak Pengiriman Kurir */}
+            <button 
+              onClick={() => {
+                triggerHapticImpact();
+                setActiveTab("status");
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3.5 bg-white rounded-2xl shadow-2xs active:scale-95 transition-all duration-150 border border-slate-200/80 cursor-pointer hover:border-emerald-500/40 hover:shadow-md group relative"
+            >
+              <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center group-hover:scale-110 transition-transform relative">
+                <Truck className="w-5 h-5 stroke-[2]" />
+                {realActiveShipments.length > 0 && (
+                  <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white animate-ping"></span>
+                )}
+              </div>
+              <span className="text-[10.5px] font-extrabold text-slate-700 text-center leading-tight">Lacak Kurir</span>
+            </button>
+
+            {/* 5. Legalitas SIA & SIPA */}
+            <button 
+              onClick={() => {
+                triggerHapticImpact();
+                setActiveTab("legalitas");
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3.5 bg-white rounded-2xl shadow-2xs active:scale-95 transition-all duration-150 border border-slate-200/80 cursor-pointer hover:border-emerald-500/40 hover:shadow-md group relative"
+            >
+              <div className="w-11 h-11 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <ShieldCheck className="w-5 h-5 stroke-[2]" />
+              </div>
+              <span className="text-[10.5px] font-extrabold text-slate-700 text-center leading-tight">Legalitas SIA</span>
+            </button>
+
+            {/* 6. Faktur & Dokumen PDF */}
+            <button 
+              onClick={() => {
+                triggerHapticImpact();
+                setActiveTab("dokumen");
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3.5 bg-white rounded-2xl shadow-2xs active:scale-95 transition-all duration-150 border border-slate-200/80 cursor-pointer hover:border-emerald-500/40 hover:shadow-md group relative"
+            >
+              <div className="w-11 h-11 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <FileText className="w-5 h-5 stroke-[2]" />
+              </div>
+              <span className="text-[10.5px] font-extrabold text-slate-700 text-center leading-tight">Faktur PDF</span>
             </button>
           </div>
         </section>
@@ -569,119 +675,104 @@ export default function DashboardOverview({
           <div className="flex overflow-x-auto gap-4 no-scrollbar pb-2 -mx-4 px-4">
             {realActiveShipments.length > 0 ? (
               realActiveShipments.map((shipment) => {
+                const isDelivered = shipment.status === "DELIVERED";
                 const isShipped = shipment.status === "SHIPPED";
+                
                 return (
                   <div 
                     key={shipment.id} 
-                    onClick={() => setViewingDetailOrder(shipment)}
-                    className="min-w-[280px] max-w-[280px] bg-white p-4 rounded-2xl shadow-sm border border-outline-variant/20 flex flex-col gap-3 active:scale-[0.99] transition-all duration-100 cursor-pointer hover:border-primary/20"
+                    onClick={() => {
+                      if (setViewingDetailOrder) setViewingDetailOrder(shipment);
+                      else setActiveTab("status");
+                    }}
+                    className="min-w-[285px] max-w-[285px] bg-white p-4 rounded-2xl shadow-xs border border-slate-200 flex flex-col gap-3 active:scale-[0.99] transition-all duration-100 cursor-pointer hover:border-emerald-500/50 hover:shadow-md"
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-2">
-                        <div className="bg-secondary/10 p-2 rounded-lg text-secondary">
-                          <span className="material-symbols-outlined">{isShipped ? "local_shipping" : "inventory"}</span>
+                        <div className={`p-2 rounded-xl ${isDelivered ? "bg-emerald-50 text-emerald-600" : isShipped ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600"}`}>
+                          <span className="material-symbols-outlined">{isDelivered ? "check_circle" : isShipped ? "local_shipping" : "inventory"}</span>
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-foreground truncate max-w-[150px]">{shipment.orderNumber}</p>
-                          <p className="text-[9px] text-on-surface-variant font-medium">
-                            {isShipped ? "Estimasi Tiba: Hari Ini" : "Estimasi Tiba: Besok"}
+                          <p className="text-xs font-black text-slate-800 truncate max-w-[150px]">{shipment.orderNumber}</p>
+                          <p className="text-[9px] text-slate-500 font-medium">
+                            {isDelivered ? "Estimasi Tiba: Selesai" : isShipped ? "Estimasi Tiba: Hari Ini" : "Estimasi Tiba: Besok"}
                           </p>
                         </div>
                       </div>
                       {isShipped && (
-                        <div className="w-7 h-7 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
+                        <div className="w-7 h-7 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shrink-0">
                           <span className="material-symbols-outlined text-base animate-pulse" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+                        </div>
+                      )}
+                      {isDelivered && (
+                        <div className="w-7 h-7 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>task_alt</span>
                         </div>
                       )}
                     </div>
 
                     {isShipped ? (
-                      <div className="relative h-24 w-full rounded-lg overflow-hidden border border-outline-variant/20">
+                      <div className="relative h-24 w-full rounded-xl overflow-hidden border border-slate-200">
                         <div 
                           className="absolute inset-0 bg-cover bg-center" 
                           style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAALaaR7an7VLifbMOEEWX1en_fjaSdHx4voL57p8ErU3BKiOgtk0DsaEAOFG9aJLwxmzMn082xMJySFOUJoxOsFaIfY0CbRJKl5kLlddNudcPfotCvUY3c8c6eJwDBei1WHlElM4yvfCiYXUpEcIoa6_n2RLhY9XAIwoTEzn1hLj0ZPKW6u-MmCu3siAefyqGAL55sDDt_ADm8g_f81FnOVed-QAyhcBr0VuLBqCuz2G7Oz_xopxaob6umqCfkLhw_UN6Tg72MewQ')" }}
                         ></div>
-                        <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur px-2 py-0.5 rounded text-[8px] font-black text-primary uppercase">
-                          KURIR: EDI SANTOSO
+                        <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur px-2 py-0.5 rounded-md text-[8px] font-black text-blue-700 uppercase shadow-xs flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping"></span>
+                          {getCourierName(shipment)}
                         </div>
                       </div>
+                    ) : isDelivered ? (
+                      <div className="h-24 w-full rounded-xl bg-emerald-50/50 border border-emerald-100 flex flex-col items-center justify-center gap-1 text-emerald-700">
+                        <span className="material-symbols-outlined text-2xl text-emerald-600">verified</span>
+                        <span className="text-[10px] font-black uppercase tracking-wider">Pesanan Tiba & Terverifikasi</span>
+                        <span className="text-[8.5px] font-extrabold text-emerald-600/90">{getCourierName(shipment)}</span>
+                      </div>
                     ) : (
-                      <div className="h-24 w-full rounded-lg bg-surface-container-low flex items-center justify-center">
-                        <span className="text-[10px] text-on-surface-variant font-bold italic">Menunggu Pick-up</span>
+                      <div className="h-24 w-full rounded-xl bg-slate-50 border border-slate-100 flex flex-col items-center justify-center gap-1 text-slate-400">
+                        <span className="material-symbols-outlined text-2xl text-slate-400">hourglass_top</span>
+                        <span className="text-[10px] font-bold italic">Menunggu Pick-up Kurir PBF</span>
+                        <span className="text-[8.5px] font-bold text-slate-500 uppercase">{getCourierName(shipment)}</span>
                       </div>
                     )}
 
                     <div className="flex justify-between items-center text-[10px]">
-                      {isShipped ? (
-                        <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 font-bold text-[9px]">Sedang Dikirim</span>
-                      ) : (
-                        <span className="px-2.5 py-0.5 bg-orange-50 text-orange-600 rounded-full border border-orange-100 font-bold text-[9px]">Diproses PBF</span>
-                      )}
-                      <span className="text-on-surface-variant font-bold">{shipment.items.length} Item</span>
+                      {(() => {
+                        const biteshipMeta = getBiteshipStatusMeta(shipment.biteshipStatus, shipment.status);
+                        const isColdChainOrder = (shipment.items || []).some((it: any) =>
+                          it.product?.category === "COLD_CHAIN" || it.product?.category?.toLowerCase().includes("cold") ||
+                          it.product?.name?.toLowerCase().includes("insulin") || it.product?.name?.toLowerCase().includes("vaccine")
+                        );
+
+                        return (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`px-2.5 py-0.5 rounded-full font-black text-[9px] ${biteshipMeta.badgeClass}`}>
+                              {biteshipMeta.label}
+                            </span>
+                            {isColdChainOrder && (
+                              <span className="px-2 py-0.5 rounded-full font-black text-[8.5px] bg-cyan-50 text-cyan-800 border border-cyan-200/80 flex items-center gap-0.5">
+                                <span>🧊</span> Suhu 2-8°C
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      <span className="text-slate-600 font-extrabold shrink-0">{shipment.items?.length || 1} Item</span>
                     </div>
                   </div>
                 );
               })
             ) : (
-              /* Fallback Mock Shipments jika tidak ada data aktif dari database */
-              <>
-                {/* Mock Shipment 1: Shipped */}
-                <div 
-                  onClick={() => alert("Menampilkan detail mockup order...")}
-                  className="min-w-[280px] bg-white p-4 rounded-2xl shadow-sm border border-outline-variant/20 flex flex-col gap-3 active:scale-[0.99] transition-all duration-100 cursor-pointer"
+              <div className="w-full bg-white p-6 rounded-2xl border border-slate-200 text-center space-y-2">
+                <p className="text-xs font-bold text-slate-700">Belum Ada Pengiriman Aktif</p>
+                <p className="text-[10px] text-slate-500 font-medium">Semua pesanan Anda telah tiba atau buat Surat Pesanan baru di katalog.</p>
+                <button 
+                  onClick={() => setActiveTab("belanja")}
+                  className="mt-2 px-4 py-1.5 bg-emerald-600 text-white font-extrabold text-[10px] rounded-xl border-none cursor-pointer active:scale-95 transition-all"
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <div className="bg-secondary/10 p-2 rounded-lg text-secondary">
-                        <span className="material-symbols-outlined">local_shipping</span>
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold">INV/2023/X/912</p>
-                        <p className="text-[9px] text-on-surface-variant font-medium">Estimasi Tiba: 14:20 WIB</p>
-                      </div>
-                    </div>
-                    <div className="w-7 h-7 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-base animate-pulse" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
-                    </div>
-                  </div>
-                  <div className="relative h-24 w-full rounded-lg overflow-hidden border border-outline-variant/20">
-                    <div 
-                      className="absolute inset-0 bg-cover bg-center" 
-                      style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAALaaR7an7VLifbMOEEWX1en_fjaSdHx4voL57p8ErU3BKiOgtk0DsaEAOFG9aJLwxmzMn082xMJySFOUJoxOsFaIfY0CbRJKl5kLlddNudcPfotCvUY3c8c6eJwDBei1WHlElM4yvfCiYXUpEcIoa6_n2RLhY9XAIwoTEzn1hLj0ZPKW6u-MmCu3siAefyqGAL55sDDt_ADm8g_f81FnOVed-QAyhcBr0VuLBqCuz2G7Oz_xopxaob6umqCfkLhw_UN6Tg72MewQ')" }}
-                    ></div>
-                    <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur px-2 py-0.5 rounded text-[8px] font-black text-primary uppercase">
-                      KURIR: EDI SANTOSO
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center text-[10px]">
-                    <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 font-bold text-[9px]">Sedang Dikirim</span>
-                    <span className="text-on-surface-variant font-bold">3 Item</span>
-                  </div>
-                </div>
-
-                {/* Mock Shipment 2: Processing */}
-                <div className="min-w-[280px] bg-white p-4 rounded-2xl shadow-sm border border-outline-variant/20 flex flex-col gap-3 opacity-80">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <div className="bg-secondary/10 p-2 rounded-lg text-secondary">
-                        <span className="material-symbols-outlined">inventory</span>
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold">INV/2023/X/888</p>
-                        <p className="text-[9px] text-on-surface-variant font-medium">Estimasi Tiba: Besok</p>
-                      </div>
-                    </div>
-                    <span className="material-symbols-outlined text-on-surface-variant">map</span>
-                  </div>
-                  <div className="h-24 w-full rounded-lg bg-surface-container-low flex items-center justify-center">
-                    <span className="text-[10px] text-on-surface-variant font-bold italic">Menunggu Pick-up</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[10px]">
-                    <span className="px-2.5 py-0.5 bg-orange-50 text-orange-600 rounded-full border border-orange-100 font-bold text-[9px]">Diproses PBF</span>
-                    <span className="text-on-surface-variant font-bold">12 Item</span>
-                  </div>
-                </div>
-              </>
+                  Buka Katalog Obat
+                </button>
+              </div>
             )}
           </div>
         </section>

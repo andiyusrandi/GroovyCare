@@ -23,7 +23,7 @@ async function main() {
   for (const inst of institutions) {
     let actualDebt = 0;
     for (const order of inst.orders) {
-      const orderTotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const orderTotal = order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
       actualDebt += orderTotal;
     }
 

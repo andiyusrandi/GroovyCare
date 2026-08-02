@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import OfflineStatusBanner from "@/components/OfflineStatusBanner";
 import { logout } from "@/app/actions/auth";
 import {
   activatePartner,
@@ -15,13 +16,16 @@ import {
   deleteProduct,
   addBatch,
   deleteBatch,
+  quarantineNearExpiryBatches,
 } from "@/app/actions/products";
 import {
   approveOrderCDOB,
   rejectOrder,
   shipOrder,
+  bulkShipOrders,
   verifyPayment,
   deleteOrder,
+  markOrderAsPaidManually,
 } from "@/app/actions/orders";
 import {
   searchKfaMedicines,
@@ -189,9 +193,22 @@ export default function AdminDashboardClient({
   initialOrders: any[];
 }) {
   const router = useRouter();
-  const [partners] = useState<Partner[]>(initialPartners);
-  const [products] = useState<Product[]>(initialProducts);
-  const [orders] = useState<Order[]>(initialOrders);
+  const [partners, setPartners] = useState<Partner[]>(initialPartners);
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
+
+  // Sync state when Server Props change (real-time webhook / router refresh)
+  useEffect(() => {
+    setOrders(initialOrders);
+  }, [initialOrders]);
+
+  useEffect(() => {
+    setPartners(initialPartners);
+  }, [initialPartners]);
+
+  useEffect(() => {
+    setProducts(initialProducts);
+  }, [initialProducts]);
   const [activeTab, setActiveTab] = useState<"overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin">("overview");
 
   // Restore active tab on mount to prevent hydration mismatch while preserving state
@@ -204,12 +221,13 @@ export default function AdminDashboardClient({
     }
   }, []);
 
-  // Save active tab to localStorage on change
+  // Auto-refresh interval (every 25 seconds) to ensure Biteship updates & cancellations sync automatically
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("admin_active_tab", activeTab);
-    }
-  }, [activeTab]);
+    const interval = setInterval(() => {
+      router.refresh();
+    }, 25000);
+    return () => clearInterval(interval);
+  }, [router]);
 
   // State Form Obat Baru
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -622,6 +640,18 @@ export default function AdminDashboardClient({
     }
   }
 
+  async function handleQuarantineNearExpiry(days: number = 60) {
+    if (confirm(`Apakah Anda yakin ingin mengkarantina seluruh batch obat dengan masa ED < ${days} hari? Stok batch obat tersebut akan disetel menjadi 0 agar tidak dapat dipesan oleh mitra.`)) {
+      const res = await quarantineNearExpiryBatches(days);
+      if (res.success) {
+        alert(res.message);
+        window.location.reload();
+      } else {
+        alert(res.error || "Gagal mengkarantina obat");
+      }
+    }
+  }
+
   // Logistik / Warehouse scan simulation
   function startPacking(order: Order) {
     setActivePackingOrder(order);
@@ -640,12 +670,17 @@ export default function AdminDashboardClient({
     });
   }
 
+  function autoScanAllItems() {
+    if (!activePackingOrder) return;
+    const fullScan: Record<string, number> = {};
+    activePackingOrder.batchAllocations.forEach((alloc) => {
+      fullScan[alloc.id] = alloc.quantity;
+    });
+    setScannedItems(fullScan);
+  }
+
   async function handleShipOrder() {
     if (!activePackingOrder) return;
-    if (!resiInput.trim()) {
-      alert("Input nomor resi pengiriman kurir terlebih dahulu.");
-      return;
-    }
 
     const res = await shipOrder(activePackingOrder.id, resiInput);
     if (res.success) {
@@ -654,6 +689,19 @@ export default function AdminDashboardClient({
       window.location.reload();
     } else {
       alert(res.error);
+    }
+  }
+
+  async function handleBulkShipOrders(orderIds: string[]) {
+    if (!orderIds || orderIds.length === 0) return;
+    if (confirm(`Apakah Anda yakin ingin melakukan auto-booking kurir Biteship & menerbitkan resi massal untuk ${orderIds.length} pesanan sekaligus?`)) {
+      const res = await bulkShipOrders(orderIds);
+      if (res.success) {
+        alert(res.message);
+        window.location.reload();
+      } else {
+        alert(res.error || "Gagal memproses pengiriman massal");
+      }
     }
   }
 
@@ -671,8 +719,22 @@ export default function AdminDashboardClient({
     }
   }
 
+  async function handleMarkAsPaidManually(orderId: string) {
+    if (confirm("Apakah Anda yakin ingin menandai invoice ini sebagai LUNAS secara manual? Sisa limit mitra akan langsung bertambah.")) {
+      const res = await markOrderAsPaidManually(orderId);
+      if (res.success) {
+        alert(res.message);
+        window.location.reload();
+      } else {
+        alert(res.error);
+      }
+    }
+  }
+
   return (
     <div className="bg-background text-on-surface font-body-md min-h-screen overflow-x-hidden relative">
+      {/* Offline Mode Banner Indicator */}
+      <OfflineStatusBanner />
       {/* SideNavBar */}
       <AdminSidebar
         activeTab={activeTab}
@@ -728,6 +790,7 @@ export default function AdminDashboardClient({
               handleDeleteProduct={handleDeleteProduct}
               handleDeleteBatch={handleDeleteBatch}
               onEditProduct={setEditingProduct}
+              onQuarantineNearExpiry={handleQuarantineNearExpiry}
             />
           )}
 
@@ -748,9 +811,11 @@ export default function AdminDashboardClient({
               setActivePackingOrder={setActivePackingOrder}
               scannedItems={scannedItems}
               simulateScanItem={simulateScanItem}
+              autoScanAllItems={autoScanAllItems}
               resiInput={resiInput}
               setResiInput={setResiInput}
               handleShipOrder={handleShipOrder}
+              onBulkShipOrders={handleBulkShipOrders}
               startPacking={startPacking}
               onRejectOrder={handleRejectOrder}
               onDeleteOrder={handleDeleteOrder}
@@ -761,6 +826,7 @@ export default function AdminDashboardClient({
             <FinanceTab
               orders={orders}
               handleVerifyPayment={handleVerifyPayment}
+              handleMarkAsPaidManually={handleMarkAsPaidManually}
             />
           )}
 
