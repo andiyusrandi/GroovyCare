@@ -1061,34 +1061,39 @@ export default function ProductCatalog({
       {/* 1. DESKTOP VIEW: Filters & Table                                          */}
       {/* ========================================================================= */}
       <div className="hidden md:block space-y-6">
-        {/* Horizontal Filter Bar Card */}
-        <div className="bg-white rounded-3xl border border-outline-variant/20 p-5 shadow-sm space-y-4">
-          {/* Top line: Header + Reset */}
-          <div className="flex items-center justify-between border-b border-outline-variant/15 pb-3">
-            <h3 className="font-heading font-bold text-sm text-foreground flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[18px]">tune</span>
-              Filter Pencarian Produk
-            </h3>
+        {/* Horizontal Filter Bar Card (Compact & Modern) */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs space-y-3">
+          {/* Header Filter Ringkas */}
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-emerald-600 text-[18px]">tune</span>
+              <h3 className="font-extrabold text-xs text-slate-800 uppercase tracking-wider">
+                Filter Pencarian Produk
+              </h3>
+            </div>
+            
             <button
               onClick={resetFilters}
-              className="text-xs text-primary hover:underline font-bold cursor-pointer border-none bg-transparent"
+              className="text-[11px] text-emerald-600 hover:text-emerald-700 font-bold cursor-pointer transition-colors border-none bg-transparent"
             >
               Reset Filter
             </button>
           </div>
 
-          {/* Filters Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
-            {/* Kategori Obat */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-outline uppercase tracking-wider block">Kategori Obat</span>
+          {/* Inputs Grid 4-Kolom Horizontal Pipih */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+            {/* 1. Kategori Obat */}
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Kategori Obat
+              </span>
               <select
                 value={selectedKategori[0] || ""}
                 onChange={(e) => {
                   const val = e.target.value;
                   setSelectedKategori(val ? [val] : []);
                 }}
-                className="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs py-2 px-3 focus:ring-1 focus:ring-primary outline-none cursor-pointer h-9"
+                className="w-full bg-slate-50 border border-slate-200/90 rounded-xl text-xs py-1.5 px-3 focus:bg-white focus:outline-none focus:border-emerald-600 font-medium cursor-pointer h-8 text-slate-800 transition-colors"
               >
                 <option value="">Semua Kategori</option>
                 {kategoriList.map((kat) => (
@@ -1097,16 +1102,18 @@ export default function ProductCatalog({
               </select>
             </div>
 
-            {/* Manufaktur */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-outline uppercase tracking-wider block">Manufaktur</span>
+            {/* 2. Manufaktur */}
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Manufaktur
+              </span>
               <select
                 value={selectedManufaktur[0] || ""}
                 onChange={(e) => {
                   const val = e.target.value;
                   setSelectedManufaktur(val ? [val] : []);
                 }}
-                className="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs py-2 px-3 focus:ring-1 focus:ring-primary outline-none cursor-pointer h-9"
+                className="w-full bg-slate-50 border border-slate-200/90 rounded-xl text-xs py-1.5 px-3 focus:bg-white focus:outline-none focus:border-emerald-600 font-medium cursor-pointer h-8 text-slate-800 transition-colors"
               >
                 <option value="">Semua Manufaktur</option>
                 {manufacturersList.map((mfg) => (
@@ -1115,35 +1122,39 @@ export default function ProductCatalog({
               </select>
             </div>
 
-            {/* Kisaran Harga */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-outline uppercase tracking-wider block">Kisaran Harga (IDR)</span>
-              <div className="flex items-center gap-2">
+            {/* 3. Kisaran Harga */}
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Kisaran Harga (IDR)
+              </span>
+              <div className="flex items-center gap-1.5">
                 <input
                   type="number"
                   value={minPrice || ""}
                   onChange={(e) => setMinPrice(e.target.value === "" ? "" : Number(e.target.value))}
                   placeholder="Min"
-                  className="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs py-2 px-3 focus:ring-1 focus:ring-primary outline-none h-9"
+                  className="w-full bg-slate-50 border border-slate-200/90 rounded-xl text-xs py-1.5 px-2.5 focus:bg-white focus:outline-none focus:border-emerald-600 h-8 font-medium text-slate-800 transition-colors"
                 />
-                <span className="text-outline">-</span>
+                <span className="text-slate-300 text-xs">-</span>
                 <input
                   type="number"
                   value={maxPrice || ""}
                   onChange={(e) => setMaxPrice(e.target.value === "" ? "" : Number(e.target.value))}
                   placeholder="Max"
-                  className="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs py-2 px-3 focus:ring-1 focus:ring-primary outline-none h-9"
+                  className="w-full bg-slate-50 border border-slate-200/90 rounded-xl text-xs py-1.5 px-2.5 focus:bg-white focus:outline-none focus:border-emerald-600 h-8 font-medium text-slate-800 transition-colors"
                 />
               </div>
             </div>
 
-            {/* Urutkan */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-outline uppercase tracking-wider block">Urutan Harga</span>
+            {/* 4. Urutan Harga */}
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Urutan Harga
+              </span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs py-2 px-3 focus:ring-1 focus:ring-primary outline-none cursor-pointer h-9"
+                className="w-full bg-slate-50 border border-slate-200/90 rounded-xl text-xs py-1.5 px-3 focus:bg-white focus:outline-none focus:border-emerald-600 font-medium cursor-pointer h-8 text-slate-800 transition-colors"
               >
                 <option value="terbaru">Paling Relevan</option>
                 <option value="low-to-high">Harga: Rendah ke Tinggi</option>
@@ -1153,179 +1164,172 @@ export default function ProductCatalog({
           </div>
         </div>
 
-        {/* Table-Centric Inventory Section */}
+        {/* Product Grid Section (Modern Desktop Cards Grid) */}
         <section className="space-y-4">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="font-heading font-bold text-base text-foreground">Katalog Produk</h2>
-              <p className="text-on-surface-variant text-[10px]">Menampilkan {sortedProducts.length} produk ditemukan</p>
+              <h2 className="font-heading font-bold text-lg text-slate-900">Katalog Produk</h2>
+              <p className="text-slate-500 text-xs">Menampilkan {sortedProducts.length} produk ditemukan</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl border border-outline-variant/20 overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left text-xs">
-                <thead>
-                  <tr className="bg-surface-container-low border-b border-outline-variant/20 text-on-surface-variant font-bold">
-                    <th className="p-4 w-16 text-center">Img</th>
-                    <th className="p-4">Produk</th>
-                    <th className="p-4">Zat Aktif</th>
-                    <th className="p-4">Stok</th>
-                    <th className="p-4">Exp Date Range</th>
-                    <th className="p-4">Harga (IDR)</th>
-                    <th className="p-4 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/10 text-on-surface">
-                  {sortedProducts.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="p-8 text-center text-on-surface-variant italic">
-                        Tidak ada produk obat yang cocok dengan filter pencarian.
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedProducts.map((p) => {
-                      const isOutOfStock = p.totalStock <= 0;
-                      const qty = localQuantities[p.id] || 1;
-                      const mfg = getProductManufacturer(p);
-                      const golongan = getProductGolongan(p);
-                      const expRange = getProductExpiryRange(p);
-                      const originalPrice = p.price * 1.05;
-
-                      return (
-                        <tr key={p.id} className="hover:bg-surface-container-low/20 transition-colors">
-                          <td className="p-4">
-                            <div 
-                              onClick={() => handleOpenProductDetail(p)}
-                              className="w-12 h-12 rounded-xl bg-surface-container-low overflow-hidden border border-outline-variant/10 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
-                            >
-                              <img
-                                className="w-full h-full object-cover"
-                                src={getProductImageUrl(p)}
-                                alt={p.name}
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = "https://lh3.googleusercontent.com/aida-public/AB6AXuBVwwWGNG9klmFlTxE7qRJlM1a7CWQA41HcodSrxAo5yyi2kDDxkKfVY-ZKWSidodMppE_pXoP_mQCrcx9gRPdHjb967dBVWUoFL5AFRR5c_Jl2dQgOsaFvIFY5EDsB4KhW6Yp97g7uZJaWqjHlKz4J8OY4vHoN93-nWI0lZZOj7DhkS8ZaO6mCejJMLHI-yHbtaiqlkdO0f2skoMG2UQD7cf0ywd87rynYVJHts51V9wTivLcGooleoOrenqnrUzra16cONC2_49Y";
-                                }}
-                              />
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <div>
-                              <h4 
-                                onClick={() => handleOpenProductDetail(p)}
-                                className="font-bold text-foreground text-sm cursor-pointer hover:text-primary hover:underline transition-colors"
-                              >
-                                {p.name}
-                              </h4>
-                              <p className="text-[9px] font-bold text-outline uppercase tracking-wider mt-0.5">{mfg}</p>
-                              <div className="flex gap-1.5 mt-1.5">
-                                {golongan === "KERAS" && (
-                                  <span className="bg-error text-white text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">Keras (G)</span>
-                                )}
-                                {golongan === "BEBAS" && (
-                                  <span className="bg-primary-container text-white text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">Bebas (W)</span>
-                                )}
-                                {golongan === "PSIKOTROPIKA" && (
-                                  <span className="bg-blue-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">Psikotropika</span>
-                                )}
-                                {(p.category === "COLD_CHAIN" || p.category?.toLowerCase() === "cold chain" || p.name.toLowerCase().includes("amoxicillin") || p.name.toLowerCase().includes("insulin") || p.name.toLowerCase().includes("vaccine") || p.code.includes("AMX")) && (
-                                  <span className="bg-sky-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
-                                    <span className="material-symbols-outlined text-[10px]">ac_unit</span> Cold Chain (2°C - 8°C)
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <span className="text-on-surface-variant italic">{p.activeIngredient}</span>
-                          </td>
-                          <td className="p-4">
-                            <div>
-                              {isOutOfStock ? (
-                                <span className="font-bold text-error flex items-center gap-1.5">
-                                  <span className="w-1.5 h-1.5 bg-error rounded-full animate-pulse"></span>
-                                  Habis
-                                </span>
-                              ) : (
-                                <span className="font-bold text-primary flex items-center gap-1.5">
-                                  <span className="w-1.5 h-1.5 bg-primary rounded-full"></span>
-                                  {p.totalStock} {p.unit.split(" ")[0]}
-                                </span>
-                              )}
-                              <p className="text-[9px] text-outline mt-0.5">{p.unit}</p>
-                            </div>
-                          </td>
-                          <td className="p-4 text-on-surface-variant font-medium">
-                            {expRange}
-                          </td>
-                          <td className="p-4 font-mono">
-                            <div>
-                              <p className="font-bold text-primary text-sm">Rp {p.price.toLocaleString("id-ID")}</p>
-                              <p className="text-[9px] text-outline line-through">Rp {originalPrice.toLocaleString("id-ID")}</p>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="flex items-center border border-outline-variant/40 rounded-xl bg-surface-container-lowest h-8 shadow-sm">
-                                <button
-                                  type="button"
-                                  onClick={() => setLocalQuantities(prev => ({ ...prev, [p.id]: Math.max(1, (prev[p.id] || 1) - 1) }))}
-                                  className="px-2.5 h-full text-xs font-bold text-on-surface-variant hover:text-primary transition-colors cursor-pointer border-none bg-transparent"
-                                >
-                                  -
-                                </button>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={p.totalStock}
-                                  value={qty === undefined ? 1 : qty}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    if (raw === "") {
-                                      setLocalQuantities(prev => ({ ...prev, [p.id]: "" as any }));
-                                      return;
-                                    }
-                                    const val = parseInt(raw);
-                                    const parsedVal = isNaN(val) ? 1 : Math.max(1, Math.min(p.totalStock, val));
-                                    setLocalQuantities(prev => ({ ...prev, [p.id]: parsedVal }));
-                                  }}
-                                  onBlur={() => {
-                                    if (!qty || qty < 1) {
-                                      setLocalQuantities(prev => ({ ...prev, [p.id]: 1 }));
-                                    }
-                                  }}
-                                  className="w-10 text-center text-xs font-semibold font-mono bg-transparent border-none focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none cursor-text"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => setLocalQuantities(prev => ({ ...prev, [p.id]: Math.min(p.totalStock, (prev[p.id] || 1) + 1) }))}
-                                  className="px-2.5 h-full text-xs font-bold text-on-surface-variant hover:text-primary transition-colors cursor-pointer border-none bg-transparent"
-                                >
-                                  +
-                                </button>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => addToCartWithQty(p, qty)}
-                                disabled={isOutOfStock || hasCdobWarning}
-                                className={`p-2 rounded-xl transition-all flex items-center justify-center shadow-sm cursor-pointer border-none ${
-                                  isOutOfStock || hasCdobWarning
-                                    ? "bg-surface-container-low border border-outline-variant/20 text-on-surface-variant/40 cursor-not-allowed opacity-50 shadow-none"
-                                    : "bg-primary text-white hover:bg-primary/95 shadow-md shadow-primary/10"
-                                }`}
-                              >
-                                <span className="material-symbols-outlined text-sm">add_shopping_cart</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+          {sortedProducts.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center text-slate-500 space-y-2">
+              <span className="material-symbols-outlined text-4xl text-slate-300">search_off</span>
+              <p className="text-sm font-bold text-slate-700">Tidak ada produk ditemukan</p>
+              <p className="text-xs text-slate-400">Coba ubah kata kunci atau kriteria filter pencarian Anda.</p>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {sortedProducts.map((p) => {
+                const isOutOfStock = p.totalStock <= 0;
+                const qty = localQuantities[p.id] || 1;
+                const mfg = getProductManufacturer(p);
+                const golongan = getProductGolongan(p);
+                const expRange = getProductExpiryRange(p);
+                const isColdChain =
+                  p.category === "COLD_CHAIN" ||
+                  p.category?.toLowerCase() === "cold chain" ||
+                  p.name.toLowerCase().includes("amoxicillin") ||
+                  p.name.toLowerCase().includes("insulin") ||
+                  p.name.toLowerCase().includes("vaccine") ||
+                  p.code.includes("AMX");
+
+                return (
+                  <div
+                    key={p.id}
+                    className="bg-white rounded-xl border border-slate-200/80 p-3 shadow-2xs hover:shadow-md hover:border-emerald-300 transition-all duration-200 flex flex-col justify-between group"
+                  >
+                    <div>
+                      {/* Product Image & Badges Header (Portrait Aspect) */}
+                      <div className="relative w-full h-28 bg-slate-50 rounded-lg overflow-hidden mb-2.5 border border-slate-100 flex items-center justify-center p-1.5">
+                        <img
+                          className="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
+                          src={getProductImageUrl(p)}
+                          alt={p.name}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src =
+                              "https://lh3.googleusercontent.com/aida-public/AB6AXuBVwwWGNG9klmFlTxE7qRJlM1a7CWQA41HcodSrxAo5yyi2kDDxkKfVY-ZKWSidodMppE_pXoP_mQCrcx9gRPdHjb967dBVWUoFL5AFRR5c_Jl2dQgOsaFvIFY5EDsB4KhW6Yp97g7uZJaWqjHlKz4J8OY4vHoN93-nWI0lZZOj7DhkS8ZaO6mCejJMLHI-yHbtaiqlkdO0f2skoMG2UQD7cf0ywd87rynYVJHts51V9wTivLcGooleoOrenqnrUzra16cONC2_49Y";
+                          }}
+                        />
+
+                        <div className="absolute top-1.5 left-1.5 flex flex-col gap-1 z-10">
+                          {golongan === "KERAS" && (
+                            <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200/80">
+                              KERAS (G)
+                            </span>
+                          )}
+                          {golongan === "BEBAS" && (
+                            <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+                              BEBAS (W)
+                            </span>
+                          )}
+                          {golongan === "PSIKOTROPIKA" && (
+                            <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200/80">
+                              PSIKOTROPIKA
+                            </span>
+                          )}
+                          {isColdChain && (
+                            <span className="text-[8px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-200/80 px-1 py-0.5 rounded flex items-center gap-0.5">
+                              ❄️ Cold
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Brand & Title */}
+                      <p className="text-[9px] font-extrabold text-slate-400 tracking-wider uppercase truncate">
+                        {mfg}
+                      </p>
+                      <h3
+                        onClick={() => handleOpenProductDetail(p)}
+                        className="font-bold text-xs text-slate-900 group-hover:text-emerald-600 transition-colors line-clamp-2 mt-0.5 mb-2 leading-snug h-8 cursor-pointer font-heading"
+                      >
+                        {p.name}
+                      </h3>
+
+                      {/* Specs Box Ringkas */}
+                      <div className="bg-slate-50/80 p-2 rounded-lg border border-slate-100/80 space-y-1 text-[10px] mb-2.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Zat Aktif:</span>
+                          <span className="font-semibold text-slate-700 truncate max-w-[85px]">
+                            {p.activeIngredient || "-"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Exp Date:</span>
+                          <span className="font-mono text-slate-600 text-[9px]">{expRange}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Stok:</span>
+                          {isOutOfStock ? (
+                            <span className="font-bold text-rose-600 font-mono text-[10px]">Habis</span>
+                          ) : (
+                            <span className="font-bold text-emerald-600 font-mono text-[10px]">
+                              {p.totalStock} {p.unit.split(" ")[0]}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Price & Quantity Controls (Pojok Bawah) */}
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
+                      <div>
+                        <span className="text-[9px] text-slate-400 block leading-none">Harga</span>
+                        <span className="text-xs font-extrabold text-slate-900 font-sans">
+                          Rp {p.price.toLocaleString("id-ID")}
+                        </span>
+                      </div>
+
+                      {/* Counter & Cart Button */}
+                      <div className="flex items-center gap-1 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLocalQuantities((prev) => ({
+                              ...prev,
+                              [p.id]: Math.max(1, (prev[p.id] || 1) - 1),
+                            }))
+                          }
+                          className="w-5 h-5 rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center font-bold text-[10px] cursor-pointer active:scale-95"
+                        >
+                          -
+                        </button>
+                        <span className="text-[10px] font-bold px-0.5 font-sans text-slate-800">
+                          {qty === undefined ? 1 : qty}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLocalQuantities((prev) => ({
+                              ...prev,
+                              [p.id]: Math.min(p.totalStock, (prev[p.id] || 1) + 1),
+                            }))
+                          }
+                          className="w-5 h-5 rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center font-bold text-[10px] cursor-pointer active:scale-95"
+                        >
+                          +
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => addToCartWithQty(p, qty || 1)}
+                          disabled={isOutOfStock || hasCdobWarning}
+                          className={`w-5 h-5 rounded text-white flex items-center justify-center shadow-2xs cursor-pointer active:scale-95 border-none transition-all ${
+                            isOutOfStock || hasCdobWarning
+                              ? "bg-slate-300 cursor-not-allowed"
+                              : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-[12px]">add_shopping_cart</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       </div>
 

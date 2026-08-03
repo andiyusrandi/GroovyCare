@@ -3,18 +3,7 @@
 import { useState } from "react";
 import { login, quickLogin } from "@/app/actions/auth";
 import { useRouter } from "next/navigation";
-import {
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  ArrowRight,
-  ShieldCheck,
-  LockKeyhole,
-  AlertTriangle,
-  UserCheck,
-  ShieldAlert,
-} from "lucide-react";
+import { AlertTriangle, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { useMobileBrowser } from "@/hooks/useMobileBrowser";
 
@@ -29,21 +18,21 @@ export default function LoginForm() {
   if (isMobileBrowser) {
     return (
       <div className="space-y-6 text-center py-4 font-sans animate-fadeIn">
-        <div className="mx-auto w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-sm">
-          <span className="material-symbols-outlined text-[32px] font-bold">smartphone</span>
+        <div className="mx-auto w-12 h-12 bg-slate-100 text-slate-700 rounded-xl flex items-center justify-center border border-slate-200 shadow-xs">
+          <span className="material-symbols-outlined text-[28px] font-bold">smartphone</span>
         </div>
         
-        <div className="space-y-2">
-          <h3 className="font-heading font-extrabold text-base text-slate-900">Gunakan Aplikasi Resmi</h3>
-          <p className="text-xs text-on-surface-variant leading-relaxed px-2">
-            Demi menjaga keamanan transaksi rantai dingin (<em>Cold Chain</em>) serta kepatuhan regulasi CDOB BPOM, akses masuk (Login) melalui web browser ponsel dinonaktifkan.
+        <div className="space-y-1.5">
+          <h3 className="font-heading font-bold text-base text-slate-900">Gunakan Aplikasi Resmi</h3>
+          <p className="text-xs text-slate-500 leading-relaxed px-2">
+            Demi menjaga keamanan transaksi Cold Chain serta kepatuhan regulasi CDOB BPOM, akses web mobile dinonaktifkan.
           </p>
         </div>
 
-        <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-4 text-[10px] text-on-surface-variant leading-relaxed text-left flex gap-3">
-          <ShieldAlert className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[10px] text-slate-600 leading-relaxed text-left flex gap-2.5">
+          <ShieldAlert className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
           <span>
-            <strong>Kepatuhan CDOB:</strong> PBF diwajibkan menjamin keabsahan pengguna dan otentikasi e-Sign APJ. Silakan gunakan komputer/laptop untuk akses web, atau unduh aplikasi mobile resmi kami.
+            <strong>Kepatuhan CDOB:</strong> Silakan gunakan PC/Laptop untuk akses portal web, atau unduh aplikasi mobile resmi.
           </span>
         </div>
 
@@ -52,9 +41,9 @@ export default function LoginForm() {
             href="https://play.google.com/store"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-3 px-5 py-2.5 bg-slate-950 text-white rounded-2xl hover:bg-slate-900 active:scale-[0.98] transition-all shadow-md text-left cursor-pointer mx-auto border border-slate-800"
+            className="inline-flex items-center gap-3 px-5 py-2.5 bg-slate-950 text-white rounded-xl hover:bg-slate-900 active:scale-[0.98] transition-all shadow-xs text-left cursor-pointer mx-auto border border-slate-800"
           >
-            <svg viewBox="0 0 512 512" width="24" height="24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg viewBox="0 0 512 512" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M32.05 16.5C30.2 18.9 29.1 22.4 29.1 26.9v458.2c0 4.5 1.1 8 2.95 10.4l1.55 1.4L261.25 269v-5.25L33.6 15.1l-1.55 1.4z" fill="#00f0ff"/>
               <path d="M338.45 346.5L261.25 269v-5.25L338.45 166l1.8 1c21.8 12.4 60.55 34.6 81.35 46.5 5.95 3.4 9.9 8.9 9.9 15.2 0 6.3-3.95 11.8-9.9 15.2-20.8 11.9-59.55 34.1-81.35 46.6l-1.8 1z" fill="#ffc200"/>
               <path d="M263.15 266.35l-76.3-76.3L32.05 16.5c3.2-3.4 9.1-5.4 16.4-1.2l290 166.1 1.8 1-77.1 76.95z" fill="#ff3a44"/>
@@ -67,10 +56,10 @@ export default function LoginForm() {
           </a>
         </div>
 
-        <div className="pt-4 border-t border-outline-variant/20">
-          <p className="text-xs text-on-surface-variant font-medium">
-            Belum terdaftar sebagai mitra? <br/>
-            <Link className="text-primary font-bold hover:underline mt-1 inline-block" href="/register">
+        <div className="pt-3 border-t border-slate-100">
+          <p className="text-xs text-slate-500 font-medium">
+            Belum terdaftar?{" "}
+            <Link className="text-emerald-700 font-bold hover:underline" href="/register">
               Daftar Mitra di Browser Mobile
             </Link>
           </p>
@@ -122,169 +111,120 @@ export default function LoginForm() {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-xs text-error flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-error shrink-0 mt-0.5" />
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700 flex items-start gap-2.5">
+          <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Email Input */}
+        {/* Input Email */}
         <div className="space-y-1.5">
-          <label className="text-[10px] uppercase font-bold text-on-surface-variant flex justify-between" htmlFor="email">
+          <label className="text-xs font-semibold text-slate-700 block" htmlFor="email">
             Email Bisnis
-            <span className="text-[9px] text-on-surface-variant/50 lowercase">info</span>
           </label>
-          <div className="relative">
-            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/50 w-4 h-4" />
-            <input
-              className="w-full pl-10 pr-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-xl text-on-surface text-xs focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-on-surface-variant/40"
-              id="email"
-              name="email"
-              placeholder="nama@perusahaan.co.id"
-              required
-              type="email"
-              autoComplete="email"
-            />
-          </div>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="nama@perusahaan.co.id"
+            className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:border-slate-900 transition-colors font-medium text-slate-800 placeholder:text-slate-400"
+          />
         </div>
 
-        {/* Password Input */}
+        {/* Input Password */}
         <div className="space-y-1.5">
           <div className="flex justify-between items-center">
-            <label className="text-[10px] uppercase font-bold text-on-surface-variant" htmlFor="password">
+            <label className="text-xs font-semibold text-slate-700" htmlFor="password">
               Kata Sandi
             </label>
-            <Link className="text-[10px] text-primary font-bold hover:underline transition-all" href="#">
-              Lupa Kata Sandi?
+            <Link href="#" className="text-xs text-slate-400 hover:text-slate-900 transition-colors">
+              Lupa?
             </Link>
           </div>
           <div className="relative">
-            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/50 w-4 h-4" />
             <input
-              className="w-full pl-10 pr-12 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-xl text-on-surface text-xs focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-on-surface-variant/40"
               id="password"
               name="password"
-              placeholder="••••••••"
-              required
               type={showPassword ? "text" : "password"}
+              required
               autoComplete="current-password"
+              placeholder="••••••••"
+              className="w-full px-3.5 py-2.5 pr-10 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:border-slate-900 transition-colors font-medium text-slate-800 placeholder:text-slate-400"
             />
             <button
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 hover:text-primary transition-colors cursor-pointer"
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-[10px] font-semibold uppercase tracking-wider cursor-pointer"
             >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showPassword ? "Hide" : "Show"}
             </button>
           </div>
         </div>
 
-        {/* Submit Action */}
+        {/* CTA Button Minimal */}
         <button
-          className="w-full py-3.5 bg-primary text-white text-xs font-bold rounded-xl shadow-md hover:bg-primary/95 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 group cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           type="submit"
           disabled={loading}
+          className="w-full py-2.5 px-4 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-medium text-xs transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {loading ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>{" "}
-              Memproses...
-            </span>
-          ) : (
-            <>
-              Masuk Sekarang
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-            </>
-          )}
+          {loading ? "Memproses..." : "Masuk Sekarang"}
         </button>
       </form>
 
-      {/* Divider */}
-      <div className="flex items-center gap-4 py-2">
-        <div className="flex-1 h-[1px] bg-outline-variant/20"></div>
-        <span className="text-[9px] uppercase tracking-widest text-on-surface-variant/50 font-bold">
-          Keamanan Terjamin
-        </span>
-        <div className="flex-1 h-[1px] bg-outline-variant/20"></div>
-      </div>
-
-      {/* Footer of Card */}
-      <div className="text-center space-y-4">
-        <p className="text-xs text-on-surface-variant font-medium">
-          Belum punya akun?{" "}
-          <Link className="text-primary font-bold hover:underline" href="/register">
-            Daftar Jadi Mitra
+      {/* Register Link */}
+      <div className="text-center pt-1">
+        <p className="text-xs text-slate-400">
+          Belum memiliki akses?{" "}
+          <Link href="/register" className="font-semibold text-slate-900 hover:underline">
+            Daftar Mitra
           </Link>
         </p>
-
-        {/* Mini Security Info */}
-        <div className="flex justify-center items-center gap-4 py-2.5 bg-surface-container-low rounded-xl border border-outline-variant/10 text-[9px] text-on-surface-variant/75 font-bold font-mono">
-          <div className="flex items-center gap-1">
-            <LockKeyhole className="w-3.5 h-3.5 text-on-surface-variant/50" />
-            <span>AES-256</span>
-          </div>
-          <div className="w-1 h-1 rounded-full bg-outline-variant/30"></div>
-          <div className="flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-on-surface-variant/50" />
-            <span>ISO 27001</span>
-          </div>
-        </div>
       </div>
 
-      {/* Simulator Akses Cepat */}
-      <div className="relative pt-2">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-outline-variant/20" />
+      {/* Dev Mode Simulator (Horizontal 3-Col Pipih) */}
+      <div className="pt-6 border-t border-slate-100 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block font-semibold">
+            Quick Dev Access
+          </span>
+          <span className="text-[9px] font-mono text-slate-400">DEV MODE</span>
         </div>
-        <div className="relative flex justify-center text-[9px] uppercase">
-          <span className="px-3 bg-white text-on-surface-variant/65 font-bold">Simulator Akses Cepat</span>
+
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => handleQuickLogin("CUSTOMER_USER", "Apotek Sehat")}
+            disabled={simulating !== null}
+            className="py-2 px-2 text-[10px] font-medium bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 rounded-md border border-slate-200/80 transition-colors truncate text-center cursor-pointer"
+          >
+            Apotek Sehat
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => handleQuickLogin("EXPIRED_USER", "Apotek Expired")}
+            disabled={simulating !== null}
+            className="py-2 px-2 text-[10px] font-medium bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 rounded-md border border-slate-200/80 transition-colors truncate text-center cursor-pointer"
+          >
+            Blocked SIA
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleQuickLogin("PBF_ADMIN", "PBF Admin")}
+            disabled={simulating !== null}
+            className="py-2 px-2 text-[10px] font-medium bg-slate-50 hover:bg-cyan-50 text-slate-700 hover:text-cyan-700 rounded-md border border-slate-200/80 transition-colors truncate text-center cursor-pointer"
+          >
+            Admin PBF
+          </button>
         </div>
-      </div>
-
-      <div className="space-y-3 bg-surface-container-low p-4 border border-outline-variant/20 rounded-2xl">
-        <button
-          type="button"
-          onClick={() => handleQuickLogin("CUSTOMER_USER", "Apotek Sehat")}
-          disabled={simulating !== null}
-          className="w-full flex items-center justify-between px-4 py-2.5 bg-white hover:bg-surface-container border border-outline-variant/30 rounded-xl text-xs font-bold text-on-surface-variant hover:text-foreground transition-all shadow-sm cursor-pointer"
-        >
-          <span className="flex items-center gap-2">
-            <UserCheck className="w-4 h-4 text-primary" />
-            Apotek Sehat Farma (Mitra Aktif)
-          </span>
-          <span className="text-on-surface-variant/50 text-[9px]">Customer Portal</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleQuickLogin("EXPIRED_USER", "Apotek Expired")}
-          disabled={simulating !== null}
-          className="w-full flex items-center justify-between px-4 py-2.5 bg-white hover:bg-surface-container border border-outline-variant/30 rounded-xl text-xs font-bold text-on-surface-variant hover:text-foreground transition-all shadow-sm cursor-pointer"
-        >
-          <span className="flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 text-amber-600" />
-            Apotek Sejahtera (SIA/SIPA Expired)
-          </span>
-          <span className="text-on-surface-variant/50 text-[9px]">CDOB Block Demo</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleQuickLogin("PBF_ADMIN", "PBF Admin")}
-          disabled={simulating !== null}
-          className="w-full flex items-center justify-between px-4 py-2.5 bg-white hover:bg-surface-container border border-outline-variant/30 rounded-xl text-xs font-bold text-on-surface-variant hover:text-foreground transition-all shadow-sm cursor-pointer"
-        >
-          <span className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-secondary" />
-            Apoteker Sarah (PBF Admin)
-          </span>
-          <span className="text-on-surface-variant/50 text-[9px]">Admin Portal</span>
-        </button>
 
         {simulating && (
-          <p className="text-[10px] text-center text-primary font-bold animate-pulse mt-2 font-sans">
-            Memuat sesi simulasi untuk {simulating}...
+          <p className="text-[10px] text-center text-emerald-600 font-mono animate-pulse mt-1">
+            Memuat sesi {simulating}...
           </p>
         )}
       </div>

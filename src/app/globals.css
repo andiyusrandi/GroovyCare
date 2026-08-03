@@ -65,8 +65,8 @@
   --color-error-container: var(--error-container);
   --color-on-error-container: var(--on-error-container);
 
-  --font-sans: 'Inter', sans-serif;
-  --font-heading: 'Outfit', sans-serif;
+  --font-sans: 'Plus Jakarta Sans', var(--font-jakarta), 'Inter', var(--font-inter), system-ui, -apple-system, sans-serif;
+  --font-heading: 'Plus Jakarta Sans', var(--font-jakarta), system-ui, sans-serif;
 }
 
 body {

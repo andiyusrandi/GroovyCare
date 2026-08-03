@@ -1,0 +1,73 @@
+#!/bin/bash
+
+# Growmexa CLI Helper - Local Build & Fast Deploy
+PEM_KEY="/Users/macbookpro/mamp/GroovyCare/pemkey"
+VPS_USER="growmexa"
+VPS_IP="103.58.101.215"
+VPS_PATH="/var/www/growmexa.com"
+LOCAL_PATH="/Users/macbookpro/mamp/GroovyCare"
+
+if [ "$1" = "push" ]; then
+    echo "🚀 [GROWMEXA] Memulai proses deployment..."
+    echo "💻 1. Melakukan Build Next.js di Laptop (Local)..."
+    cd "$LOCAL_PATH" && rm -rf .next && npx prisma generate && npm run build
+
+
+    
+    if [ $? -ne 0 ]; then
+        echo "❌ [GROWMEXA] Build di local gagal! Perbaiki error build terlebih dahulu."
+        exit 1
+    fi
+
+    echo "🔄 2. Menyelaraskan berkas ke VPS ($VPS_IP)..."
+    ssh growmexa "rm -rf $VPS_PATH/.next"
+    rsync -avz --delete -e "ssh -i $PEM_KEY" \
+        --include 'node_modules/.prisma/***' \
+        --include 'node_modules/@prisma/***' \
+        --exclude 'node_modules' \
+        --exclude '.next/cache' \
+        --exclude '.git' \
+        --exclude 'android' \
+        --exclude 'ios' \
+        --exclude 'out' \
+        --exclude 'scratch' \
+        --exclude '.agents' \
+        --exclude '.vscode' \
+        --exclude 'pemkey' \
+        --exclude 'growmexa' \
+        --exclude '*.py' \
+
+        --exclude 'tsconfig.tsbuildinfo' \
+        --exclude 'prisma/dev.db' \
+        --exclude 'prisma/dev.db-journal' \
+        --exclude '.env' \
+        $LOCAL_PATH/ $VPS_USER@$VPS_IP:$VPS_PATH/
+
+
+    
+    if [ $? -ne 0 ]; then
+        echo "❌ [GROWMEXA] Sync file ke VPS gagal!"
+        exit 1
+    fi
+
+    echo "⚡ 3. Merestart Server PM2 di VPS..."
+    ssh growmexa "cd $VPS_PATH && npm install --production=false && npx prisma generate && (pm2 restart groovycare || pm2 start npm --name 'groovycare' -- start) && pm2 save"
+
+
+
+
+    if [ $? -eq 0 ]; then
+        echo ""
+        echo "✅ [GROWMEXA] Berhasil! Aplikasi terbaru telah LIVE di https://growmexa.com"
+    else
+        echo "❌ [GROWMEXA] Gagal merestart PM2 di VPS!"
+        exit 1
+    fi
+else
+    echo "GroovyCare Deployment CLI"
+    echo "Penggunaan:"
+    echo "  ./growmexa push   - Build di local, sync ke VPS & Restart PM2"
+    echo "  npm run push      - Alternative via npm script"
+fi
+
+

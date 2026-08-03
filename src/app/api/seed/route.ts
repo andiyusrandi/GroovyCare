@@ -44,13 +44,14 @@ export async function GET() {
     // 2c. Buat Super Admin (SYSTEM_ADMIN)
     const systemAdmin = await db.user.create({
       data: {
-        email: "admin@admin.com",
-        password: "admin@admin.com",
+        email: "admin@growmexa.com",
+        password: "admin@growmexa.com",
         name: "administrator 1",
         role: "SYSTEM_ADMIN",
         phone: "08999999999",
       },
     });
+
 
     // 3. Buat Mitra Aktif (Apotek Sehat)
     const healthyApotek = await db.institution.create({

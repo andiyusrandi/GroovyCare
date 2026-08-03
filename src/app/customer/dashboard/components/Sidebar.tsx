@@ -56,23 +56,22 @@ export default function Sidebar({
   }, []);
 
   return (
-    <aside className="fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200 shadow-sm z-40 hidden md:flex flex-col py-6">
-      <div className="px-6 mb-2 space-y-1">
+    <aside className="fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200/80 shadow-xs z-40 hidden md:flex flex-col justify-between py-6">
+      {/* Top Brand Logo */}
+      <div className="px-6 mb-4">
         <img
           src={logoUrl}
           alt="GroovyRx Logo"
-          className="object-contain select-none"
-          style={{ width: "145px" }}
+          className="object-contain select-none h-8 w-auto"
         />
-        {/* <p className="text-[9px] text-slate-500 uppercase tracking-widest font-extrabold pl-1">
-          Enterprise Client
-        </p> */}
       </div>
 
-      <nav className="flex-1 px-3 space-y-5 overflow-y-auto hide-scrollbar">
-        {/* Section: Utama */}
+      {/* Navigation List (Clean Without Left Border Clutter) */}
+      <nav className="flex-1 px-3 space-y-5 overflow-y-auto scrollbar-none">
+        
+        {/* GRUP 1: UTAMA */}
         <div className="space-y-1">
-          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold px-3 block mb-1.5">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold px-3 block mb-1">
             Utama
           </span>
           <button
@@ -82,10 +81,11 @@ export default function Sidebar({
               setViewingDetailOrder(null);
               setIsCartOpen(false);
             }}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 cursor-pointer text-left outline-none text-xs font-bold ${activeTab === "dashboard" && !isCheckoutOpen && !viewingDetailOrder
-              ? "bg-primary/10 text-primary shadow-sm"
-              : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-              }`}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 cursor-pointer text-left outline-none text-xs font-bold ${
+              activeTab === "dashboard" && !isCheckoutOpen && !viewingDetailOrder
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-xs"
+                : "text-slate-600 hover:bg-slate-50 hover:text-emerald-600"
+            }`}
           >
             <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: (activeTab === "dashboard" && !isCheckoutOpen && !viewingDetailOrder) ? "'FILL' 1" : "'FILL' 0" }}>dashboard</span>
             <span>Dashboard</span>
@@ -98,325 +98,226 @@ export default function Sidebar({
               setViewingDetailOrder(null);
               setIsCartOpen(false);
             }}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 cursor-pointer text-left outline-none text-xs font-bold ${activeTab === "belanja" && !isCheckoutOpen && !viewingDetailOrder
-              ? "bg-primary/10 text-primary shadow-sm"
-              : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-              }`}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 cursor-pointer text-left outline-none text-xs font-bold ${
+              activeTab === "belanja" && !isCheckoutOpen && !viewingDetailOrder
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-xs"
+                : "text-slate-600 hover:bg-slate-50 hover:text-emerald-600"
+            }`}
           >
             <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: (activeTab === "belanja" && !isCheckoutOpen && !viewingDetailOrder) ? "'FILL' 1" : "'FILL' 0" }}>medication</span>
             <span>Produk</span>
           </button>
         </div>
 
-        {/* Section: Transaksi */}
+        {/* GRUP 2: TRANSAKSI */}
         <div className="space-y-1">
-          <div className="flex items-center justify-between pr-3 mb-1.5">
-            <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold px-3 block">
+          <div className="flex items-center justify-between pr-3 mb-1">
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold px-3 block">
               Transaksi
             </span>
             {(cartItemCount > 0 || pendingPaymentCount > 0 || activeOrdersCount > 0) && (
-              <span className="w-1.5 h-1.5 bg-error rounded-full animate-pulse" />
+              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
             )}
           </div>
-          <div className="pl-3 border-l border-slate-100 ml-3 space-y-1">
-            {/* Keranjang */}
-            <button
-              onClick={() => {
-                setActiveTab("keranjang");
-                setIsCartOpen(false);
-              }}
-              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "keranjang"
-                ? "bg-primary/10 text-primary font-bold shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-                }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-[16px]">shopping_cart</span>
-                <span>Keranjang</span>
-              </div>
-              {cartItemCount > 0 && (
-                <span className="px-1.5 py-0.5 text-[9px] font-extrabold bg-error text-white rounded-full min-w-[16px] text-center leading-none">
-                  {cartItemCount}
-                </span>
-              )}
-            </button>
+          
+          <button
+            onClick={() => {
+              setActiveTab("keranjang");
+              setIsCartOpen(false);
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all text-xs font-semibold cursor-pointer ${
+              activeTab === "keranjang"
+                ? "bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs"
+                : "text-slate-600 hover:bg-slate-50 hover:text-emerald-600"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
+              <span>Keranjang</span>
+            </div>
+            {cartItemCount > 0 && (
+              <span className="px-1.5 py-0.5 text-[9px] font-extrabold bg-rose-600 text-white rounded-full min-w-[16px] text-center leading-none">
+                {cartItemCount}
+              </span>
+            )}
+          </button>
 
-            {/* Draft Pesanan */}
-            <button
-              onClick={() => alert("Fitur Draft Pesanan akan segera tersedia.")}
-              className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition-all text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-primary cursor-pointer"
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-[16px]">drafts</span>
-                <span>Draft Pesanan</span>
-              </div>
-            </button>
+          <button
+            onClick={() => alert("Fitur Draft Pesanan akan segera tersedia.")}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-emerald-600 cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-[18px]">drafts</span>
+              <span>Draft Pesanan</span>
+            </div>
+          </button>
 
-            {/* Transaksi Pembelian */}
-            <button
-              onClick={() => {
-                setActiveTab("riwayat");
-                setIsCheckoutOpen(false);
-                setViewingDetailOrder(null);
-                setIsCartOpen(false);
-              }}
-              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "riwayat" && !viewingDetailOrder
-                ? "bg-primary/10 text-primary font-bold shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-                }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-[16px]">history</span>
-                <span>Transaksi</span>
-              </div>
-              {pendingPaymentCount > 0 && (
-                <span className="px-1.5 py-0.5 text-[9px] font-extrabold bg-red-500 text-white rounded-full min-w-[16px] text-center leading-none">
-                  {pendingPaymentCount}
-                </span>
-              )}
-            </button>
+          <button
+            onClick={() => {
+              setActiveTab("riwayat");
+              setIsCheckoutOpen(false);
+              setViewingDetailOrder(null);
+              setIsCartOpen(false);
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all text-xs font-semibold cursor-pointer ${
+              activeTab === "riwayat" && !viewingDetailOrder
+                ? "bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs"
+                : "text-slate-600 hover:bg-slate-50 hover:text-emerald-600"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-[18px]">history</span>
+              <span>Transaksi</span>
+            </div>
+            {pendingPaymentCount > 0 && (
+              <span className="px-1.5 py-0.5 text-[9px] font-extrabold bg-rose-600 text-white rounded-full min-w-[16px] text-center leading-none">
+                {pendingPaymentCount}
+              </span>
+            )}
+          </button>
 
-            {/* Fasilitas Kredit & Keuangan */}
-            <button
-              onClick={() => {
-                setActiveTab("tagihan");
-                setIsCheckoutOpen(false);
-                setViewingDetailOrder(null);
-                setIsCartOpen(false);
-              }}
-              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "tagihan" && !viewingDetailOrder
-                ? "bg-primary/10 text-primary font-bold shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-                }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-[16px]">payments</span>
-                <span>Kredit &amp; Keuangan</span>
-              </div>
-            </button>
+          <button
+            onClick={() => {
+              setActiveTab("tagihan");
+              setIsCheckoutOpen(false);
+              setViewingDetailOrder(null);
+              setIsCartOpen(false);
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all text-xs font-semibold cursor-pointer ${
+              activeTab === "tagihan" && !viewingDetailOrder
+                ? "bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs"
+                : "text-slate-600 hover:bg-slate-50 hover:text-emerald-600"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-[18px]">payments</span>
+              <span>Kredit &amp; Keuangan</span>
+            </div>
+          </button>
 
-            {/* Status Pesanan */}
-            <button
-              onClick={() => {
-                setActiveTab("status");
-                setIsCheckoutOpen(false);
-                setViewingDetailOrder(null);
-                setIsCartOpen(false);
-              }}
-              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "status" && !viewingDetailOrder
-                ? "bg-primary/10 text-primary font-bold shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-                }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-[16px]">track_changes</span>
-                <span>Status Pesanan</span>
-              </div>
-              {activeOrdersCount > 0 && (
-                <span className="px-1.5 py-0.5 text-[9px] font-extrabold bg-blue-500 text-white rounded-full min-w-[16px] text-center leading-none animate-pulse">
-                  {activeOrdersCount}
-                </span>
-              )}
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              setActiveTab("status");
+              setIsCheckoutOpen(false);
+              setViewingDetailOrder(null);
+              setIsCartOpen(false);
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all text-xs font-semibold cursor-pointer ${
+              activeTab === "status" && !viewingDetailOrder
+                ? "bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs"
+                : "text-slate-600 hover:bg-slate-50 hover:text-emerald-600"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-[18px]">track_changes</span>
+              <span>Status Pesanan</span>
+            </div>
+            {activeOrdersCount > 0 && (
+              <span className="px-1.5 py-0.5 text-[9px] font-extrabold bg-emerald-600 text-white rounded-full min-w-[16px] text-center leading-none animate-pulse">
+                {activeOrdersCount}
+              </span>
+            )}
+          </button>
         </div>
 
-        {/* Section: Dokumen */}
+        {/* GRUP 3: DOKUMEN & LEGALITAS (RINGKAS & TERPADU) */}
         <div className="space-y-1">
-          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold px-3 block mb-1.5">
-            Dokumen Legal
+          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold px-3 block mb-1">
+            Dokumen &amp; Legalitas
           </span>
-          <div className="pl-3 border-l border-slate-100 ml-3 space-y-1">
-            {/* Surat Pesanan */}
-            <button
-              onClick={() => {
-                setActiveTab("dokumen");
-                setDocSubTab("sp");
-                setIsCheckoutOpen(false);
-                setViewingDetailOrder(null);
-                setIsCartOpen(false);
-              }}
-              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "dokumen" && docSubTab === "sp"
-                ? "bg-primary/10 text-primary font-bold shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-                }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">description</span>
-              <span>Surat Pesanan</span>
-            </button>
 
-            {/* e-Sign */}
-            <button
-              onClick={() => {
-                setActiveTab("dokumen");
-                setDocSubTab("esign");
-                setIsCheckoutOpen(false);
-                setViewingDetailOrder(null);
-                setIsCartOpen(false);
-              }}
-              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "dokumen" && docSubTab === "esign"
-                ? "bg-primary/10 text-primary font-bold shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-                }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-[16px]">edit_document</span>
-                <span>e-Sign Pending</span>
-              </div>
-              {esignPendingCount > 0 && (
-                <span className="px-1.5 py-0.5 text-[9px] font-extrabold bg-error text-white rounded-full min-w-[16px] text-center leading-none animate-pulse">
-                  {esignPendingCount}
-                </span>
-              )}
-            </button>
+          <button
+            onClick={() => {
+              setActiveTab("dokumen");
+              setDocSubTab("sp");
+              setIsCheckoutOpen(false);
+              setViewingDetailOrder(null);
+              setIsCartOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all text-xs font-semibold cursor-pointer ${
+              activeTab === "dokumen" && docSubTab === "sp"
+                ? "bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs"
+                : "text-slate-600 hover:bg-slate-50 hover:text-emerald-600"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">description</span>
+            <span>Surat Pesanan (SP)</span>
+          </button>
 
-            {/* Delivery Order */}
-            <button
-              onClick={() => {
-                setActiveTab("dokumen");
-                setDocSubTab("do");
-                setIsCheckoutOpen(false);
-                setViewingDetailOrder(null);
-                setIsCartOpen(false);
-              }}
-              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "dokumen" && docSubTab === "do"
-                ? "bg-primary/10 text-primary font-bold shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-                }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">local_shipping</span>
-              <span>Delivery Order</span>
-            </button>
+          <button
+            onClick={() => {
+              setActiveTab("dokumen");
+              setDocSubTab("esign");
+              setIsCheckoutOpen(false);
+              setViewingDetailOrder(null);
+              setIsCartOpen(false);
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all text-xs font-semibold cursor-pointer ${
+              activeTab === "dokumen" && docSubTab === "esign"
+                ? "bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs"
+                : "text-slate-600 hover:bg-slate-50 hover:text-emerald-600"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-[18px]">edit_document</span>
+              <span>e-Sign Pending</span>
+            </div>
+            {esignPendingCount > 0 && (
+              <span className="bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                {esignPendingCount}
+              </span>
+            )}
+          </button>
 
-            {/* Faktur */}
-            <button
-              onClick={() => {
-                setActiveTab("dokumen");
-                setDocSubTab("faktur");
-                setIsCheckoutOpen(false);
-                setViewingDetailOrder(null);
-                setIsCartOpen(false);
-              }}
-              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "dokumen" && docSubTab === "faktur"
-                ? "bg-primary/10 text-primary font-bold shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-                }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">receipt</span>
-              <span>Faktur &amp; Pajak</span>
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              setActiveTab("legalitas");
+              setLegalSubTab("sia");
+              setIsCheckoutOpen(false);
+              setViewingDetailOrder(null);
+              setIsCartOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all text-xs font-semibold cursor-pointer ${
+              activeTab === "legalitas"
+                ? "bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs"
+                : "text-slate-600 hover:bg-slate-50 hover:text-emerald-600"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">domain</span>
+            <span>Izin SIA &amp; SIPA</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("alamat");
+              setIsCheckoutOpen(false);
+              setViewingDetailOrder(null);
+              setIsCartOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all text-xs font-semibold cursor-pointer ${
+              activeTab === "alamat"
+                ? "bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs"
+                : "text-slate-600 hover:bg-slate-50 hover:text-emerald-600"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">location_on</span>
+            <span>Buku Alamat</span>
+          </button>
         </div>
 
-        {/* Section: Legalitas */}
+        {/* GRUP 4: DUKUNGAN */}
         <div className="space-y-1">
-          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold px-3 block mb-1.5">
-            👥 Legalitas
-          </span>
-          <div className="pl-3 border-l border-slate-100 ml-3 space-y-1">
-            {/* Data Instansi */}
-            <button
-              onClick={() => {
-                setActiveTab("legalitas");
-                setLegalSubTab("instansi");
-                setIsCheckoutOpen(false);
-                setViewingDetailOrder(null);
-                setIsCartOpen(false);
-              }}
-              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "legalitas" && legalSubTab === "instansi"
-                ? "bg-primary/10 text-primary font-bold shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-                }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">domain</span>
-              <span>Data Instansi</span>
-            </button>
-
-            {/* SIA */}
-            <button
-              onClick={() => {
-                setActiveTab("legalitas");
-                setLegalSubTab("sia");
-                setIsCheckoutOpen(false);
-                setViewingDetailOrder(null);
-                setIsCartOpen(false);
-              }}
-              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "legalitas" && legalSubTab === "sia"
-                ? "bg-primary/10 text-primary font-bold shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-                }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">badge</span>
-              <span>SIA</span>
-            </button>
-
-            {/* SIPA */}
-            <button
-              onClick={() => {
-                setActiveTab("legalitas");
-                setLegalSubTab("sipa");
-                setIsCheckoutOpen(false);
-                setViewingDetailOrder(null);
-                setIsCartOpen(false);
-              }}
-              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "legalitas" && legalSubTab === "sipa"
-                ? "bg-primary/10 text-primary font-bold shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-                }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">health_and_safety</span>
-              <span>SIPA</span>
-            </button>
-
-            {/* Profil APJ */}
-            <button
-              onClick={() => {
-                setActiveTab("legalitas");
-                setLegalSubTab("profile");
-                setIsCheckoutOpen(false);
-                setViewingDetailOrder(null);
-                setIsCartOpen(false);
-              }}
-              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "legalitas" && legalSubTab === "profile"
-                ? "bg-primary/10 text-primary font-bold shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-                }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">account_circle</span>
-              <span>Profil APJ</span>
-            </button>
-
-            {/* Buku Alamat Pengiriman */}
-            <button
-              onClick={() => {
-                setActiveTab("alamat");
-                setIsCheckoutOpen(false);
-                setViewingDetailOrder(null);
-                setIsCartOpen(false);
-              }}
-              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${activeTab === "alamat"
-                ? "bg-primary/10 text-primary font-bold shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-                }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">location_on</span>
-              <span>Buku Alamat</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Section: Dukungan */}
-        <div className="space-y-1">
-          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold px-3 block mb-1.5">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold px-3 block mb-1">
             Dukungan
           </span>
           <button
             onClick={() => alert("Ajukan retur atau komplain: Hubungi cs@groovyrx.com / WA: +62-812-3456-7890")}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 cursor-pointer text-left outline-none text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-primary"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-emerald-600 cursor-pointer"
           >
             <span className="material-symbols-outlined text-[18px]">support_agent</span>
             <span>Retur &amp; Komplain</span>
           </button>
+          
           <button
             onClick={() => {
               setActiveTab("pengaturan");
@@ -424,10 +325,11 @@ export default function Sidebar({
               setViewingDetailOrder(null);
               setIsCartOpen(false);
             }}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 cursor-pointer text-left outline-none text-xs font-bold ${activeTab === "pengaturan" && !isCheckoutOpen && !viewingDetailOrder
-              ? "bg-primary/10 text-primary shadow-sm"
-              : "text-slate-600 hover:bg-slate-50 hover:text-primary"
-              }`}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all text-xs font-semibold cursor-pointer ${
+              activeTab === "pengaturan" && !isCheckoutOpen && !viewingDetailOrder
+                ? "bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs"
+                : "text-slate-600 hover:bg-slate-50 hover:text-emerald-600"
+            }`}
           >
             <span className="material-symbols-outlined text-[18px]">settings</span>
             <span>Pengaturan</span>
@@ -435,7 +337,8 @@ export default function Sidebar({
         </div>
       </nav>
 
-      <div className="mt-auto px-4 space-y-4">
+      {/* Bottom Action Area (Dipisah Rapi dengan Border Top) */}
+      <div className="px-4 pt-4 border-t border-slate-100 mt-auto">
         <button
           onClick={() => {
             setActiveTab("belanja");
@@ -443,9 +346,9 @@ export default function Sidebar({
             setViewingDetailOrder(null);
             setIsCartOpen(false);
           }}
-          className="w-full bg-primary text-white py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all active:scale-95 cursor-pointer shadow-md"
+          className="w-full bg-emerald-600 text-white py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all active:scale-95 shadow-xs shadow-emerald-600/20 cursor-pointer"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="w-4 h-4" />
           Pesanan Baru
         </button>
       </div>

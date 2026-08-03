@@ -1897,55 +1897,90 @@ export default function CustomerDashboardClient({
                     {/* ------------------------------------------------------------- */}
                     {/* A. DESKTOP VIEW                                               */}
                     {/* ------------------------------------------------------------- */}
-                    <div className="hidden md:block bg-white border border-outline-variant/30 rounded-3xl p-8 space-y-8 shadow-sm">
-                      <div className="flex items-center justify-between pb-6 border-b border-outline-variant/20">
+                    <div className="hidden md:block space-y-6">
+                      {/* 1. HEADER SECTION & BREADCRUMB */}
+                      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                          <h2 className="font-heading font-extrabold text-lg text-primary flex items-center gap-2.5">
-                            <ShoppingCart className="w-6 h-6" />
+                          <div className="flex items-center gap-2 text-emerald-600 mb-1">
+                            <span className="material-symbols-outlined text-[20px]">shopping_cart</span>
+                            <span className="text-[10px] font-extrabold uppercase tracking-widest bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-100">
+                              Pengadaan Mitra
+                            </span>
+                          </div>
+                          <h1 className="text-xl font-bold text-slate-900 tracking-tight font-heading">
                             Keranjang Belanja Obat
-                          </h2>
-                          <p className="text-on-surface-variant text-[11px] mt-1">
+                          </h1>
+                          <p className="text-xs text-slate-400 mt-0.5">
                             Kelola daftar pesanan obat apotek Anda sebelum melakukan pengesahan Surat Pesanan (SP).
                           </p>
                         </div>
+
+                        {/* Action Top Button */}
                         <button
+                          type="button"
                           onClick={() => setActiveTab("belanja")}
-                          className="text-xs text-primary hover:underline font-bold flex items-center gap-1.5 cursor-pointer border-none bg-transparent"
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200/80 transition-all active:scale-95 shadow-2xs cursor-pointer"
                         >
-                          <ShoppingBag className="w-4 h-4" />
+                          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
                           Kembali ke Katalog
                         </button>
                       </div>
 
+                      {/* 2. EMPTY STATE CARD (LEBIH LUXURY & SPACIOUS) */}
                       {cart.length === 0 ? (
-                        <div className="text-center py-24 space-y-4">
-                          <div className="w-16 h-16 bg-primary/5 rounded-full flex items-center justify-center mx-auto text-primary">
-                            <ShoppingCart className="w-8 h-8" />
+                        <div className="bg-white rounded-2xl border border-slate-200/80 p-12 shadow-2xs text-center max-w-2xl mx-auto space-y-5 my-6">
+                          {/* Animated Outer Circle Icon */}
+                          <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center mx-auto shadow-inner">
+                            <span className="material-symbols-outlined text-[36px]">shopping_bag</span>
                           </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-bold text-foreground">Keranjang Belanja Kosong</p>
-                            <p className="text-xs text-on-surface-variant/70">Anda belum menambahkan obat apa pun ke keranjang belanja.</p>
+
+                          <div className="space-y-1.5 max-w-sm mx-auto">
+                            <h3 className="text-base font-extrabold text-slate-900 font-heading">
+                              Keranjang Belanja Masih Kosong
+                            </h3>
+                            <p className="text-xs text-slate-400 leading-relaxed">
+                              Anda belum menambahkan sediaan obat atau produk farmasi ke dalam keranjang transaksi saat ini.
+                            </p>
                           </div>
-                          <button
-                            onClick={() => setActiveTab("belanja")}
-                            className="px-5 py-2 bg-primary hover:bg-primary/95 text-white font-bold rounded-xl text-xs shadow-md shadow-primary/10 transition-all cursor-pointer inline-block border-none"
-                          >
-                            Mulai Belanja Obat
-                          </button>
+
+                          {/* CTA Button Primary */}
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab("belanja")}
+                              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all active:scale-95 cursor-pointer border-none"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+                              Mulai Belanja Obat Sekarang
+                            </button>
+                          </div>
+
+                          {/* Quick Help / Info Footer */}
+                          <div className="pt-6 border-t border-slate-100 flex items-center justify-center gap-6 text-[11px] text-slate-400 font-medium">
+                            <span className="flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-[14px] text-emerald-500">verified</span>
+                              Resmi CDOB &amp; BPOM
+                            </span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-[14px] text-emerald-500">draw</span>
+                              e-Sign SP Otomatis
+                            </span>
+                          </div>
                         </div>
                       ) : (
-                        <div className="space-y-6">
+                        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-6">
                           {/* Cart Items List */}
-                          <div className="divide-y divide-outline-variant/15 border border-outline-variant/20 rounded-2xl overflow-hidden bg-slate-50/20">
+                          <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-2xl overflow-hidden bg-slate-50/30">
                             {cart.map((item) => (
                               <div
                                 key={item.product.id}
-                                className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs hover:bg-slate-50/50 transition-all"
+                                className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs hover:bg-slate-50/80 transition-all"
                               >
                                 <div className="flex gap-4 items-center">
-                                  <div className="w-12 h-12 rounded-xl bg-white overflow-hidden border border-outline-variant/15 flex items-center justify-center shrink-0">
+                                  <div className="w-14 h-14 rounded-xl bg-white overflow-hidden border border-slate-200/80 flex items-center justify-center shrink-0 p-1">
                                     <img
-                                      className="w-full h-full object-cover"
+                                      className="w-full h-full object-contain mix-blend-multiply"
                                       src={item.product.imageUrl || "https://lh3.googleusercontent.com/aida-public/AB6AXuBVwwWGNG9klmFlTxE7qRJlM1a7CWQA41HcodSrxAo5yyi2kDDxkKfVY-ZKWSidodMppE_pXoP_mQCrcx9gRPdHjb967dBVWUoFL5AFRR5c_Jl2dQgOsaFvIFY5EDsB4KhW6Yp97g7uZJaWqjHlKz4J8OY4vHoN93-nWI0lZZOj7DhkS8ZaO6mCejJMLHI-yHbtaiqlkdO0f2skoMG2UQD7cf0ywd87rynYVJHts51V9wTivLcGooleoOrenqnrUzra16cONC2_49Y"}
                                       alt={item.product.name}
                                       onError={(e) => {
@@ -1954,9 +1989,9 @@ export default function CustomerDashboardClient({
                                     />
                                   </div>
                                   <div>
-                                    <h4 className="font-bold text-foreground text-sm leading-snug">{item.product.name}</h4>
-                                    <p className="text-[10px] text-outline mt-0.5">{item.product.manufacturer} | {item.product.unit}</p>
-                                    <span className="text-[10px] text-primary font-mono font-bold block mt-1">
+                                    <h4 className="font-bold text-slate-900 text-sm leading-snug">{item.product.name}</h4>
+                                    <p className="text-[11px] text-slate-500 mt-0.5">{item.product.manufacturer} • {item.product.unit}</p>
+                                    <span className="text-xs text-emerald-700 font-sans font-extrabold block mt-1">
                                       Rp {item.product.price.toLocaleString("id-ID")} / Unit
                                     </span>
                                   </div>
@@ -1964,10 +1999,11 @@ export default function CustomerDashboardClient({
 
                                 <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto">
                                   {/* Quantity Selector */}
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200">
                                     <button
+                                      type="button"
                                       onClick={() => updateQty(item.product.id, item.quantity - 1)}
-                                      className="w-7 h-7 bg-white border border-outline-variant/30 hover:border-primary text-on-surface-variant hover:text-primary rounded-lg flex items-center justify-center font-bold text-sm transition-colors cursor-pointer border-none"
+                                      className="w-6 h-6 bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg flex items-center justify-center font-bold text-xs transition-colors cursor-pointer"
                                     >
                                       -
                                     </button>
@@ -1995,31 +2031,32 @@ export default function CustomerDashboardClient({
                                           updateQty(item.product.id, 1);
                                         }
                                       }}
-                                      className="w-10 text-center text-xs font-bold text-foreground font-mono bg-transparent border-none focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none cursor-text"
+                                      className="w-10 text-center text-xs font-bold text-slate-800 font-sans bg-transparent border-none focus:outline-none cursor-text"
                                     />
                                     <button
+                                      type="button"
                                       onClick={() => updateQty(item.product.id, item.quantity + 1)}
-                                      className="w-7 h-7 bg-white border border-outline-variant/30 hover:border-primary text-on-surface-variant hover:text-primary rounded-lg flex items-center justify-center font-bold text-sm transition-colors cursor-pointer border-none"
+                                      className="w-6 h-6 bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg flex items-center justify-center font-bold text-xs transition-colors cursor-pointer"
                                     >
                                       +
                                     </button>
-                                    <span className="text-[9px] text-outline font-medium ml-1">Maks {item.product.totalStock}</span>
                                   </div>
 
                                   {/* Total Price & Delete */}
                                   <div className="flex items-center gap-4">
                                     <div className="text-right shrink-0">
-                                      <span className="text-[9px] text-outline block font-medium">Subtotal</span>
-                                      <span className="font-extrabold text-foreground font-mono text-sm">
+                                      <span className="text-[10px] text-slate-400 block font-medium">Subtotal</span>
+                                      <span className="font-extrabold text-slate-900 font-sans text-sm">
                                         Rp {(item.product.price * item.quantity).toLocaleString("id-ID")}
                                       </span>
                                     </div>
                                     <button
+                                      type="button"
                                       onClick={() => removeFromCart(item.product.id)}
-                                      className="text-outline hover:text-error transition-colors cursor-pointer p-1.5 hover:bg-red-50 rounded-lg border-none bg-transparent"
+                                      className="text-slate-400 hover:text-rose-600 transition-colors cursor-pointer p-1.5 hover:bg-rose-50 rounded-lg border-none bg-transparent"
                                       title="Hapus dari keranjang"
                                     >
-                                      <Trash2 className="w-4.5 h-4.5" />
+                                      <Trash2 className="w-4 h-4" />
                                     </button>
                                   </div>
                                 </div>
@@ -2028,18 +2065,19 @@ export default function CustomerDashboardClient({
                           </div>
 
                           {/* Summary & Action Panel */}
-                          <div className="bg-slate-50 border border-outline-variant/15 p-6 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-6">
+                          <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-6">
                             <div className="space-y-1 text-center sm:text-left">
-                              <span className="text-xs text-on-surface-variant font-bold">Total Nilai Keranjang:</span>
-                              <p className="font-extrabold text-xl text-primary font-mono">
+                              <span className="text-xs text-slate-500 font-medium">Total Nilai Keranjang:</span>
+                              <p className="font-extrabold text-xl text-emerald-700 font-sans">
                                 Rp {cartTotal.toLocaleString("id-ID")}
                               </p>
                             </div>
 
                             <div className="flex gap-3 w-full sm:w-auto">
                               <button
+                                type="button"
                                 onClick={() => setActiveTab("belanja")}
-                                className="flex-1 sm:flex-initial px-6 py-3 bg-white border border-outline-variant/30 hover:border-primary text-on-surface-variant hover:text-primary font-bold rounded-xl text-xs transition-all cursor-pointer text-center border-none"
+                                className="flex-1 sm:flex-initial px-5 py-2.5 bg-white border border-slate-200/80 hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer text-center"
                               >
                                 Tambah Obat
                               </button>
@@ -2054,7 +2092,7 @@ export default function CustomerDashboardClient({
                                   setIsCheckoutOpen(true);
                                   setCheckoutError(null);
                                 }}
-                                className="flex-1 sm:flex-initial px-8 py-3 bg-primary hover:bg-primary/95 text-white font-bold rounded-xl text-xs tracking-wide transition-all shadow-md shadow-primary/10 cursor-pointer text-center border-none"
+                                className="flex-1 sm:flex-initial px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-emerald-600/20 cursor-pointer text-center border-none"
                               >
                                 Checkout &amp; e-Sign SP
                               </button>

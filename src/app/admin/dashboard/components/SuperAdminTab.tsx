@@ -184,7 +184,7 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
 
   return (
     <div className="space-y-8 animate-fadeIn font-sans">
-      
+
       {/* Tab Header Banner */}
       <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl p-8 shadow-xl border border-white/5">
         <div className="absolute -right-16 -top-16 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none"></div>
@@ -198,27 +198,25 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
               Pusat kendali teknis untuk mengelola kredensial admin operasional (PBF_ADMIN) serta menyesuaikan identitas dan parameter sistem.
             </p>
           </div>
-          
+
           {/* Sub Tabs Toggle */}
           <div className="bg-white/10 backdrop-blur-md p-1.5 rounded-2xl border border-white/10 flex gap-2 shrink-0 self-start md:self-auto">
             <button
               onClick={() => setActiveSubTab("users")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeSubTab === "users"
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeSubTab === "users"
                   ? "bg-primary text-white shadow-md"
                   : "text-slate-300 hover:text-white hover:bg-white/5"
-              }`}
+                }`}
             >
               <Users className="w-4 h-4" />
               Manajemen Admin
             </button>
             <button
               onClick={() => setActiveSubTab("settings")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeSubTab === "settings"
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeSubTab === "settings"
                   ? "bg-primary text-white shadow-md"
                   : "text-slate-300 hover:text-white hover:bg-white/5"
-              }`}
+                }`}
             >
               <Image className="w-4 h-4" />
               Pengaturan Sistem
@@ -230,11 +228,10 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
       {/* Global Alerts */}
       {alertMessage && (
         <div
-          className={`flex items-center gap-3 px-5 py-4 rounded-2xl border text-xs font-medium shadow-sm animate-slideDown ${
-            alertMessage.type === "success"
+          className={`flex items-center gap-3 px-5 py-4 rounded-2xl border text-xs font-medium shadow-sm animate-slideDown ${alertMessage.type === "success"
               ? "bg-green-50 border-green-200 text-green-700"
               : "bg-red-50 border-red-200 text-red-700"
-          }`}
+            }`}
         >
           {alertMessage.type === "success" ? (
             <CheckCircle className="w-5 h-5 shrink-0" />
@@ -249,7 +246,7 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
       <div className="grid grid-cols-1 gap-8">
         {activeSubTab === "users" ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
+
             {/* Left/Middle Column: Admins List */}
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-white border border-outline-variant/30 rounded-3xl p-6 shadow-sm">
@@ -258,7 +255,7 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
                     <Users className="w-4 h-4 text-primary" />
                     Daftar Pengguna Admin ({adminsList.length})
                   </h3>
-                  <button 
+                  <button
                     onClick={fetchAdmins}
                     className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
                   >
@@ -306,11 +303,10 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
                             {/* Role / SIPA */}
                             <td className="py-4 px-4">
                               <span
-                                className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wide ${
-                                  admin.role === "SYSTEM_ADMIN"
+                                className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wide ${admin.role === "SYSTEM_ADMIN"
                                     ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
                                     : "bg-teal-50 text-teal-700 border border-teal-200"
-                                }`}
+                                  }`}
                               >
                                 {admin.role}
                               </span>
@@ -446,7 +442,7 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
                       <div className="text-[10px] uppercase font-extrabold text-primary tracking-wider">
                         Kepatuhan Apoteker Penanggung Jawab (APJ)
                       </div>
-                      
+
                       {/* SIPA Number */}
                       <div className="space-y-1.5">
                         <label className="text-[10px] uppercase font-bold text-on-surface-variant">
@@ -518,7 +514,7 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
             ) : (
               <form onSubmit={handleSaveSettings} className="space-y-8 max-w-2xl">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
+
                   {/* Left Column: Form inputs */}
                   <div className="space-y-4">
                     {/* App Name Input */}

@@ -116,28 +116,43 @@ export default function DashboardOverview({
       {/* 1. DESKTOP VIEW: Bento Grid Dashboard                                     */}
       {/* ========================================================================= */}
       <div className="hidden md:block space-y-6">
-        {/* Compact Welcome Section */}
+        {/* 1. BANNER PROFIL MITRA MEWAH */}
         <section>
-          <div className="rounded-2xl bg-gradient-to-r from-primary via-primary/95 to-primary/80 px-6 py-5 flex flex-col md:flex-row justify-between items-center gap-4 shadow-lg shadow-primary/10">
-            <div className="flex items-center gap-4 text-on-primary">
-              <div className="hidden sm:flex w-12 h-12 rounded-full bg-white/20 items-center justify-center shrink-0 shadow-inner">
-                <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-900 via-slate-900 to-teal-950 p-6 text-white shadow-lg mb-6 border border-emerald-800/40">
+            {/* Decor Glow Background */}
+            <div className="absolute -right-10 -bottom-10 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold text-lg shrink-0 font-heading">
+                  {institution.name.substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg md:text-xl font-bold text-white font-heading">{institution.name}</h3>
+                    <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-2.5 py-0.5 rounded border border-emerald-500/30 uppercase tracking-wider">
+                      ✓ MITRA TERVERIFIKASI
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-0.5 font-medium">
+                    {orders.length} pesanan tercatat • {orders.filter(o => o.status === "PENDING_APPROVAL" && !o.spSignature).length} e-Sign SP tertunda
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-heading font-extrabold text-white text-lg md:text-xl">{institution.name}</h3>
-                <p className="text-xs opacity-90 font-medium">
-                  {orders.length} pesanan tercatat • {orders.filter(o => o.status === "PENDING_APPROVAL" && !o.spSignature).length} e-Sign SP tertunda
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <div className="backdrop-blur-md bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/20 text-center min-w-[85px] hover:bg-white/15 transition-all duration-300 cursor-pointer shadow-sm">
-                <p className="text-[9px] text-white/70 uppercase font-bold tracking-wider">Loyalty</p>
-                <p className="text-white font-bold text-xs font-mono">1.250 pts</p>
-              </div>
-              <div className="backdrop-blur-md bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/20 text-center min-w-[90px] hover:bg-white/15 transition-all duration-300 cursor-pointer shadow-sm">
-                <p className="text-[9px] text-white/70 uppercase font-bold tracking-wider">Status</p>
-                <p className="text-white font-bold text-xs">{limitStatusLabel}</p>
+
+              {/* Loyalty & Status Badge (Glassmorphism) */}
+              <div className="flex items-center gap-3">
+                <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 text-center min-w-[95px]">
+                  <span className="text-[9px] text-slate-300 uppercase tracking-wider block font-medium">LOYALTY PTS</span>
+                  <span className="text-xs font-extrabold text-amber-400 font-mono">1.250 pts</span>
+                </div>
+                <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 text-center min-w-[100px]">
+                  <span className="text-[9px] text-slate-300 uppercase tracking-wider block font-medium">STATUS AKUN</span>
+                  <span className="text-xs font-extrabold text-emerald-400 flex items-center justify-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    {limitStatusLabel}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -171,69 +186,91 @@ export default function DashboardOverview({
           {/* Main Content Column (Left/Center - 9 Cols) */}
           <div className="lg:col-span-9 space-y-6">
             
-            {/* Summary Cards Row (Compact) */}
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Limit Kredit */}
-              <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant/30 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 space-y-2">
-                <div className="flex justify-between items-center mb-1">
-                  <p className="text-xs text-on-surface-variant uppercase font-bold tracking-tight">Sisa Limit Kredit</p>
-                  <span className="material-symbols-outlined text-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>account_balance</span>
+            {/* 2. METRIC CARDS (SEPARATE & CLEAN 3-CARDS GRID) */}
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {/* Sisa Limit Kredit */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-center text-slate-500 mb-2">
+                    <span className="text-xs font-semibold text-slate-600 tracking-wide">Sisa Limit Kredit</span>
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 rounded-full">100% Tersedia</span>
+                  </div>
+                  <div className="text-2xl font-extrabold text-slate-900 tracking-tight font-sans my-1">
+                    Rp {sisaKredit.toLocaleString("id-ID")}
+                  </div>
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden my-2 border border-slate-200/50">
+                    <div
+                      className="bg-emerald-600 h-full rounded-full transition-all duration-1000 ease-out"
+                      style={{ width: `${progressRatio}%` }}
+                    ></div>
+                  </div>
                 </div>
-                <h4 className="font-heading font-bold text-base text-on-surface font-mono">
-                  Rp {sisaKredit.toLocaleString("id-ID")}
-                </h4>
-                <div className="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden my-2 border border-outline-variant/10">
-                  <div
-                    className="bg-primary h-full rounded-full transition-all duration-1000 ease-out"
-                    style={{ width: `${progressRatio}%` }}
-                  ></div>
+                <div className="pt-2 border-t border-slate-100 mt-2">
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    Total Limit: <span className="text-slate-700 font-bold font-sans">Rp {institution.creditLimit.toLocaleString("id-ID")}</span>
+                  </span>
                 </div>
-                <p className="text-[9px] text-on-surface-variant font-mono">TOTAL: Rp {institution.creditLimit.toLocaleString("id-ID")}</p>
               </div>
 
               {/* Jatuh Tempo */}
-              <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant/30 shadow-sm border-l-4 border-l-error hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 space-y-2">
-                <div className="flex justify-between items-center mb-1">
-                  <p className="text-xs text-on-surface-variant uppercase font-bold tracking-tight">Jatuh Tempo</p>
-                  <span className="material-symbols-outlined text-error text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>event_busy</span>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-center text-slate-500 mb-2">
+                    <span className="text-xs font-semibold text-slate-600 tracking-wide">Jatuh Tempo</span>
+                    {unpaidOrders.length > 0 ? (
+                      <span className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200/60 px-2.5 py-0.5 rounded-full">Kritis</span>
+                    ) : (
+                      <span className="text-[11px] font-medium text-slate-600 bg-slate-100 border border-slate-200/60 px-2.5 py-0.5 rounded-full">Aman</span>
+                    )}
+                  </div>
+                  <div className="text-2xl font-extrabold text-slate-900 tracking-tight font-sans my-1">
+                    Rp {totalUnpaidAmount.toLocaleString("id-ID")}
+                  </div>
                 </div>
-                <h4 className="font-heading font-bold text-base text-on-surface font-mono">
-                  Rp {totalUnpaidAmount.toLocaleString("id-ID")}
-                </h4>
-                <p className="text-[10px] text-error font-bold pt-1">
-                  {unpaidOrders.length} Invoice kritis (&gt;{institution.topDays} hari)
-                </p>
+                <div className="pt-2 border-t border-slate-100 mt-2">
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    Status: <span className="text-slate-700 font-bold font-sans">{unpaidOrders.length} Invoice kritis</span>
+                  </span>
+                </div>
               </div>
 
               {/* Pesanan Bulan Ini */}
-              <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant/30 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 space-y-2">
-                <div className="flex justify-between items-center mb-1">
-                  <p className="text-xs text-on-surface-variant uppercase font-bold tracking-tight">Pesanan Bulan Ini</p>
-                  <span className="material-symbols-outlined text-secondary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>shopping_bag</span>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-center text-slate-500 mb-2">
+                    <span className="text-xs font-semibold text-slate-600 tracking-wide">Pesanan Bulan Ini</span>
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 rounded-full">+12.4% vs bln lalu</span>
+                  </div>
+                  <div className="text-2xl font-extrabold text-slate-900 tracking-tight font-sans my-1">
+                    {orders.length} Pesanan
+                  </div>
                 </div>
-                <h4 className="font-heading font-bold text-base text-on-surface font-mono">
-                  {orders.length} Pesanan
-                </h4>
-                <p className="text-[10px] text-primary font-bold pt-1">+12.4% vs bln lalu</p>
+                <div className="pt-2 border-t border-slate-100 mt-2">
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    Monitoring transaksi berjalan
+                  </span>
+                </div>
               </div>
             </section>
 
-            {/* B2B Spending Analytics Charts */}
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 3. B2B SPENDING ANALYTICS CHARTS (CLEAN & SPACIOUS) */}
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Chart 1: Tren Pengeluaran Bulanan */}
-              <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/30 shadow-sm space-y-4">
-                <div className="flex justify-between items-center border-b border-outline-variant/15 pb-2">
-                  <h4 className="font-heading font-bold text-xs text-foreground flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-primary text-[16px]">analytics</span>
+              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                  <h4 className="font-heading font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-emerald-600 text-[18px]">analytics</span>
                     Tren Pengeluaran Bulanan (B2B)
                   </h4>
-                  <span className="text-[9px] text-primary font-bold">6 Bulan Terakhir</span>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-bold border border-emerald-100">
+                    6 Bulan Terakhir
+                  </span>
                 </div>
-                <div className="h-44 w-full flex items-end justify-between px-2 pt-6 relative border-b border-outline-variant/20">
-                  <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20 text-[8px] font-mono text-outline pb-6 pt-2">
-                    <div className="border-b border-dashed border-outline-variant w-full"></div>
-                    <div className="border-b border-dashed border-outline-variant w-full"></div>
-                    <div className="border-b border-dashed border-outline-variant w-full"></div>
+                <div className="h-44 w-full flex items-end justify-between px-2 pt-6 relative border-b border-slate-100">
+                  <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20 text-[8px] font-mono text-slate-400 pb-6 pt-2">
+                    <div className="border-b border-dashed border-slate-300 w-full"></div>
+                    <div className="border-b border-dashed border-slate-300 w-full"></div>
+                    <div className="border-b border-dashed border-slate-300 w-full"></div>
                   </div>
                   {[
                     { month: "Jan", val: 120, label: "12M" },
@@ -248,65 +285,67 @@ export default function DashboardOverview({
                         Rp {item.label}
                       </div>
                       <div 
-                        className="w-7 bg-gradient-to-t from-primary/75 to-primary hover:from-primary hover:to-primary rounded-t-md transition-all duration-300 cursor-pointer shadow-sm hover:scale-x-[1.05] hover:scale-y-[1.03] origin-bottom" 
+                        className="w-7 bg-gradient-to-t from-emerald-600/80 to-emerald-600 hover:from-emerald-600 hover:to-emerald-500 rounded-t-md transition-all duration-300 cursor-pointer shadow-xs hover:scale-x-[1.05] hover:scale-y-[1.03] origin-bottom" 
                         style={{ height: `${(item.val / 280) * 110}px` }}
                       ></div>
-                      <span className="text-[10px] font-bold text-on-surface-variant mt-1">{item.month}</span>
+                      <span className="text-[10px] font-bold text-slate-500 mt-1">{item.month}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Chart 2: Proporsi Pembelian Obat */}
-              <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/30 shadow-sm space-y-4">
-                <div className="flex justify-between items-center border-b border-outline-variant/15 pb-2">
-                  <h4 className="font-heading font-bold text-xs text-foreground flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-secondary text-[16px]">pie_chart</span>
+              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                  <h4 className="font-heading font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-teal-600 text-[18px]">pie_chart</span>
                     Proporsi Pembelian Sediaan
                   </h4>
-                  <span className="text-[9px] text-secondary font-bold">Kategori Obat</span>
+                  <span className="text-[10px] text-teal-700 bg-teal-50 px-2 py-0.5 rounded font-bold border border-teal-100">
+                    Kategori Obat
+                  </span>
                 </div>
                 <div className="flex items-center justify-around h-44">
                   <div className="relative w-28 h-28 hover:scale-105 transition-transform duration-300">
                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                       <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f1f5f9" strokeWidth="3" />
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f43f5e" strokeWidth="3.2" strokeDasharray="60 40" strokeDashoffset="0" />
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#10b981" strokeWidth="3.2" strokeDasharray="30 70" strokeDashoffset="-60" />
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#0ea5e9" strokeWidth="3.2" strokeDasharray="10 90" strokeDashoffset="-90" />
+                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#059669" strokeWidth="3.2" strokeDasharray="60 40" strokeDashoffset="0" />
+                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#0d9488" strokeWidth="3.2" strokeDasharray="30 70" strokeDashoffset="-60" />
+                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#0284c7" strokeWidth="3.2" strokeDasharray="10 90" strokeDashoffset="-90" />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-[13px] font-extrabold text-foreground font-mono">100%</span>
-                      <span className="text-[8px] text-outline uppercase font-bold tracking-wider">Meds</span>
+                      <span className="text-[13px] font-extrabold text-slate-900 font-mono">100%</span>
+                      <span className="text-[8px] text-slate-400 uppercase font-bold tracking-wider">Meds</span>
                     </div>
                   </div>
                   <div className="space-y-2 text-[10px]">
-                    <div className="flex items-center gap-2 hover:bg-surface-container-low px-2 py-1 rounded-lg transition-colors cursor-pointer">
-                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0 shadow-sm shadow-rose-500/30"></span>
-                      <span className="text-on-surface-variant font-bold">Obat Keras (60%)</span>
+                    <div className="flex items-center gap-2 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-200">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 shrink-0 shadow-xs"></span>
+                      <span className="text-slate-700 font-bold">Obat Keras (60%)</span>
                     </div>
-                    <div className="flex items-center gap-2 hover:bg-surface-container-low px-2 py-1 rounded-lg transition-colors cursor-pointer">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 shadow-sm shadow-emerald-500/30"></span>
-                      <span className="text-on-surface-variant font-bold">Obat Bebas (30%)</span>
+                    <div className="flex items-center gap-2 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-200">
+                      <span className="w-2.5 h-2.5 rounded-full bg-teal-600 shrink-0 shadow-xs"></span>
+                      <span className="text-slate-700 font-bold">Obat Bebas (30%)</span>
                     </div>
-                    <div className="flex items-center gap-2 hover:bg-surface-container-low px-2 py-1 rounded-lg transition-colors cursor-pointer">
-                      <span className="w-2.5 h-2.5 rounded-full bg-sky-500 shrink-0 shadow-sm shadow-sky-500/30"></span>
-                      <span className="text-on-surface-variant font-bold">Cold Chain (10%)</span>
+                    <div className="flex items-center gap-2 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-200">
+                      <span className="w-2.5 h-2.5 rounded-full bg-sky-600 shrink-0 shadow-xs"></span>
+                      <span className="text-slate-700 font-bold">Cold Chain (10%)</span>
                     </div>
                   </div>
                 </div>
               </div>
             </section>
 
-            {/* Prominent Table Section */}
-            <section className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 shadow-sm overflow-hidden flex flex-col">
-              <div className="px-6 py-5 border-b border-outline-variant/30 flex justify-between items-center bg-white">
+            {/* 4. TABEL PESANAN TERBARU (CLEAN TABLE) */}
+            <section className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
+              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
                 <div>
-                  <h4 className="font-heading font-bold text-sm text-foreground">Pesanan Terbaru</h4>
-                  <p className="text-xs text-on-surface-variant mt-0.5">Monitoring real-time status logistik obat</p>
+                  <h4 className="font-heading font-bold text-sm text-slate-900">Pesanan Terbaru</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">Monitoring real-time status logistik sediaan obat</p>
                 </div>
                 <button
                   onClick={() => setActiveTab("riwayat")}
-                  className="text-primary font-bold text-xs hover:underline flex items-center gap-1 cursor-pointer border-none bg-transparent"
+                  className="text-emerald-700 font-bold text-xs hover:underline flex items-center gap-1 cursor-pointer border-none bg-transparent"
                 >
                   Lihat Semua <span className="material-symbols-outlined text-sm">chevron_right</span>
                 </button>

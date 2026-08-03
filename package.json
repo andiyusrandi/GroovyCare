@@ -4,11 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+
+
+    "lint": "eslint",
+    "push": "./growmexa push"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "lucide-react": "^1.28.0",
     "midtrans-client": "^1.4.3",
     "next": "16.2.10",
@@ -21,7 +25,6 @@
     "@capacitor/cli": "^6.2.1",
     "@capacitor/core": "^6.2.1",
     "@capacitor/haptics": "^6.0.3",
-    "@prisma/client": "^5.22.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -33,3 +36,4 @@
     "typescript": "^5"
   }
 }
+
