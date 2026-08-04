@@ -1,233 +1,261 @@
 "use client";
 
 import { useState } from "react";
-import { login, quickLogin } from "@/app/actions/auth";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ShieldAlert } from "lucide-react";
 import Link from "next/link";
-import { useMobileBrowser } from "@/hooks/useMobileBrowser";
 
-export default function LoginForm() {
+interface LoginFormProps {
+  logoUrl?: string;
+}
+
+export default function LoginForm({ logoUrl }: LoginFormProps) {
   const router = useRouter();
-  const isMobileBrowser = useMobileBrowser();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [simulating, setSimulating] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
+  const [isDevAccessOpen, setIsDevAccessOpen] = useState(false);
 
-  if (isMobileBrowser) {
-    return (
-      <div className="space-y-6 text-center py-4 font-sans animate-fadeIn">
-        <div className="mx-auto w-12 h-12 bg-slate-100 text-slate-700 rounded-xl flex items-center justify-center border border-slate-200 shadow-xs">
-          <span className="material-symbols-outlined text-[28px] font-bold">smartphone</span>
-        </div>
-        
-        <div className="space-y-1.5">
-          <h3 className="font-heading font-bold text-base text-slate-900">Gunakan Aplikasi Resmi</h3>
-          <p className="text-xs text-slate-500 leading-relaxed px-2">
-            Demi menjaga keamanan transaksi Cold Chain serta kepatuhan regulasi CDOB BPOM, akses web mobile dinonaktifkan.
-          </p>
-        </div>
+  const isDev = process.env.NODE_ENV !== "production";
 
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[10px] text-slate-600 leading-relaxed text-left flex gap-2.5">
-          <ShieldAlert className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-          <span>
-            <strong>Kepatuhan CDOB:</strong> Silakan gunakan PC/Laptop untuk akses portal web, atau unduh aplikasi mobile resmi.
-          </span>
-        </div>
-
-        <div className="pt-2">
-          <a
-            href="https://play.google.com/store"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-3 px-5 py-2.5 bg-slate-950 text-white rounded-xl hover:bg-slate-900 active:scale-[0.98] transition-all shadow-xs text-left cursor-pointer mx-auto border border-slate-800"
-          >
-            <svg viewBox="0 0 512 512" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M32.05 16.5C30.2 18.9 29.1 22.4 29.1 26.9v458.2c0 4.5 1.1 8 2.95 10.4l1.55 1.4L261.25 269v-5.25L33.6 15.1l-1.55 1.4z" fill="#00f0ff"/>
-              <path d="M338.45 346.5L261.25 269v-5.25L338.45 166l1.8 1c21.8 12.4 60.55 34.6 81.35 46.5 5.95 3.4 9.9 8.9 9.9 15.2 0 6.3-3.95 11.8-9.9 15.2-20.8 11.9-59.55 34.1-81.35 46.6l-1.8 1z" fill="#ffc200"/>
-              <path d="M263.15 266.35l-76.3-76.3L32.05 16.5c3.2-3.4 9.1-5.4 16.4-1.2l290 166.1 1.8 1-77.1 76.95z" fill="#ff3a44"/>
-              <path d="M263.15 271.65L340.25 348l-291.8 167c-7.3 4.2-13.2 2.2-16.4-1.2L186.85 348l76.3-76.35z" fill="#00e756"/>
-            </svg>
-            <div>
-              <p className="text-[9px] uppercase tracking-widest text-slate-400 font-bold leading-none">Get it on</p>
-              <p className="text-xs font-bold font-heading leading-tight mt-0.5">Google Play</p>
-            </div>
-          </a>
-        </div>
-
-        <div className="pt-3 border-t border-slate-100">
-          <p className="text-xs text-slate-500 font-medium">
-            Belum terdaftar?{" "}
-            <Link className="text-emerald-700 font-bold hover:underline" href="/register">
-              Daftar Mitra di Browser Mobile
-            </Link>
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-    const result = await login(formData);
+    try {
+      await fetch("/api/logout", { method: "POST" });
+    } catch {}
 
-    setLoading(false);
-    if (!result.success) {
-      setError(result.error || "Gagal masuk");
-    } else {
-      if (result.role === "PBF_ADMIN" || result.role === "SYSTEM_ADMIN") {
-        router.push("/admin/dashboard");
+    try {
+      const { login } = await import("@/app/actions/auth");
+      const formData = new FormData();
+      formData.append("email", email);
+      formData.append("password", password);
+
+      const res = await login(formData);
+
+      if (res.success && res.role) {
+        if (res.role === "PBF_ADMIN") {
+          router.push("/admin/dashboard");
+        } else {
+          router.push("/customer/dashboard");
+        }
       } else {
-        router.push("/customer/dashboard");
+        setError(res.error || "Login gagal, silakan periksa email & password Anda.");
+        setLoading(false);
       }
-      router.refresh();
+    } catch (err: any) {
+      setError("Terjadi kesalahan: " + (err.message || err));
+      setLoading(false);
     }
-  }
+  };
 
-  async function handleQuickLogin(role: "CUSTOMER_USER" | "PBF_ADMIN" | "EXPIRED_USER", label: string) {
+  const handleQuickLogin = async (roleType: "CUSTOMER_USER" | "PBF_ADMIN" | "EXPIRED_USER", label: string) => {
     setError(null);
     setSimulating(label);
+    setLoading(true);
 
-    const result = await quickLogin(role);
-    setSimulating(null);
+    try {
+      await fetch("/api/seed", { method: "POST" });
 
-    if (!result.success) {
-      setError(result.error || "Simulasi login gagal");
-    } else {
-      if (result.role === "PBF_ADMIN" || result.role === "SYSTEM_ADMIN") {
-        router.push("/admin/dashboard");
+      const { quickLogin } = await import("@/app/actions/auth");
+      const res = await quickLogin(roleType);
+
+      if (res.success && res.role) {
+        if (res.role === "PBF_ADMIN") {
+          router.push("/admin/dashboard");
+        } else {
+          router.push("/customer/dashboard");
+        }
       } else {
-        router.push("/customer/dashboard");
+        setError(res.error || `Gagal simulasi login sebagai ${label}`);
+        setLoading(false);
+        setSimulating(null);
       }
-      router.refresh();
+    } catch (err: any) {
+      setError("Gagal simulasi: " + (err.message || err));
+      setLoading(false);
+      setSimulating(null);
     }
-  }
+  };
 
   return (
-    <div className="space-y-6">
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700 flex items-start gap-2.5">
-          <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-          <span>{error}</span>
+    <div className="w-full space-y-4 sm:space-y-5 font-sans">
+      {/* Logo tepat di atas judul Masuk ke Akun (Mobile Enriched w-auto max-w-[210px]) */}
+      {logoUrl && (
+        <div className="flex justify-center sm:justify-start mb-4">
+          <Link href="/" className="inline-block">
+            <img
+              src={logoUrl}
+              alt="Logo PBF Online"
+              className="h-10 sm:h-9 max-w-[210px] w-auto object-contain"
+            />
+          </Link>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Input Email */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-slate-700 block" htmlFor="email">
+      {/* Brand Header / Title Single Hierarchy */}
+      <div className="text-center sm:text-left space-y-1">
+        <h2 className="font-heading font-bold text-xl sm:text-2xl text-slate-900 tracking-tight">
+          Masuk ke Akun
+        </h2>
+        <p className="text-xs text-slate-600 sm:text-slate-500 font-normal leading-relaxed">
+          Silakan masukkan kredensial akun Apotek atau Sarana PBF Anda.
+        </p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-rose-50 border border-rose-200/80 rounded-xl text-xs text-rose-700 flex items-start gap-2 animate-in fade-in duration-200">
+          <span className="material-symbols-outlined text-base text-rose-500 shrink-0 mt-0.5">
+            error
+          </span>
+          <span className="font-medium leading-relaxed">{error}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+        {/* Email Input */}
+        <div className="space-y-1">
+          <label htmlFor="email" className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
             Email Bisnis
           </label>
           <input
             id="email"
-            name="email"
             type="email"
             required
-            autoComplete="email"
-            placeholder="nama@perusahaan.co.id"
-            className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:border-slate-900 transition-colors font-medium text-slate-800 placeholder:text-slate-400"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="apotek@domain.com"
+            className="w-full h-11 px-4 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 text-xs font-medium text-slate-900 transition-all placeholder:text-slate-400 shadow-2xs"
           />
         </div>
 
-        {/* Input Password */}
-        <div className="space-y-1.5">
+        {/* Password Input dengan Toggle Visibility */}
+        <div className="space-y-1">
           <div className="flex justify-between items-center">
-            <label className="text-xs font-semibold text-slate-700" htmlFor="password">
+            <label htmlFor="password-input" className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
               Kata Sandi
             </label>
-            <Link href="#" className="text-xs text-slate-400 hover:text-slate-900 transition-colors">
-              Lupa?
-            </Link>
           </div>
-          <div className="relative">
+          <div className="relative flex items-center">
             <input
-              id="password"
-              name="password"
+              id="password-input"
               type={showPassword ? "text" : "password"}
               required
-              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-3.5 py-2.5 pr-10 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:border-slate-900 transition-colors font-medium text-slate-800 placeholder:text-slate-400"
+              className="w-full h-11 pl-4 pr-11 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 text-xs font-medium text-slate-900 transition-all placeholder:text-slate-400 shadow-2xs"
             />
             <button
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-[10px] font-semibold uppercase tracking-wider cursor-pointer"
+              className="absolute right-3.5 text-slate-400 hover:text-slate-600 p-1 transition-colors cursor-pointer border-none bg-transparent flex items-center justify-center"
+              aria-label="Toggle Password Visibility"
             >
-              {showPassword ? "Hide" : "Show"}
+              <span className="material-symbols-outlined text-lg">
+                {showPassword ? "visibility_off" : "visibility"}
+              </span>
             </button>
+          </div>
+          <div className="flex justify-end pt-1">
+            <Link href="#" className="text-xs font-semibold text-emerald-600 hover:underline py-1">
+              Lupa Kata Sandi?
+            </Link>
           </div>
         </div>
 
-        {/* CTA Button Minimal */}
+        {/* Primary Action Button (Native Mobile Touch Feedback active:scale-[0.98]) */}
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2.5 px-4 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-medium text-xs transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full h-11 mt-2 bg-emerald-600 active:bg-emerald-700 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer border-none disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {loading ? "Memproses..." : "Masuk Sekarang"}
+          {loading ? (
+            <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+          ) : (
+            <span>Masuk Sekarang</span>
+          )}
         </button>
       </form>
 
       {/* Register Link */}
-      <div className="text-center pt-1">
-        <p className="text-xs text-slate-400">
+      <div className="text-center pt-2">
+        <p className="text-xs text-slate-500">
           Belum memiliki akses?{" "}
-          <Link href="/register" className="font-semibold text-slate-900 hover:underline">
+          <Link href="/register" className="font-bold text-slate-900 hover:text-emerald-600 transition-colors ml-1">
             Daftar Mitra
           </Link>
         </p>
       </div>
 
-      {/* Dev Mode Simulator (Horizontal 3-Col Pipih) */}
-      <div className="pt-6 border-t border-slate-100 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block font-semibold">
-            Quick Dev Access
-          </span>
-          <span className="text-[9px] font-mono text-slate-400">DEV MODE</span>
+      {/* Quick Dev Access (Hanya muncul jika bukan production / isDev) */}
+      {isDev && (
+        <div className="pt-4 border-t border-slate-100 w-full">
+          <button
+            type="button"
+            onClick={() => setIsDevAccessOpen((prev) => !prev)}
+            className="w-full flex items-center justify-between text-[11px] font-bold text-slate-400 hover:text-slate-600 py-1.5 transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <span>QUICK DEV ACCESS</span>
+            <span className="material-symbols-outlined text-sm">
+              {isDevAccessOpen ? "expand_less" : "expand_more"}
+            </span>
+          </button>
+
+          {isDevAccessOpen && (
+            <div className="mt-2 space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80 animate-in fade-in duration-200">
+              <p className="text-[10px] text-slate-400 font-medium">Pilih peran akun untuk pengujian cepat:</p>
+              <div className="grid grid-cols-1 gap-1.5 pt-1">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => handleQuickLogin("CUSTOMER_USER", "Apotek Sehat Jaya")}
+                  className="w-full py-2 px-3 bg-white border border-slate-200 hover:border-emerald-500 rounded-lg text-left text-xs font-semibold text-slate-800 flex items-center justify-between transition-all cursor-pointer shadow-2xs active:scale-95"
+                >
+                  <span>1. Apotek Sehat Jaya (Customer)</span>
+                  {simulating === "Apotek Sehat Jaya" ? (
+                    <span className="material-symbols-outlined animate-spin text-sm text-emerald-600">progress_activity</span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-emerald-600">Login →</span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => handleQuickLogin("PBF_ADMIN", "Admin PBF")}
+                  className="w-full py-2 px-3 bg-white border border-slate-200 hover:border-emerald-500 rounded-lg text-left text-xs font-semibold text-slate-800 flex items-center justify-between transition-all cursor-pointer shadow-2xs active:scale-95"
+                >
+                  <span>2. Admin PBF GroovyRx</span>
+                  {simulating === "Admin PBF" ? (
+                    <span className="material-symbols-outlined animate-spin text-sm text-emerald-600">progress_activity</span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-emerald-600">Login →</span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => handleQuickLogin("EXPIRED_USER", "Apotek Kadaluwarsa")}
+                  className="w-full py-2 px-3 bg-white border border-slate-200 hover:border-rose-400 rounded-lg text-left text-xs font-semibold text-slate-800 flex items-center justify-between transition-all cursor-pointer shadow-2xs active:scale-95"
+                >
+                  <span>3. Apotek Kritis SIA (Warning)</span>
+                  {simulating === "Apotek Kadaluwarsa" ? (
+                    <span className="material-symbols-outlined animate-spin text-sm text-rose-600">progress_activity</span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-rose-600">Login →</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={() => handleQuickLogin("CUSTOMER_USER", "Apotek Sehat")}
-            disabled={simulating !== null}
-            className="py-2 px-2 text-[10px] font-medium bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 rounded-md border border-slate-200/80 transition-colors truncate text-center cursor-pointer"
-          >
-            Apotek Sehat
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => handleQuickLogin("EXPIRED_USER", "Apotek Expired")}
-            disabled={simulating !== null}
-            className="py-2 px-2 text-[10px] font-medium bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 rounded-md border border-slate-200/80 transition-colors truncate text-center cursor-pointer"
-          >
-            Blocked SIA
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleQuickLogin("PBF_ADMIN", "PBF Admin")}
-            disabled={simulating !== null}
-            className="py-2 px-2 text-[10px] font-medium bg-slate-50 hover:bg-cyan-50 text-slate-700 hover:text-cyan-700 rounded-md border border-slate-200/80 transition-colors truncate text-center cursor-pointer"
-          >
-            Admin PBF
-          </button>
-        </div>
-
-        {simulating && (
-          <p className="text-[10px] text-center text-emerald-600 font-mono animate-pulse mt-1">
-            Memuat sesi {simulating}...
-          </p>
-        )}
-      </div>
+      )}
     </div>
   );
 }

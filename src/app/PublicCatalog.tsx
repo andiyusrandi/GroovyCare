@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
-import { Search, ShoppingBag, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
+import React, { useState } from "react";
 import Link from "next/link";
 
 interface Product {
@@ -15,207 +14,211 @@ interface Product {
   unit: string;
   manufacturer: string;
   totalStock: number;
+  imageUrl?: string;
+  expDate?: string;
 }
 
+// 5 Produk Dummy Utama dengan data presisi & fallback gambar kustom
+const DUMMY_PRODUCTS: Product[] = [
+  {
+    id: "dummy-1",
+    code: "INF-001",
+    name: "Undenatured Collagen Type II (UC II) 40mg",
+    activeIngredient: "Collagen 40mg",
+    price: 1000,
+    category: "Suplemen",
+    description: "Formulasi collagen tipe 2 khusus kesehatan sendi & tulang.",
+    unit: "Pack",
+    manufacturer: "PT INFION",
+    totalStock: 100,
+    imageUrl: "https://mydents.co.id/wp-content/uploads/2024/09/Obat-Sakit-Gigi.jpg",
+    expDate: "Agu 2027",
+  },
+  {
+    id: "dummy-2",
+    code: "KFA-93025",
+    name: "Vitamin D3 (Cholecalciferol) 4000 IU",
+    activeIngredient: "D3 4000 IU",
+    price: 120000,
+    category: "Vitamin",
+    description: "Suplemen vitamin D3 dosis tinggi untuk daya tahan tubuh.",
+    unit: "Pack",
+    manufacturer: "PT KIMIA FARMA TBK",
+    totalStock: 100,
+    imageUrl: "https://mydents.co.id/wp-content/uploads/2024/09/Obat-Sakit-Gigi.jpg",
+    expDate: "Jul 2027",
+  },
+  {
+    id: "dummy-3",
+    code: "AMX-500",
+    name: "Amoxicillin 500mg Box (100 Kaplet)",
+    activeIngredient: "Amoxicillin 500mg",
+    price: 120000,
+    category: "Antibiotik",
+    description: "Antibiotik spektrum luas standar BPOM & CDOB.",
+    unit: "Box",
+    manufacturer: "DEXA MEDICA",
+    totalStock: 46,
+    imageUrl: "https://mydents.co.id/wp-content/uploads/2024/09/Obat-Sakit-Gigi.jpg",
+    expDate: "Jun 2027",
+  },
+  {
+    id: "dummy-4",
+    code: "SAN-500",
+    name: "Sanmol 500mg Box (100 Tablet)",
+    activeIngredient: "Paracetamol 500mg",
+    price: 90000,
+    category: "Analgesik",
+    description: "Obat pereda nyeri dan penurun demam terpercaya.",
+    unit: "Box",
+    manufacturer: "SANBE FARMA",
+    totalStock: 40,
+    imageUrl: "https://mydents.co.id/wp-content/uploads/2024/09/Obat-Sakit-Gigi.jpg",
+    expDate: "Mar 2027",
+  },
+  {
+    id: "dummy-5",
+    code: "PCT-500",
+    name: "Paracetamol 500mg Box (100 Tablet)",
+    activeIngredient: "Paracetamol 500mg",
+    price: 75000,
+    category: "Analgesik",
+    description: "Obat antipiretik generik berstandar mutu CDOB.",
+    unit: "Box",
+    manufacturer: "KALBE FARMA",
+    totalStock: 80,
+    imageUrl: "https://mydents.co.id/wp-content/uploads/2024/09/Obat-Sakit-Gigi.jpg",
+    expDate: "Des 2027",
+  },
+];
+
+const FALLBACK_IMAGE_URL = "https://mydents.co.id/wp-content/uploads/2024/09/Obat-Sakit-Gigi.jpg";
+
 export default function PublicCatalog({ products }: { products: Product[] }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("SEMUA");
+  const [imageErrors, setImageErrors] = useState<{ [key: string]: boolean }>({});
 
-  // Ekstrak kategori unik
-  const categories = ["SEMUA", ...Array.from(new Set(products.map((p) => p.category)))];
+  let displayProducts: Product[] = [];
+  if (!products || products.length === 0) {
+    displayProducts = DUMMY_PRODUCTS;
+  } else {
+    displayProducts = [...products];
+    if (displayProducts.length < 5) {
+      const remainingNeeded = 5 - displayProducts.length;
+      displayProducts = [...displayProducts, ...DUMMY_PRODUCTS.slice(0, remainingNeeded)];
+    } else {
+      displayProducts = displayProducts.slice(0, 5);
+    }
+  }
 
-  // Helper untuk warna badge kategori
-  const getCategoryBadgeClass = (cat: string) => {
-    const lower = cat.toLowerCase();
-    if (lower.includes("antibiotik")) {
-      return "text-amber-700 bg-amber-50 border-amber-200/60";
+  const getProductImage = (p: Product) => {
+    if (imageErrors[p.id]) {
+      return FALLBACK_IMAGE_URL;
     }
-    if (lower.includes("analgesik") || lower.includes("antipiretik") || lower.includes("nyeri")) {
-      return "text-blue-700 bg-blue-50 border-blue-200/60";
+    if (p.imageUrl && p.imageUrl.trim() !== "") {
+      return p.imageUrl;
     }
-    if (lower.includes("vitamin") || lower.includes("suplemen") || lower.includes("gizi")) {
-      return "text-emerald-700 bg-emerald-50 border-emerald-200/60";
-    }
-    return "text-slate-700 bg-slate-100 border-slate-200";
+    return FALLBACK_IMAGE_URL;
   };
 
-  // Filter produk dari database
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch =
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.activeIngredient.toLowerCase().includes(search.toLowerCase()) ||
-      p.code.toLowerCase().includes(search.toLowerCase()) ||
-      (p.manufacturer && p.manufacturer.toLowerCase().includes(search.toLowerCase()));
-
-    const matchesCategory = category === "SEMUA" || p.category === category;
-
-    return matchesSearch && matchesCategory;
-  });
-
-  // Fungsi scroll slider kanan/kiri
-  const scroll = (direction: "left" | "right") => {
-    if (scrollRef.current) {
-      const { scrollLeft, clientWidth } = scrollRef.current;
-      const scrollAmount = clientWidth * 0.75;
-      scrollRef.current.scrollTo({
-        left: direction === "left" ? scrollLeft - scrollAmount : scrollLeft + scrollAmount,
-        behavior: "smooth",
-      });
+  const getGolonganBadge = (p: Product) => {
+    const nameLower = p.name.toLowerCase();
+    const catLower = (p.category || "").toLowerCase();
+    if (catLower.includes("antibiotik") || nameLower.includes("amoxicillin") || nameLower.includes("keras")) {
+      return { text: "KERAS (G)", cls: "text-rose-700 bg-rose-50 border-rose-200/60" };
     }
+    return { text: "BEBAS (W)", cls: "text-emerald-700 bg-emerald-50 border-emerald-200/60" };
+  };
+
+  const handleImageError = (id: string) => {
+    setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
 
   return (
-    <div className="space-y-6">
-      {/* Search & Category Filter Bar + Prev/Next Controls */}
-      <div className="bg-white p-3 md:p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between">
-        {/* Input Cari */}
-        <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari obat, zat aktif, SKU..."
-            className="w-full pl-10 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-800 placeholder:text-slate-400"
-          />
-        </div>
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4">
+      {displayProducts.map((p, idx) => {
+        const golongan = getGolonganBadge(p);
+        const imgSrc = getProductImage(p);
 
-        {/* Filter Category Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                category === cat
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        {/* Slider Navigation Buttons */}
-        <div className="flex items-center gap-2 shrink-0 self-end md:self-auto">
-          <button
-            onClick={() => scroll("left")}
-            className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-50 hover:border-slate-300 shadow-xs transition-all active:scale-95 cursor-pointer"
-            aria-label="Previous Product"
+        return (
+          <div
+            key={`${p.id}-${idx}`}
+            className="bg-white rounded-2xl border border-slate-200/80 p-2.5 sm:p-3.5 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all duration-200 flex flex-col justify-between group"
           >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => scroll("right")}
-            className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center hover:bg-emerald-700 shadow-xs shadow-emerald-600/20 transition-all active:scale-95 cursor-pointer"
-            aria-label="Next Product"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Horizontal Scrollable Slider Track */}
-      {filteredProducts.length === 0 ? (
-        <div className="text-center py-12 bg-white border border-slate-200/80 rounded-2xl space-y-2">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 text-slate-400">
-            <AlertCircle className="w-5 h-5" />
-          </div>
-          <p className="text-xs font-medium text-slate-600">Tidak ada produk obat yang cocok dengan pencarian Anda.</p>
-        </div>
-      ) : (
-        <div
-          ref={scrollRef}
-          className="flex gap-5 overflow-x-auto snap-x snap-mandatory scrollbar-none py-2 px-1 -mx-1"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-        >
-          {filteredProducts.map((p) => (
-            <div
-              key={p.id}
-              className="snap-start shrink-0 w-[290px] sm:w-[320px] bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:shadow-lg hover:border-emerald-300 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group"
-            >
-              <div>
-                {/* SKU & Category Tag */}
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className="text-[10px] font-bold font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-                    {p.code}
-                  </span>
-                  <span
-                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${getCategoryBadgeClass(
-                      p.category
-                    )}`}
-                  >
-                    {p.category}
-                  </span>
-                </div>
-
-                {/* Title & Desc */}
-                <h3 className="font-bold text-base text-slate-900 group-hover:text-emerald-600 transition-colors line-clamp-1 mb-1.5 font-heading">
-                  {p.name}
-                </h3>
-                <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed">
-                  {p.description || "Sediaan obat resmi berstandar mutu CDOB dari distributor resmi."}
-                </p>
-
-                {/* Specs Box Mini */}
-                <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-100 space-y-1 text-xs mb-4">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 text-[11px]">Zat Aktif:</span>
-                    <span className="font-medium text-slate-700 truncate max-w-[130px]">
-                      {p.activeIngredient || "-"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 text-[11px]">Manufaktur:</span>
-                    <span className="font-medium text-slate-700 truncate max-w-[130px]">
-                      {p.manufacturer || "-"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 text-[11px]">Kemasan:</span>
-                    <span className="font-medium text-slate-700">{p.unit || "-"}</span>
-                  </div>
-                </div>
+            <div>
+              {/* Code & Badge */}
+              <div className="flex items-center justify-between gap-1 mb-2">
+                <span className="text-[9px] font-mono font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded truncate">
+                  {p.code || `MED-00${idx + 1}`}
+                </span>
+                <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded border shrink-0 ${golongan.cls}`}>
+                  {golongan.text}
+                </span>
               </div>
 
-              {/* Footer: Stok + Harga + CTA */}
-              <div className="pt-3 border-t border-slate-100">
-                <div className="flex items-center justify-between mb-2 text-[11px]">
-                  <span className="text-slate-400">Stok Ready:</span>
-                  {p.totalStock > 0 ? (
-                    <span className="font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                      {p.totalStock} {p.unit}
-                    </span>
-                  ) : (
-                    <span className="font-mono font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">
-                      Stok Habis
-                    </span>
-                  )}
+              {/* Product Image Container (h-24 sm:h-28) */}
+              <div className="relative w-full h-24 sm:h-28 bg-slate-50 rounded-xl overflow-hidden mb-2 border border-slate-100 flex items-center justify-center p-2">
+                <img
+                  src={imgSrc}
+                  alt={p.name}
+                  onError={() => handleImageError(p.id)}
+                  className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform pointer-events-none"
+                />
+                {p.name.toLowerCase().includes("amoxicillin") && (
+                  <span className="absolute top-1.5 left-1.5 text-[8px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-200 px-1 py-0.5 rounded">
+                    ❄️ Cold
+                  </span>
+                )}
+              </div>
+
+              {/* Brand & Name (min-h-[32px] for line clamping balance) */}
+              <p className="text-[9px] font-bold text-slate-400 tracking-wider uppercase truncate">
+                {p.manufacturer || "FARMASI RESMI"}
+              </p>
+              <h3 className="font-bold text-xs text-slate-900 group-hover:text-emerald-600 transition-colors line-clamp-2 mt-0.5 mb-2 leading-snug min-h-[32px] font-heading">
+                {p.name}
+              </h3>
+
+              {/* Details Box */}
+              <div className="bg-slate-50/80 p-2 rounded-xl border border-slate-100/80 space-y-1 text-[10px] mb-2.5">
+                <div className="flex justify-between items-center gap-1">
+                  <span className="text-slate-400 shrink-0">Zat Aktif:</span>
+                  <span className="font-semibold text-slate-700 truncate">
+                    {p.activeIngredient || "Sediaan Farmasi"}
+                  </span>
                 </div>
-
-                <div className="flex items-center justify-between gap-2 mt-2">
-                  <div>
-                    <span className="text-[10px] text-slate-400 block">Harga / Pack</span>
-                    <span className="text-base font-extrabold text-slate-900 font-mono">
-                      Rp {p.price.toLocaleString("id-ID")}
-                    </span>
-                  </div>
-
-                  <Link
-                    href="/login"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-xs shadow-emerald-600/20 active:scale-95 transition-all"
-                  >
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    Pesan
-                  </Link>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Exp:</span>
+                  <span className="font-mono text-slate-600 text-[9px]">
+                    {p.expDate || "Agu 2027"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Stok:</span>
+                  <span className="font-bold text-emerald-600 font-mono text-[10px]">
+                    {p.totalStock > 0 ? `${p.totalStock} ${p.unit || "Units"}` : "100 Units"}
+                  </span>
                 </div>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+
+            {/* Footer Card Action (min-w-0 & shrink-0) */}
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
+              <div className="min-w-0">
+                <span className="text-[8px] text-slate-400 block leading-none">Harga / Pack</span>
+                <span className="text-xs font-bold text-slate-900 font-mono truncate block">
+                  Rp {p.price.toLocaleString("id-ID")}
+                </span>
+              </div>
+              <Link
+                href="/login"
+                className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-[11px] font-semibold transition-all shrink-0 inline-block"
+              >
+                Pesan
+              </Link>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

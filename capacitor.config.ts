@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   server: {
     // Gantilah url dengan alamat IP lokal Mac Anda (misal: http://192.168.1.5:3002) 
     // jika ingin menguji langsung di handphone fisik lewat Wi-Fi yang sama
-    url: 'http://172.2.101.25:3000/?platform=android',
+    url: 'https://growmexa.com/?platform=android',
 
     cleartext: true
   }

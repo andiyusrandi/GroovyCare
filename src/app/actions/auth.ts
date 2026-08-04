@@ -162,3 +162,86 @@ export async function registerInstitution(data: {
     return { success: false, error: error.message || "Gagal melakukan registrasi" };
   }
 }
+
+export async function getInstitutionProfile() {
+  try {
+    const { getSession } = await import("@/lib/auth-session");
+    const session = await getSession();
+    if (!session || !session.userId) {
+      return { success: false, error: "Sesi tidak ditemukan" };
+    }
+
+    const user = await db.user.findUnique({
+      where: { id: session.userId },
+      include: { institution: true },
+    });
+
+    if (!user) {
+      return { success: false, error: "Pengguna tidak ditemukan" };
+    }
+
+    return {
+      success: true,
+      data: {
+        userName: user.name,
+        userEmail: user.email,
+        sipaNumber: user.sipaNumber || "",
+        institutionName: user.institution?.name || "Apotek Sehat Farma",
+        siaNumber: user.institution?.siaNumber || "",
+        ownerKtp: user.institution?.ownerKtp || "",
+        ownerNpwp: user.institution?.ownerNpwp || "",
+        address: user.institution?.address || "",
+      },
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Gagal memuat profil" };
+  }
+}
+
+export async function updateInstitutionProfile(data: {
+  ownerKtp: string;
+  ownerNpwp: string;
+  siaNumber: string;
+  sipaNumber: string;
+  address?: string;
+}) {
+  try {
+    const { getSession } = await import("@/lib/auth-session");
+    const session = await getSession();
+    if (!session || !session.userId) {
+      return { success: false, error: "Sesi tidak ditemukan, silakan login kembali." };
+    }
+
+    const user = await db.user.findUnique({
+      where: { id: session.userId },
+      include: { institution: true },
+    });
+
+    if (!user) {
+      return { success: false, error: "Pengguna tidak ditemukan." };
+    }
+
+    if (user.institutionId) {
+      await db.institution.update({
+        where: { id: user.institutionId },
+        data: {
+          ownerKtp: data.ownerKtp,
+          ownerNpwp: data.ownerNpwp,
+          siaNumber: data.siaNumber,
+          ...(data.address ? { address: data.address } : {}),
+        },
+      });
+    }
+
+    await db.user.update({
+      where: { id: user.id },
+      data: {
+        sipaNumber: data.sipaNumber,
+      },
+    });
+
+    return { success: true, message: "Profil dan legalitas berhasil diperbarui." };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Gagal memperbarui profil." };
+  }
+}

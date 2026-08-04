@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo, Suspense } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { logout } from "@/app/actions/auth";
 import { checkoutOrder, confirmDelivery, uploadPaymentProof, cancelOrderByCustomer } from "@/app/actions/orders";
 import { getSnapToken, handlePaymentSuccess } from "@/app/actions/payment";
@@ -42,6 +43,8 @@ import dynamic from "next/dynamic";
 import Sidebar from "./components/Sidebar";
 import MobileBottomNav from "./components/MobileBottomNav";
 import OfflineStatusBanner from "@/components/OfflineStatusBanner";
+import AnimatedSplashScreen from "@/components/AnimatedSplashScreen";
+import WelcomeTourModal from "@/components/WelcomeTourModal";
 import { triggerHapticImpact } from "@/lib/mobile-haptics";
 import { getBiteshipStatusMeta } from "@/lib/biteship-status";
 import { getCourierMeta } from "@/lib/courier-logos";
@@ -251,6 +254,7 @@ export default function CustomerDashboardClient({
 
   // State Modal Checkout & e-Sign
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isWelcomeTourOpen, setIsWelcomeTourOpen] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [tempShippingAddress, setTempShippingAddress] = useState("");
   // States untuk integrasi pengiriman real-time di keranjang mobile
@@ -547,7 +551,7 @@ export default function CustomerDashboardClient({
       .then(async (res) => {
         const isJson = res.headers.get("content-type")?.includes("application/json");
         const data = isJson ? await res.json() : null;
-        if (!res.ok) throw new Error(data?.error || "Gagal mengambil tarif pengiriman");
+        if (!res.ok || !data) return { success: false };
         return data;
       })
       .then((data) => {
@@ -556,18 +560,65 @@ export default function CustomerDashboardClient({
           const firstRate = data.pricing[0];
           setSelectedRate(firstRate);
           setShippingFeeMobile(firstRate.price);
+          setRatesError(null);
         } else {
-          setBiteshipRates([]);
-          setSelectedRate(null);
-          setShippingFeeMobile(isColdChain ? 85000 : 50000);
+          // Fallback kurir lokal jika API pengiriman offline / bernilai kosong
+          const fallbackPricing = [
+            {
+              courier_name: "Logistik Groovyrx",
+              courier_code: "groovyrx",
+              courier_service_name: "Same Day",
+              courier_service_code: "same_day",
+              description: "Pengiriman Same Day Kurir Internal PBF (Makassar Area)",
+              duration: "Same Day (1-2 Jam)",
+              price: isColdChain ? 85000 : 35000,
+              type: "same_day"
+            },
+            {
+              courier_name: "JNE",
+              courier_code: "jne",
+              courier_service_name: "Reguler (REG)",
+              courier_service_code: "reg",
+              description: "Layanan Reguler JNE Express",
+              duration: "2 - 3 Hari",
+              price: isColdChain ? 85000 : 42000,
+              type: "reg"
+            }
+          ];
+          setBiteshipRates(fallbackPricing);
+          setSelectedRate(fallbackPricing[0]);
+          setShippingFeeMobile(fallbackPricing[0].price);
+          setRatesError(null);
         }
       })
       .catch((err) => {
-        console.error("Rates fetch error:", err);
-        setRatesError(err.message || "Layanan pengiriman sedang dalam pemeliharaan (Maintenance)");
-        setBiteshipRates([]);
-        setSelectedRate(null);
-        setShippingFeeMobile(isColdChain ? 85000 : 50000);
+        console.warn("Rates fetch fallback handled:", err);
+        const fallbackPricing = [
+          {
+            courier_name: "Logistik Groovyrx",
+            courier_code: "groovyrx",
+            courier_service_name: "Same Day",
+            courier_service_code: "same_day",
+            description: "Pengiriman Same Day Kurir Internal PBF (Makassar Area)",
+            duration: "Same Day (1-2 Jam)",
+            price: isColdChain ? 85000 : 35000,
+            type: "same_day"
+          },
+          {
+            courier_name: "JNE",
+            courier_code: "jne",
+            courier_service_name: "Reguler (REG)",
+            courier_service_code: "reg",
+            description: "Layanan Reguler JNE Express",
+            duration: "2 - 3 Hari",
+            price: isColdChain ? 85000 : 42000,
+            type: "reg"
+          }
+        ];
+        setBiteshipRates(fallbackPricing);
+        setSelectedRate(fallbackPricing[0]);
+        setShippingFeeMobile(fallbackPricing[0].price);
+        setRatesError(null);
       })
       .finally(() => {
         setIsLoadingRates(false);
@@ -1270,11 +1321,13 @@ export default function CustomerDashboardClient({
 
   return (
     <div
-      className="min-h-screen bg-background text-foreground flex flex-col font-sans relative"
+      className="min-h-screen bg-background text-foreground flex flex-col md:flex-row font-sans relative"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
+      {/* Animated Splash Screen (Android & Web App First Open) */}
+      <AnimatedSplashScreen />
       {/* Global Offline Mode Status Banner for Android */}
       <OfflineStatusBanner />
       {/* Pull to Refresh Indicator */}
@@ -1319,7 +1372,7 @@ export default function CustomerDashboardClient({
       />
 
       {/* Main Content Area */}
-      <main className="md:ml-64 min-h-screen flex flex-col pb-20 md:pb-10">
+      <main className="flex-1 min-w-0 min-h-screen flex flex-col pb-20 md:pb-16">
         {/* TopAppBar (Glass) */}
         {/* Modern Tokopedia / Grab / Alodokter Style Header */}
         {/* TopAppBar (Glass) */}
@@ -1755,13 +1808,18 @@ export default function CustomerDashboardClient({
               <div>
                 <span className="font-bold block mb-1">Ingin memulai memesan? Lengkapi Profil Mitra</span>
                 <p>Silakan lengkapi profil Mitra dengan **KTP Pemilik**, **NPWP Pemilik**, **SIA**, dan **SIPA** agar dapat melakukan pemesanan produk.</p>
-                <button
-                  type="button"
-                  onClick={() => { setActiveTab("pengaturan"); }}
+                <Link
+                  href="/customer/profile"
+                  onClick={(e: React.MouseEvent) => {
+                    if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                      e.preventDefault();
+                      setActiveTab("pengaturan");
+                    }
+                  }}
                   className="mt-2 font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   Lengkapi Profil di Menu Pengaturan &rarr;
-                </button>
+                </Link>
               </div>
             </div>
           )}
@@ -1780,8 +1838,12 @@ export default function CustomerDashboardClient({
                 <p className="mt-1.5 opacity-90">Sistem memblokir sementara pembuatan Surat Pesanan (SP) baru untuk obat keras sampai dokumen diperbarui dan diverifikasi oleh Admin PBF.</p>
                 <button
                   type="button"
-                  onClick={() => { setActiveTab("legalitas"); setLegalSubTab("sia"); }}
-                  className="mt-2 font-bold text-red-700 hover:underline flex items-center gap-1 cursor-pointer"
+                  onClick={() => {
+                    setActiveTab("legalitas");
+                    if (isSiaExpired) setLegalSubTab("sia");
+                    else if (isSipaExpired) setLegalSubTab("sipa");
+                  }}
+                  className="mt-2 font-bold text-red-700 hover:underline flex items-center gap-1 cursor-pointer border-none bg-transparent p-0"
                 >
                   Unggah Dokumen Baru &rarr;
                 </button>
@@ -3410,6 +3472,47 @@ export default function CustomerDashboardClient({
           router.refresh();
         }}
       />
+
+      {/* Welcome Tour Modal (Android Bottom-Sheet / Modal Style) */}
+      <WelcomeTourModal
+        isOpen={isWelcomeTourOpen}
+        onClose={() => setIsWelcomeTourOpen(false)}
+        userName={user?.name}
+      />
+
+      {/* MOBILE SIDEBAR DRAWER OVERLAY */}
+      {isMobileSidebarOpen && (
+        <div className="fixed inset-0 z-[200] bg-slate-950/60 backdrop-blur-sm flex justify-start md:hidden animate-in fade-in duration-200">
+          <div className="animate-in slide-in-from-left duration-300 h-full">
+            <Sidebar
+              activeTab={activeTab}
+              setActiveTab={handleSwitchTab}
+              isCheckoutOpen={isCheckoutOpen}
+              setIsCheckoutOpen={setIsCheckoutOpen}
+              viewingDetailOrder={viewingDetailOrder}
+              setViewingDetailOrder={setViewingDetailOrder}
+              institutionName={institution.name}
+              handleLogout={handleLogout}
+              setIsCartOpen={setIsCartOpen}
+              cartItemCount={cartItemCount}
+              pendingPaymentCount={pendingPaymentCount}
+              activeOrdersCount={activeOrdersCount}
+              docSubTab={docSubTab}
+              setDocSubTab={setDocSubTab}
+              esignPendingCount={orders.filter(o => o.status === "PENDING_APPROVAL" && !o.spSignature).length}
+              legalSubTab={legalSubTab}
+              setLegalSubTab={setLegalSubTab}
+              onCloseMobile={() => setIsMobileSidebarOpen(false)}
+              isMobileDrawer={true}
+            />
+          </div>
+          {/* Backdrop Click Area */}
+          <div
+            className="flex-1 h-full cursor-pointer"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+        </div>
+      )}
 
     </div>
   );

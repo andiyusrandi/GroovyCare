@@ -1292,11 +1292,11 @@ export default function ProductCatalog({
                               [p.id]: Math.max(1, (prev[p.id] || 1) - 1),
                             }))
                           }
-                          className="w-5 h-5 rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center font-bold text-[10px] cursor-pointer active:scale-95"
+                          className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                         >
                           -
                         </button>
-                        <span className="text-[10px] font-bold px-0.5 font-sans text-slate-800">
+                        <span className="text-xs font-bold font-mono px-1 text-slate-800">
                           {qty === undefined ? 1 : qty}
                         </span>
                         <button
@@ -1307,21 +1307,22 @@ export default function ProductCatalog({
                               [p.id]: Math.min(p.totalStock, (prev[p.id] || 1) + 1),
                             }))
                           }
-                          className="w-5 h-5 rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center font-bold text-[10px] cursor-pointer active:scale-95"
+                          className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                         >
                           +
                         </button>
                         <button
                           type="button"
+                          title="Tambah ke Keranjang"
                           onClick={() => addToCartWithQty(p, qty || 1)}
                           disabled={isOutOfStock || hasCdobWarning}
-                          className={`w-5 h-5 rounded text-white flex items-center justify-center shadow-2xs cursor-pointer active:scale-95 border-none transition-all ${
+                          className={`w-8 h-8 rounded-lg text-white flex items-center justify-center shadow-xs cursor-pointer active:scale-95 border-none transition-all ${
                             isOutOfStock || hasCdobWarning
                               ? "bg-slate-300 cursor-not-allowed"
                               : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
                           }`}
                         >
-                          <span className="material-symbols-outlined text-[12px]">add_shopping_cart</span>
+                          <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
                         </button>
                       </div>
                     </div>

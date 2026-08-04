@@ -10,10 +10,8 @@ LOCAL_PATH="/Users/macbookpro/mamp/GroovyCare"
 if [ "$1" = "push" ]; then
     echo "🚀 [GROWMEXA] Memulai proses deployment..."
     echo "💻 1. Melakukan Build Next.js di Laptop (Local)..."
-    cd "$LOCAL_PATH" && rm -rf .next && npx prisma generate && npm run build
+    cd "$LOCAL_PATH" && npx prisma generate && npm run build
 
-
-    
     if [ $? -ne 0 ]; then
         echo "❌ [GROWMEXA] Build di local gagal! Perbaiki error build terlebih dahulu."
         exit 1
@@ -26,6 +24,7 @@ if [ "$1" = "push" ]; then
         --include 'node_modules/@prisma/***' \
         --exclude 'node_modules' \
         --exclude '.next/cache' \
+        --exclude '.next/dev' \
         --exclude '.git' \
         --exclude 'android' \
         --exclude 'ios' \
@@ -36,15 +35,12 @@ if [ "$1" = "push" ]; then
         --exclude 'pemkey' \
         --exclude 'growmexa' \
         --exclude '*.py' \
-
         --exclude 'tsconfig.tsbuildinfo' \
         --exclude 'prisma/dev.db' \
         --exclude 'prisma/dev.db-journal' \
         --exclude '.env' \
         $LOCAL_PATH/ $VPS_USER@$VPS_IP:$VPS_PATH/
 
-
-    
     if [ $? -ne 0 ]; then
         echo "❌ [GROWMEXA] Sync file ke VPS gagal!"
         exit 1
@@ -52,9 +48,6 @@ if [ "$1" = "push" ]; then
 
     echo "⚡ 3. Merestart Server PM2 di VPS..."
     ssh growmexa "cd $VPS_PATH && npm install --production=false && npx prisma generate && (pm2 restart groovycare || pm2 start npm --name 'groovycare' -- start) && pm2 save"
-
-
-
 
     if [ $? -eq 0 ]; then
         echo ""
@@ -69,5 +62,3 @@ else
     echo "  ./growmexa push   - Build di local, sync ke VPS & Restart PM2"
     echo "  npm run push      - Alternative via npm script"
 fi
-
-

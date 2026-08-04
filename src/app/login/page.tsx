@@ -25,7 +25,7 @@ export default async function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex bg-white font-sans text-slate-900 antialiased overflow-x-hidden">
+    <div className="min-h-screen w-full flex bg-white font-sans text-slate-900 antialiased overflow-x-hidden select-none">
       {/* ================= SISI KIRI: BRANDING WITH CUSTOM BACKGROUND (DESKTOP) ================= */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-slate-950 p-16 flex-col justify-between text-white shrink-0">
         {/* Custom Background Image */}
@@ -64,45 +64,29 @@ export default async function LoginPage() {
         </div>
       </div>
 
-      {/* ================= SISI KANAN: FORM MINIMALIS ================= */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-between p-8 sm:p-12 lg:p-16 min-h-screen">
-        {/* Logo Header */}
-        <div className="flex justify-between items-center">
-          <Link href="/" className="inline-block">
-            <img
-              src={logoUrl}
-              alt="Logo PBF Online"
-              className="h-8 max-w-[180px] w-auto object-contain"
-            />
-          </Link>
-          <span className="text-xs text-slate-400 font-medium hidden sm:inline-block font-mono">
-            Portal Resmi
+      {/* ================= SISI KANAN: FORM MINIMALIS (MOBILE & DESKTOP) ================= */}
+      <div className="w-full lg:w-1/2 flex flex-col justify-between p-5 sm:p-10 lg:p-16 pb-12 sm:pb-8 min-h-screen min-h-[100dvh]">
+        {/* Header Right Tag (Desktop Only) */}
+        <div className="hidden sm:flex justify-end items-center">
+          <span className="text-xs text-slate-400 font-medium font-mono">
+            Portal Resmi PBF
           </span>
         </div>
 
-        {/* Form Main Area */}
-        <div className="max-w-sm w-full mx-auto my-auto space-y-8 py-6">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900 font-heading">
-              Masuk Akun
-            </h2>
-            <p className="text-xs text-slate-400">
-              Gunakan kredensial bisnis terdaftar Anda.
-            </p>
-          </div>
-
-          <LoginForm />
+        {/* Form Login (Mobile Optimized Top Padding & Centered Alignment) */}
+        <div className="max-w-sm w-full mx-auto pt-6 pb-4 sm:pt-0 sm:my-auto">
+          <LoginForm logoUrl={logoUrl} />
         </div>
 
-        {/* Footer Minimal */}
-        <div className="text-xs text-slate-400 flex justify-between items-center pt-6 border-t border-slate-100">
+        {/* Footer Minimal & Clear Target */}
+        <div className="text-xs text-slate-500 flex justify-between items-center pt-4 border-t border-slate-100 mt-6">
           <p>© {new Date().getFullYear()} PBF Online</p>
           <div className="flex gap-4">
-            <Link href="#" className="hover:text-slate-600 transition-colors">
-              Privacy
+            <Link href="/" className="hover:text-emerald-600 transition-colors">
+              Beranda
             </Link>
-            <Link href="#" className="hover:text-slate-600 transition-colors">
-              Terms
+            <Link href="/login" className="hover:text-emerald-600 transition-colors">
+              Bantuan
             </Link>
           </div>
         </div>

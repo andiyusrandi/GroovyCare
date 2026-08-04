@@ -72,13 +72,15 @@ export default async function LandingPage({ searchParams }: PageProps) {
         Loncati ke Konten Utama
       </a>
 
-      {/* TopNavBar */}
-      <nav className="hidden md:block fixed top-0 md:top-4 left-0 right-0 w-full md:w-[calc(100%-2rem)] max-w-7xl mx-auto z-50 bg-white/40 md:bg-white/30 backdrop-blur-md md:rounded-2xl border-b md:border border-outline-variant/10 md:border-white/20 shadow-sm md:shadow-lg transition-all duration-300">
-        <div className="flex justify-between items-center px-6 sm:px-8 py-3 w-full">
+      {/* Desktop Floating Glassmorphism Navbar */}
+      <nav className="hidden md:block fixed top-4 left-0 right-0 w-[calc(100%-2rem)] max-w-7xl mx-auto z-50 bg-white/75 backdrop-blur-xl rounded-2xl border border-slate-200/80 shadow-sm shadow-slate-900/5 transition-all duration-300">
+        <div className="flex justify-between items-center px-6 py-2.5 w-full">
+          
+          {/* Left Side: Logo & Main Navigation Links */}
           <div className="flex items-center gap-8">
             <Link
-              href="#"
-              className="flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg outline-none"
+              href="/"
+              className="flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-emerald-600 rounded-lg outline-none"
             >
               <img
                 src={logoUrl}
@@ -86,27 +88,29 @@ export default async function LandingPage({ searchParams }: PageProps) {
                 className="h-8 w-auto object-contain"
               />
             </Link>
-            <div className="hidden md:flex items-center gap-6">
+            
+            {/* Links Navigasi Segmented Controls Sleek */}
+            <div className="hidden md:flex items-center gap-1.5 bg-slate-100/70 p-1 rounded-xl border border-slate-200/60">
               <Link
-                className="text-primary font-bold border-b-2 border-primary pb-0.5 text-xs"
+                className="px-3.5 py-1.5 text-xs font-bold text-emerald-700 bg-white rounded-lg shadow-2xs transition-all"
                 href="#solutions"
               >
                 Solutions
               </Link>
               <Link
-                className="text-on-surface-variant hover:text-primary transition-colors duration-200 text-xs font-semibold"
+                className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
                 href="#katalog"
               >
                 Catalog
               </Link>
               <Link
-                className="text-on-surface-variant hover:text-primary transition-colors duration-200 text-xs font-semibold"
+                className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
                 href="#compliance"
               >
                 Compliance
               </Link>
               <Link
-                className="text-on-surface-variant hover:text-primary transition-colors duration-200 text-xs font-semibold"
+                className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
                 href="#about"
               >
                 About Us
@@ -114,31 +118,33 @@ export default async function LandingPage({ searchParams }: PageProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* Right Side: Auth Action Buttons */}
+          <div className="flex items-center gap-2">
             {session ? (
               <Link
                 href={session.role === "PBF_ADMIN" || session.role === "SYSTEM_ADMIN" ? "/admin/dashboard" : "/customer/dashboard"}
-                className="px-5 py-2 bg-primary text-white rounded-full hover:bg-primary/90 active:scale-95 transition-all duration-200 text-xs font-bold shadow-sm"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl active:scale-95 transition-all duration-200 text-xs font-bold shadow-xs shadow-emerald-600/20 cursor-pointer"
               >
-                Dashboard
+                Dashboard Mitra
               </Link>
             ) : (
               <>
                 <Link
                   href="/login"
-                  className="px-4 py-2 text-primary font-bold active:scale-95 transition-transform text-xs"
+                  className="px-4 py-2 text-xs font-bold text-slate-700 hover:text-emerald-600 hover:bg-slate-100/60 rounded-xl transition-all"
                 >
                   Partner Login
                 </Link>
                 <Link
                   href="/register"
-                  className="px-5 py-2 bg-primary text-white rounded-full hover:bg-primary/95 active:scale-95 transition-all duration-200 text-xs font-bold shadow-sm cursor-pointer"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl active:scale-95 transition-all duration-200 text-xs font-bold shadow-xs shadow-emerald-600/20 cursor-pointer"
                 >
                   Register
                 </Link>
               </>
             )}
           </div>
+
         </div>
       </nav>
 
@@ -177,38 +183,42 @@ export default async function LandingPage({ searchParams }: PageProps) {
 
               {/* Left Column: Copy & Actions (7/12) */}
               <div className="lg:col-span-7 space-y-6 lg:space-y-8 text-left">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/5 text-primary rounded-full border border-primary/10">
-                  <ShieldCheck className="w-4 h-4 text-primary" />
-                  <span className="text-[10px] lg:text-[11px] font-bold tracking-wider uppercase">
-                    CDOB Compliant &amp; Verified by BPOM
-                  </span>
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/90 backdrop-blur-md text-emerald-800 border border-emerald-200/90 text-[11px] font-bold shadow-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>PBF Online System • Verifikasi BPOM &amp; CDOB Real-time</span>
                 </div>
 
-                <h1 className="font-heading font-extrabold text-2xl sm:text-3xl lg:text-[40px] lg:leading-[48px] text-foreground tracking-tight">
+                {/* HEADLINE UTAMA */}
+                <h1 className="font-sans font-extrabold text-3xl sm:text-4xl lg:text-[44px] lg:leading-[1.15] text-slate-900 tracking-tight">
                   Transformasi Digital <br />
-                  Distribusi{" "}
-                  <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    Farmasi Terpercaya
-                  </span>
+                  Distribusi <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 bg-clip-text text-transparent">Farmasi Terpercaya</span>
                 </h1>
 
-                <p className="text-xs sm:text-sm text-on-surface-variant/85 max-w-xl leading-relaxed font-normal">
+                {/* DESKRIPSI TEKS */}
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal max-w-xl">
                   Solusi logistik obat satu pintu untuk apotek, rumah sakit, dan klinik. Pengelolaan transaksi tempo/kredit real-time, integrasi kurir instan, dan kepatuhan regulasi BPOM tertinggi di Indonesia.
                 </p>
 
-                <div className="flex flex-wrap gap-3.5 pt-1">
+                {/* TOMBOL AKSI */}
+                <div className="flex flex-wrap items-center gap-3.5 pt-2">
+                  {/* Primary Button */}
                   <Link
                     href="/register"
-                    className="px-6 py-3 bg-primary text-white rounded-xl text-xs font-bold hover:shadow-md hover:shadow-primary/10 active:scale-95 transition-all cursor-pointer"
+                    className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
                   >
                     Daftar Jadi Mitra
                   </Link>
+
+                  {/* Secondary Button */}
                   <Link
                     href="#katalog"
-                    className="px-6 py-3 bg-surface-container-low hover:bg-surface-container text-on-surface rounded-xl text-xs font-bold active:scale-95 transition-all flex items-center gap-1.5 border border-outline-variant/30 shadow-sm"
+                    className="px-6 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs border border-slate-200/90 shadow-2xs active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
-                    Lihat Katalog
-                    <ArrowRight className="w-3.5 h-3.5 text-on-surface-variant" />
+                    <span>Lihat Katalog</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+                      <path d="M5 12h14"></path>
+                      <path d="m12 5 7 7-7 7"></path>
+                    </svg>
                   </Link>
                 </div>
               </div>
@@ -372,7 +382,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
 
           {/* Wrapper Grid: Gunakan items-start agar tinggi card kiri menyesuaikan kontennya secara alami */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            
+
             {/* 1. CARD UTAMA (Sekarang lebih ringkas & proporsional) */}
             <div className="lg:col-span-2 relative overflow-hidden rounded-3xl bg-slate-900 text-white p-6 md:p-7 border border-slate-800 shadow-xl flex flex-col justify-between group hover:border-emerald-500/50 transition-all duration-300">
               {/* Decor Glow */}
@@ -469,114 +479,105 @@ export default async function LandingPage({ searchParams }: PageProps) {
 
 
 
-        {/* Interactive Trust Wall & Live Compliance Status (High-Tech & Luxury Polish) */}
-        <section
-          id="compliance"
-          className="hidden md:block py-14 relative overflow-hidden bg-gradient-to-b from-slate-50 via-emerald-50/20 to-slate-50 border-y border-slate-200/60"
-        >
-          {/* Aksen Background Grid Pattern untuk Kesan High-Tech */}
-          <div 
-            className="absolute inset-0 opacity-[0.35] pointer-events-none" 
-            style={{ backgroundImage: `radial-gradient(#059669 0.75px, transparent 0.75px)`, backgroundSize: '24px 24px' }}
-          />
+        {/* Interactive Trust Wall & Live Compliance Status (Unified Emerald & Tech-Clean) */}
+        <section id="compliance" className="hidden md:block py-12 relative overflow-hidden bg-slate-50/70 border-y border-slate-200/70">
+          
+          {/* Pattern Dot Background Minimalis */}
+          <div className="absolute inset-0 opacity-[0.25] pointer-events-none" style={{ backgroundImage: `radial-gradient(#059669 0.75px, transparent 0.75px)`, backgroundSize: '24px 24px' }}></div>
 
-          <div className="max-w-6xl mx-auto px-6 space-y-6 relative z-10">
+          <div className="max-w-6xl mx-auto px-6 space-y-5 relative z-10">
             
             {/* Header Banner - Glassmorphism Style */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/70 backdrop-blur-xl p-4 px-6 rounded-2xl border border-slate-200/90 shadow-sm">
-              <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold border border-emerald-500/20 shadow-inner">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/90 backdrop-blur-md p-4 px-6 rounded-2xl border border-slate-200/80 shadow-2xs">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-2xs">
                   <ShieldCheck className="w-5 h-5 text-emerald-600" />
                 </div>
                 <div>
-                  <h3 className="font-heading font-extrabold text-xs text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <h3 className="font-extrabold text-xs text-slate-900 tracking-tight flex items-center gap-2 font-heading">
                     Sertifikasi &amp; Kepatuhan Hukum Terverifikasi
                   </h3>
-                  <p className="text-[11px] text-slate-500 font-medium">Jaminan legalitas distributor medis resmi Indonesia</p>
+                  <p className="text-[11px] text-slate-500 font-normal">Jaminan legalitas distributor medis resmi Indonesia</p>
                 </div>
               </div>
 
-              <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white text-emerald-700 border border-emerald-300/80 text-[10px] font-bold shrink-0 shadow-xs">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[10px] font-bold shrink-0">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                <span className="tracking-wide text-emerald-800">BPOM &amp; CDOB Real-time Verified System</span>
+                <span className="tracking-wide">BPOM &amp; CDOB Real-time Verified</span>
               </div>
             </div>
 
-            {/* Grid Sertifikat (4 Cards Tech-Mewah) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* Grid Sertifikat (4 Cards - Unified Emerald Theme) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               
               {/* 1. Kemenkes RI */}
-              <div className="bg-white/90 backdrop-blur-md p-5 rounded-2xl border border-slate-200/80 hover:border-teal-400 hover:shadow-xl hover:shadow-teal-500/5 hover:-translate-y-1.5 transition-all duration-300 group flex flex-col justify-between space-y-4">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 hover:border-emerald-400 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="h-12 w-16 bg-slate-50/80 p-2 rounded-xl border border-slate-100 flex items-center justify-center group-hover:bg-white group-hover:shadow-xs transition-all">
-                    <img src="/images/compliance/kemkes%20logo.png" alt="Kementerian Kesehatan RI" className="h-8 w-auto object-contain group-hover:scale-110 transition-transform duration-300" />
+                  <div className="h-10 w-14 bg-slate-50 p-1.5 rounded-lg border border-slate-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                    <img src="/images/compliance/kemkes%20logo.png" alt="Kementerian Kesehatan RI" className="h-7 w-auto object-contain group-hover:scale-105 transition-transform" />
                   </div>
-                  <span className="text-[9px] font-extrabold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200/60 uppercase tracking-wider">Izin Resmi</span>
+                  <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60 uppercase">Izin Resmi</span>
                 </div>
                 <div>
-                  <h4 className="font-bold text-xs text-slate-900 group-hover:text-teal-600 transition-colors">Kementerian Kesehatan RI</h4>
-                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">Izin Operasional PBF</p>
+                  <h4 className="font-bold text-xs text-slate-900 group-hover:text-emerald-600 transition-colors">Kementerian Kesehatan RI</h4>
+                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">Izin Operasional PBF</p>
                 </div>
-                <div className="pt-3 border-t border-slate-100 text-[9px] text-teal-600 font-extrabold flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500 shadow-xs shadow-teal-500"></span>
-                  Status: Terverifikasi Aktif
+                <div className="pt-2.5 border-t border-slate-100 text-[10px] text-emerald-600 font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Status: Terverifikasi
                 </div>
               </div>
 
               {/* 2. Badan POM */}
-              <div className="bg-white/90 backdrop-blur-md p-5 rounded-2xl border border-slate-200/80 hover:border-emerald-400 hover:shadow-xl hover:shadow-emerald-500/5 hover:-translate-y-1.5 transition-all duration-300 group flex flex-col justify-between space-y-4">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 hover:border-emerald-400 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="h-12 w-16 bg-slate-50/80 p-2 rounded-xl border border-slate-100 flex items-center justify-center group-hover:bg-white group-hover:shadow-xs transition-all">
-                    <img src="/images/compliance/Logo-Badan-POM-Format-SVG-PNG-AI-PDF-EPS-CDR.png" alt="Badan POM Indonesia" className="h-8 w-auto object-contain group-hover:scale-110 transition-transform duration-300" />
+                  <div className="h-10 w-14 bg-slate-50 p-1.5 rounded-lg border border-slate-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                    <img src="/images/compliance/Logo-Badan-POM-Format-SVG-PNG-AI-PDF-EPS-CDR.png" alt="Badan POM Indonesia" className="h-7 w-auto object-contain group-hover:scale-105 transition-transform" />
                   </div>
-                  <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60 uppercase tracking-wider">CDOB Valid</span>
+                  <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60 uppercase">CDOB Valid</span>
                 </div>
                 <div>
                   <h4 className="font-bold text-xs text-slate-900 group-hover:text-emerald-600 transition-colors">Badan POM Indonesia</h4>
-                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">Sertifikasi CDOB BPOM</p>
+                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">Sertifikasi CDOB BPOM</p>
                 </div>
-                <div className="pt-3 border-t border-slate-100 text-[9px] text-emerald-600 font-extrabold flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500"></span>
-                  Status: Terverifikasi Aktif
+                <div className="pt-2.5 border-t border-slate-100 text-[10px] text-emerald-600 font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Status: Terverifikasi
                 </div>
               </div>
 
               {/* 3. ISO 9001:2015 */}
-              <div className="bg-white/90 backdrop-blur-md p-5 rounded-2xl border border-slate-200/80 hover:border-indigo-400 hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-1.5 transition-all duration-300 group flex flex-col justify-between space-y-4">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 hover:border-emerald-400 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="h-12 w-16 bg-slate-50/80 p-2 rounded-xl border border-slate-100 flex items-center justify-center group-hover:bg-white group-hover:shadow-xs transition-all">
-                    <img src="/images/compliance/ISO_9001-2015.svg.png" alt="ISO 9001:2015 Certification" className="h-8 w-auto object-contain group-hover:scale-110 transition-transform duration-300" />
+                  <div className="h-10 w-14 bg-slate-50 p-1.5 rounded-lg border border-slate-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                    <img src="/images/compliance/ISO_9001-2015.svg.png" alt="ISO 9001:2015 Certification" className="h-7 w-auto object-contain group-hover:scale-105 transition-transform" />
                   </div>
-                  <span className="text-[9px] font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200/60 uppercase tracking-wider">Mutu ISO</span>
+                  <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60 uppercase">Mutu ISO</span>
                 </div>
                 <div>
-                  <h4 className="font-bold text-xs text-slate-900 group-hover:text-indigo-600 transition-colors">ISO 9001:2015</h4>
-                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">Manajemen Mutu Distribusi</p>
+                  <h4 className="font-bold text-xs text-slate-900 group-hover:text-emerald-600 transition-colors">ISO 9001:2015</h4>
+                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">Manajemen Mutu Distribusi</p>
                 </div>
-                <div className="pt-3 border-t border-slate-100 text-[9px] text-indigo-600 font-extrabold flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-xs shadow-indigo-500"></span>
-                  Status: Quality Assured
+                <div className="pt-2.5 border-t border-slate-100 text-[10px] text-emerald-600 font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Status: Quality Assured
                 </div>
               </div>
 
               {/* 4. e-Sign SP Digital */}
-              <div className="bg-white/90 backdrop-blur-md p-5 rounded-2xl border border-slate-200/80 hover:border-blue-400 hover:shadow-xl hover:shadow-blue-500/5 hover:-translate-y-1.5 transition-all duration-300 group flex flex-col justify-between space-y-4">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 hover:border-emerald-400 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="h-12 w-16 bg-slate-50/80 p-2 rounded-xl border border-slate-100 flex items-center justify-center group-hover:bg-white group-hover:shadow-xs transition-all">
-                    <img src="/images/compliance/sign%20logo.png" alt="e-Sign SP Digital" className="h-8 w-auto object-contain group-hover:scale-110 transition-transform duration-300" />
+                  <div className="h-10 w-14 bg-slate-50 p-1.5 rounded-lg border border-slate-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                    <img src="/images/compliance/sign%20logo.png" alt="e-Sign SP Digital" className="h-7 w-auto object-contain group-hover:scale-105 transition-transform" />
                   </div>
-                  <span className="text-[9px] font-extrabold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/60 uppercase tracking-wider">Legal 100%</span>
+                  <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60 uppercase">Legal 100%</span>
                 </div>
                 <div>
-                  <h4 className="font-bold text-xs text-slate-900 group-hover:text-blue-600 transition-colors">e-Sign SP Digital</h4>
-                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">Keabsahan Tanda Tangan SP</p>
+                  <h4 className="font-bold text-xs text-slate-900 group-hover:text-emerald-600 transition-colors">e-Sign SP Digital</h4>
+                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">Keabsahan Tanda Tangan SP</p>
                 </div>
-                <div className="pt-3 border-t border-slate-100 text-[9px] text-blue-600 font-extrabold flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-xs shadow-blue-500"></span>
-                  Status: Sah Medis &amp; Valid
+                <div className="pt-2.5 border-t border-slate-100 text-[10px] text-emerald-600 font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Status: Sah Medis &amp; Valid
                 </div>
               </div>
 
@@ -658,33 +659,31 @@ export default async function LandingPage({ searchParams }: PageProps) {
           </div>
         </section>
 
-        {/* Public Catalog Preview (Dynamic!) */}
-        <section id="katalog" className="py-16 bg-slate-50/50 border-t border-slate-200/60">
-          <div className="max-w-7xl mx-auto px-6 lg:px-8 space-y-8">
+        {/* Public Catalog Preview (Mobile Native & High-Usability Style) */}
+        <section id="catalog" className="py-6 sm:py-10 bg-slate-50/60 border-y border-slate-200/60 selection:bg-emerald-500/10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 font-sans">
+            
             {/* Section Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200/80 pb-6">
+            <div className="flex items-end justify-between border-b border-slate-200/80 pb-3">
               <div>
-                <span className="text-emerald-600 bg-emerald-50 text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-emerald-200/60">
-                  Produk Resmi &amp; Terverifikasi
+                <span className="text-emerald-700 bg-emerald-50 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-emerald-200/60 inline-block mb-1">
+                  Display Utama
                 </span>
-                <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mt-2 font-heading">
+                <h2 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight font-heading">
                   Katalog Produk Unggulan
                 </h2>
-                <p className="text-slate-500 text-xs md:text-sm mt-1">
-                  Sediaan medis asli berstandar CDOB langsung dari distributor resmi.
-                </p>
               </div>
-              
+
               <Link 
                 href="/login" 
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline transition-all group"
+                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors flex items-center gap-1 group shrink-0"
               >
-                Lihat Semua Produk 
-                <span className="group-hover:translate-x-1 transition-transform">→</span>
+                <span>Lihat Semua</span>
+                <span className="group-hover:translate-x-0.5 transition-transform">→</span>
               </Link>
             </div>
 
-            {/* Render dynamic catalog */}
+            {/* Render 5 Produk Display Utama */}
             <PublicCatalog products={products} />
           </div>
         </section>

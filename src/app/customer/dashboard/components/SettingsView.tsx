@@ -163,6 +163,48 @@ export default function SettingsView({ user, institution, onUpdateProfile }: Set
       });
   }, [selectedDistrictId]);
 
+  // Auto match selectedProvinceId when provincesList & province name are available
+  useEffect(() => {
+    if (provincesList.length > 0 && province && !selectedProvinceId) {
+      const found = provincesList.find((p) => p.name.toUpperCase() === province.trim().toUpperCase());
+      if (found) setSelectedProvinceId(found.id);
+    }
+  }, [provincesList, province, selectedProvinceId]);
+
+  // Auto match selectedRegencyId when regenciesList & regency name are available
+  useEffect(() => {
+    if (regenciesList.length > 0 && regency && !selectedRegencyId) {
+      const found = regenciesList.find((r) => r.name.toUpperCase() === regency.trim().toUpperCase());
+      if (found) setSelectedRegencyId(found.id);
+    }
+  }, [regenciesList, regency, selectedRegencyId]);
+
+  // Auto match selectedDistrictId when districtsList & district name are available
+  useEffect(() => {
+    if (districtsList.length > 0 && district && !selectedDistrictId) {
+      const found = districtsList.find((d) => d.name.toUpperCase() === district.trim().toUpperCase());
+      if (found) setSelectedDistrictId(found.id);
+    }
+  }, [districtsList, district, selectedDistrictId]);
+
+  // Auto fetch Kode Pos when District or Village changes
+  useEffect(() => {
+    if (!district) return;
+    const query = village ? `${village} ${district}` : district;
+    fetch(`/api/wilayah?type=postcode&q=${encodeURIComponent(query)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((resData) => {
+        if (resData && resData.data && Array.isArray(resData.data) && resData.data.length > 0) {
+          const firstMatch = resData.data[0];
+          const code = firstMatch.postalcode || firstMatch.postcode || firstMatch.code;
+          if (code) {
+            setPostalCode(String(code));
+          }
+        }
+      })
+      .catch(() => {});
+  }, [district, village]);
+
   // Fetch postcode automatically when village, district, or regency changes
   useEffect(() => {
     if (!village || !district) return;
@@ -659,36 +701,44 @@ export default function SettingsView({ user, institution, onUpdateProfile }: Set
           </div>
         )}
 
-        {/* SUBTAB: PROFIL APOTEK */}
+        {/* SUBTAB: PROFIL APOTEK (Desktop Refined Layout & Spacing) */}
         {activeSubTab === "profile" && (
-          <div className="space-y-6 max-w-lg">
-            <h3 className="text-sm font-heading font-bold text-foreground flex items-center gap-2">
-              <User className="w-4 h-4 text-primary" />
-              Kelola Profil Apotek / Mitra
-            </h3>
-            
-            <p className="text-xs text-on-surface-variant">
-              Untuk melakukan pemesanan produk, Anda wajib melengkapi data profil mitra di bawah ini dengan lengkap (KTP Pemilik, NPWP Pemilik, SIA, dan SIPA).
-            </p>
+          <div className="space-y-6 max-w-3xl">
+            {/* Header Section */}
+            <div className="border-b border-slate-100 pb-4">
+              <h3 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2.5 font-heading">
+                <User className="w-5 h-5 text-emerald-600" />
+                Kelola Profil Apotek / Mitra
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Untuk melakukan pemesanan produk, Anda wajib melengkapi data profil mitra di bawah ini dengan lengkap (KTP Pemilik, NPWP Pemilik, SIA, dan SIPA).
+              </p>
+            </div>
 
-            <div className="space-y-4 text-xs">
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] uppercase font-bold text-outline">Nama Apotek / Sarana</label>
+            <div className="space-y-5 text-xs">
+              {/* Nama Apotek / Sarana (Read-only) */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  Nama Apotek / Sarana
+                </label>
                 <input
                   type="text"
                   disabled
                   value={institution.name}
-                  className="px-4 py-2.5 rounded-xl border border-outline-variant bg-slate-50 text-on-surface-variant outline-none font-medium cursor-not-allowed text-xs"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100/70 text-slate-600 font-medium text-xs cursor-not-allowed select-none"
                 />
               </div>
 
-              {/* Lokasi Alamat Apotek (Cascading Dropdowns) */}
-              <div className="bg-slate-50 border border-outline-variant/30 rounded-2xl p-4 space-y-3.5">
-                <h4 className="font-bold text-slate-700 text-[10px] uppercase tracking-wider block border-b border-outline-variant/20 pb-1.5">Alamat Operasional Apotek</h4>
-                
+              {/* Card Section: Alamat Operasional Apotek (Cascading Dropdowns & Grid 3-Cols) */}
+              <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-5 space-y-4">
+                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider block border-b border-slate-200/60 pb-2">
+                  Alamat Operasional Apotek
+                </h4>
+
+                {/* Wilayah Grid Row 1 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] uppercase font-bold text-outline">Provinsi *</label>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Provinsi *</label>
                     <select
                       required
                       value={selectedProvinceId}
@@ -703,7 +753,7 @@ export default function SettingsView({ user, institution, onUpdateProfile }: Set
                         setDistrict("");
                         setVillage("");
                       }}
-                      className="px-4 py-2.5 rounded-xl border border-outline-variant bg-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-xs"
+                      className="px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all outline-none text-xs"
                     >
                       <option value="">{province ? province : "Pilih Provinsi"}</option>
                       {provincesList.map((p) => (
@@ -711,8 +761,8 @@ export default function SettingsView({ user, institution, onUpdateProfile }: Set
                       ))}
                     </select>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] uppercase font-bold text-outline">Kabupaten/Kota *</label>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Kabupaten/Kota *</label>
                     <select
                       required
                       disabled={!selectedProvinceId && !regency}
@@ -726,7 +776,11 @@ export default function SettingsView({ user, institution, onUpdateProfile }: Set
                         setDistrict("");
                         setVillage("");
                       }}
-                      className="px-4 py-2.5 rounded-xl border border-outline-variant bg-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-xs disabled:opacity-50"
+                      className={`px-3.5 py-2.5 rounded-xl border text-xs outline-none transition-colors ${
+                        !selectedProvinceId && !regency
+                          ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-60"
+                          : "border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                      }`}
                     >
                       <option value="">{regency ? regency : "Pilih Kabupaten/Kota"}</option>
                       {regenciesList.map((r) => (
@@ -736,9 +790,10 @@ export default function SettingsView({ user, institution, onUpdateProfile }: Set
                   </div>
                 </div>
 
+                {/* Wilayah Grid Row 2 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] uppercase font-bold text-outline">Kecamatan *</label>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Kecamatan *</label>
                     <select
                       required
                       disabled={!selectedRegencyId && !district}
@@ -750,7 +805,11 @@ export default function SettingsView({ user, institution, onUpdateProfile }: Set
                         setDistrict(name);
                         setVillage("");
                       }}
-                      className="px-4 py-2.5 rounded-xl border border-outline-variant bg-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-xs disabled:opacity-50"
+                      className={`px-3.5 py-2.5 rounded-xl border text-xs outline-none transition-colors ${
+                        !selectedRegencyId && !district
+                          ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-60"
+                          : "border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                      }`}
                     >
                       <option value="">{district ? district : "Pilih Kecamatan"}</option>
                       {districtsList.map((d) => (
@@ -758,14 +817,18 @@ export default function SettingsView({ user, institution, onUpdateProfile }: Set
                       ))}
                     </select>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] uppercase font-bold text-outline">Kelurahan/Desa *</label>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Kelurahan/Desa *</label>
                     <select
                       required
                       disabled={!selectedDistrictId && !village}
                       value={village}
                       onChange={(e) => setVillage(e.target.value)}
-                      className="px-4 py-2.5 rounded-xl border border-outline-variant bg-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-xs disabled:opacity-50"
+                      className={`px-3.5 py-2.5 rounded-xl border text-xs outline-none transition-colors ${
+                        !selectedDistrictId && !village
+                          ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-60"
+                          : "border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                      }`}
                     >
                       <option value="">{village ? village : "Pilih Kelurahan/Desa"}</option>
                       {villagesList.map((v) => (
@@ -775,86 +838,90 @@ export default function SettingsView({ user, institution, onUpdateProfile }: Set
                   </div>
                 </div>
 
+                {/* Wilayah Grid Row 3 (Kode Pos 1-col & Alamat Detail 2-cols) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex flex-col gap-1 md:col-span-1">
-                    <label className="text-[10px] uppercase font-bold text-outline">Kode Pos *</label>
+                  <div className="flex flex-col gap-1.5 md:col-span-1">
+                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Kode Pos *</label>
                     <input
                       type="text"
                       required
                       placeholder="Contoh: 12345"
                       value={postalCode}
                       onChange={(e) => setPostalCode(e.target.value)}
-                      className="px-4 py-2.5 rounded-xl border border-outline-variant bg-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-xs font-mono"
+                      className="px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all outline-none text-xs font-mono"
                     />
                   </div>
-                  <div className="flex flex-col gap-1 md:col-span-2">
-                    <label className="text-[10px] uppercase font-bold text-outline">Alamat Rumah / Jalan Lengkap *</label>
+                  <div className="flex flex-col gap-1.5 md:col-span-2">
+                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Alamat Jalan / Detail *</label>
                     <textarea
                       required
                       rows={2}
                       placeholder="Jl. Raya Kebon Jeruk No. 12"
                       value={addressDetail}
                       onChange={(e) => setAddressDetail(e.target.value)}
-                      className="px-4 py-2 rounded-xl border border-outline-variant bg-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-xs leading-normal"
+                      className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all outline-none text-xs leading-normal resize-none"
                     />
                   </div>
                 </div>
               </div>
 
+              {/* Legalitas & Identitas Grid (KTP & NPWP) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] uppercase font-bold text-outline">KTP Pemilik *</label>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">KTP Pemilik *</label>
                   <input
                     type="text"
                     value={ownerKtp}
                     onChange={(e) => setOwnerKtp(e.target.value)}
                     placeholder="Masukkan 16 digit NIK KTP Pemilik"
-                    className="px-4 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-xs"
+                    className="px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all outline-none text-xs font-mono"
                   />
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] uppercase font-bold text-outline">NPWP Pemilik *</label>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">NPWP Pemilik *</label>
                   <input
                     type="text"
                     value={ownerNpwp}
                     onChange={(e) => setOwnerNpwp(e.target.value)}
                     placeholder="Masukkan nomor NPWP Pemilik"
-                    className="px-4 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-xs"
+                    className="px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all outline-none text-xs font-mono"
                   />
                 </div>
               </div>
 
+              {/* Legalitas Grid (SIA & SIPA) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] uppercase font-bold text-outline">Nomor SIA *</label>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Nomor SIA *</label>
                   <input
                     type="text"
                     value={siaNumber}
                     onChange={(e) => setSiaNumber(e.target.value)}
                     placeholder="SIA/123/ABC/2024"
-                    className="px-4 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-xs"
+                    className="px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all outline-none text-xs font-mono"
                   />
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] uppercase font-bold text-outline">Nomor SIPA *</label>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Nomor SIPA *</label>
                   <input
                     type="text"
                     value={sipaNumber}
                     onChange={(e) => setSipaNumber(e.target.value)}
                     placeholder="SIPA/456/DEF/2024"
-                    className="px-4 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-xs"
+                    className="px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all outline-none text-xs font-mono"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-outline-variant/15">
+              {/* Action Button */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   disabled={isSavingProfile}
                   onClick={handleSaveProfile}
-                  className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold cursor-pointer shadow-md flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-sm transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50 border-none"
                 >
                   {isSavingProfile ? (
                     <span>Menyimpan...</span>
@@ -868,10 +935,10 @@ export default function SettingsView({ user, institution, onUpdateProfile }: Set
               </div>
 
               {(!ownerKtp || !ownerNpwp || !siaNumber || !sipaNumber) && (
-                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3 text-red-800 text-[10px]">
-                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5 animate-pulse" />
+                <div className="bg-rose-50 border border-rose-200/80 rounded-2xl p-4 flex items-start gap-3 text-rose-800 text-xs">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5 animate-pulse" />
                   <div>
-                    <span className="font-bold block">Peringatan: Profil Belum Lengkap</span>
+                    <span className="font-bold block text-rose-900">Peringatan: Profil Belum Lengkap</span>
                     Anda belum melengkapi seluruh dokumen wajib (KTP Pemilik, NPWP Pemilik, SIA, dan SIPA). Fitur pemesanan produk akan diblokir sampai seluruh data di atas terisi dengan benar.
                   </div>
                 </div>

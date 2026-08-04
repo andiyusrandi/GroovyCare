@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { 
-  ShoppingBag, 
-  FileSignature, 
-  CreditCard, 
-  Truck, 
-  ShieldCheck, 
-  FileText 
+import Link from "next/link";
+import {
+  ShoppingBag,
+  FileSignature,
+  CreditCard,
+  Truck,
+  ShieldCheck,
+  FileText
 } from "lucide-react";
 import { triggerHapticImpact } from "@/lib/mobile-haptics";
 import { getBiteshipStatusMeta } from "@/lib/biteship-status";
@@ -24,14 +25,14 @@ interface DashboardOverviewProps {
 function calculateOrderTotals(order: any) {
   const subtotal = order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
   const vat = Math.round(subtotal * 0.11);
-  
+
   const addr = order.shippingAddress || "";
   const feeMatch = addr.match(/-\s*Rp\s*([0-9.,]+)/);
   let shippingFee = 0;
   if (feeMatch && feeMatch[1]) {
     shippingFee = parseInt(feeMatch[1].replace(/[.,]/g, ""), 10) || 0;
   } else if (addr.includes("Kurir: Standard Flat Rate")) {
-    const isColdChain = order.items.some((item: any) => 
+    const isColdChain = order.items.some((item: any) =>
       item.product?.category === "COLD_CHAIN" || item.product?.category?.toLowerCase() === "cold chain" ||
       item.product?.name?.toLowerCase().includes("insulin") || item.product?.code?.toLowerCase().includes("amx")
     );
@@ -46,7 +47,7 @@ function calculateOrderTotals(order: any) {
 
 function getCourierName(shipment: any): string {
   if (!shipment) return "KURIR: PBF GROVMEXA EXPRESS";
-  
+
   const addr = shipment.shippingAddress || "";
   const match = addr.match(/Kurir:\s*([^|[\]\n-]+)/i);
   let courier = match ? match[1].trim() : "";
@@ -102,7 +103,8 @@ export default function DashboardOverview({
 
   return (
     <div className="space-y-6 animate-fadeIn font-sans pb-12">
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
@@ -115,41 +117,47 @@ export default function DashboardOverview({
       {/* ========================================================================= */}
       {/* 1. DESKTOP VIEW: Bento Grid Dashboard                                     */}
       {/* ========================================================================= */}
-      <div className="hidden md:block space-y-6">
-        {/* 1. BANNER PROFIL MITRA MEWAH */}
+      <div className="hidden md:block space-y-6 pb-12 md:pb-16">
+        {/* 1. BANNER PROFIL MITRA MEWAH (Desktop Refined) */}
         <section>
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-900 via-slate-900 to-teal-950 p-6 text-white shadow-lg mb-6 border border-emerald-800/40">
-            {/* Decor Glow Background */}
-            <div className="absolute -right-10 -bottom-10 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 p-6 text-white shadow-md mb-6 border border-emerald-800/30">
+            {/* Soft Glow Backdrop */}
+            <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+              {/* Profil & Info Apotek */}
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold text-lg shrink-0 font-heading">
+                {/* Avatar AP Refined */}
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 ring-4 ring-emerald-500/10 flex items-center justify-center font-bold text-xl shrink-0 font-heading shadow-inner">
                   {institution.name.substring(0, 2).toUpperCase()}
                 </div>
+
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg md:text-xl font-bold text-white font-heading">{institution.name}</h3>
-                    <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-2.5 py-0.5 rounded border border-emerald-500/30 uppercase tracking-wider">
-                      ✓ MITRA TERVERIFIKASI
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h3 className="text-xl md:text-2xl font-bold text-white font-heading tracking-tight">
+                      {institution.name}
+                    </h3>
+                    <span className="inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-300 text-xs font-semibold px-2.5 py-1 rounded-md border border-emerald-500/30 tracking-wide">
+                      <svg className="w-3.5 h-3.5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                      </svg>
+                      MITRA TERVERIFIKASI
                     </span>
                   </div>
-                  <p className="text-xs text-slate-300 mt-0.5 font-medium">
-                    {orders.length} pesanan tercatat • {orders.filter(o => o.status === "PENDING_APPROVAL" && !o.spSignature).length} e-Sign SP tertunda
+                  <p className="text-xs text-slate-300 mt-1 font-medium tracking-wide">
+                    {orders.length} pesanan tercatat <span className="mx-1 text-slate-500">•</span> {orders.filter(o => o.status === "PENDING_APPROVAL" && !o.spSignature).length} e-Sign SP tertunda
                   </p>
                 </div>
               </div>
 
-              {/* Loyalty & Status Badge (Glassmorphism) */}
+              {/* Status Badge */}
               <div className="flex items-center gap-3">
-                <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 text-center min-w-[95px]">
-                  <span className="text-[9px] text-slate-300 uppercase tracking-wider block font-medium">LOYALTY PTS</span>
-                  <span className="text-xs font-extrabold text-amber-400 font-mono">1.250 pts</span>
-                </div>
-                <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 text-center min-w-[100px]">
-                  <span className="text-[9px] text-slate-300 uppercase tracking-wider block font-medium">STATUS AKUN</span>
-                  <span className="text-xs font-extrabold text-emerald-400 flex items-center justify-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <div className="bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/10 text-center shadow-sm">
+                  <span className="text-[10px] text-emerald-200/80 uppercase tracking-widest block font-bold mb-0.5">
+                    STATUS AKUN
+                  </span>
+                  <span className="text-xs font-extrabold text-emerald-300 flex items-center justify-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                     {limitStatusLabel}
                   </span>
                 </div>
@@ -185,15 +193,15 @@ export default function DashboardOverview({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Main Content Column (Left/Center - 9 Cols) */}
           <div className="lg:col-span-9 space-y-6">
-            
-            {/* 2. METRIC CARDS (SEPARATE & CLEAN 3-CARDS GRID) */}
+
+            {/* 2. METRIC CARDS (Phase 3 Refactored: Standardized Badges & Progress Lines) */}
             <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {/* Sisa Limit Kredit */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
                 <div>
                   <div className="flex justify-between items-center text-slate-500 mb-2">
                     <span className="text-xs font-semibold text-slate-600 tracking-wide">Sisa Limit Kredit</span>
-                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 rounded-full">100% Tersedia</span>
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">100% Tersedia</span>
                   </div>
                   <div className="text-2xl font-extrabold text-slate-900 tracking-tight font-sans my-1">
                     Rp {sisaKredit.toLocaleString("id-ID")}
@@ -218,13 +226,18 @@ export default function DashboardOverview({
                   <div className="flex justify-between items-center text-slate-500 mb-2">
                     <span className="text-xs font-semibold text-slate-600 tracking-wide">Jatuh Tempo</span>
                     {unpaidOrders.length > 0 ? (
-                      <span className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200/60 px-2.5 py-0.5 rounded-full">Kritis</span>
+                      <span className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">Kritis</span>
                     ) : (
-                      <span className="text-[11px] font-medium text-slate-600 bg-slate-100 border border-slate-200/60 px-2.5 py-0.5 rounded-full">Aman</span>
+                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">Aman</span>
                     )}
                   </div>
                   <div className="text-2xl font-extrabold text-slate-900 tracking-tight font-sans my-1">
                     Rp {totalUnpaidAmount.toLocaleString("id-ID")}
+                  </div>
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden my-2 border border-slate-200/50">
+                    <div
+                      className={`h-full rounded-full transition-all duration-1000 ease-out ${unpaidOrders.length > 0 ? "bg-rose-600 w-full" : "bg-emerald-500 w-full"}`}
+                    ></div>
                   </div>
                 </div>
                 <div className="pt-2 border-t border-slate-100 mt-2">
@@ -239,10 +252,13 @@ export default function DashboardOverview({
                 <div>
                   <div className="flex justify-between items-center text-slate-500 mb-2">
                     <span className="text-xs font-semibold text-slate-600 tracking-wide">Pesanan Bulan Ini</span>
-                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 rounded-full">+12.4% vs bln lalu</span>
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">+12.4% vs bln lalu</span>
                   </div>
                   <div className="text-2xl font-extrabold text-slate-900 tracking-tight font-sans my-1">
                     {orders.length} Pesanan
+                  </div>
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden my-2 border border-slate-200/50">
+                    <div className="bg-emerald-600 h-full rounded-full w-3/4 transition-all duration-1000 ease-out"></div>
                   </div>
                 </div>
                 <div className="pt-2 border-t border-slate-100 mt-2">
@@ -284,8 +300,8 @@ export default function DashboardOverview({
                       <div className="text-[9px] font-mono font-bold text-white bg-slate-900 px-2 py-0.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 pointer-events-none whitespace-nowrap z-20">
                         Rp {item.label}
                       </div>
-                      <div 
-                        className="w-7 bg-gradient-to-t from-emerald-600/80 to-emerald-600 hover:from-emerald-600 hover:to-emerald-500 rounded-t-md transition-all duration-300 cursor-pointer shadow-xs hover:scale-x-[1.05] hover:scale-y-[1.03] origin-bottom" 
+                      <div
+                        className="w-7 bg-gradient-to-t from-emerald-600/80 to-emerald-600 hover:from-emerald-600 hover:to-emerald-500 rounded-t-md transition-all duration-300 cursor-pointer shadow-xs hover:scale-x-[1.05] hover:scale-y-[1.03] origin-bottom"
                         style={{ height: `${(item.val / 280) * 110}px` }}
                       ></div>
                       <span className="text-[10px] font-bold text-slate-500 mt-1">{item.month}</span>
@@ -364,8 +380,8 @@ export default function DashboardOverview({
                     {orders.slice(0, 4).map((order) => {
                       const { total } = calculateOrderTotals(order);
                       return (
-                        <tr 
-                          key={order.id} 
+                        <tr
+                          key={order.id}
                           onClick={() => setViewingDetailOrder(order)}
                           className="hover:bg-surface-container-low/30 transition-colors h-14 cursor-pointer"
                         >
@@ -459,53 +475,56 @@ export default function DashboardOverview({
             </section>
           </div>
 
-          {/* Secondary Actions Column (Right - 3 Cols) */}
+          {/* Secondary Actions Column (Right - 3 Cols) (Phase 4 Refactored: Harmonized Horizontal Cards) */}
           <aside className="lg:col-span-3 space-y-4">
-            <h5 className="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant px-1">Aksi Cepat</h5>
-            
+            <h5 className="text-[10px] uppercase font-bold tracking-widest text-slate-400 px-1">Aksi Cepat</h5>
+
+            {/* Card 1: Katalog Produk */}
             <div
               onClick={() => setActiveTab("belanja")}
-              className="bg-surface-container-high rounded-2xl p-5 group cursor-pointer hover:bg-primary border border-outline-variant/10 hover:border-primary/20 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 text-on-surface shadow-sm"
+              className="bg-white border border-slate-200/80 hover:border-emerald-500/50 rounded-2xl p-4 flex items-center gap-3.5 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 cursor-pointer group shadow-2xs"
             >
-              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary mb-3 shadow-md group-hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>search</span>
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 group-hover:scale-110 transition-transform">
+                <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>search</span>
               </div>
-              <h4 className="font-heading font-bold text-sm group-hover:text-white transition-colors">Katalog Produk</h4>
-              <p className="text-[11px] text-on-surface-variant group-hover:text-white/80 mt-1 transition-colors">
-                10.000+ SKU farmasi tersedia
-              </p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-slate-900 truncate group-hover:text-emerald-700 transition-colors">Katalog Produk</p>
+                <p className="text-[10px] text-slate-500 truncate mt-0.5">10.000+ sediaan obat</p>
+              </div>
             </div>
 
+            {/* Card 2: Bukti Bayar */}
             <div
               onClick={() => setActiveTab("tagihan")}
-              className="bg-surface-container-lowest border border-outline-variant/30 hover:border-primary/45 rounded-2xl p-5 flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 cursor-pointer group shadow-sm"
+              className="bg-white border border-slate-200/80 hover:border-emerald-500/50 rounded-2xl p-4 flex items-center gap-3.5 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 cursor-pointer group shadow-2xs"
             >
-              <div className="w-10 h-10 rounded-xl bg-secondary-container/20 flex items-center justify-center text-secondary shrink-0 group-hover:scale-110 transition-transform duration-350">
-                <span className="material-symbols-outlined">cloud_upload</span>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0 group-hover:scale-110 transition-transform">
+                <span className="material-symbols-outlined text-[20px]">cloud_upload</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">Bukti Bayar</p>
-                <p className="text-[10px] text-on-surface-variant truncate">Konfirmasi instan</p>
+                <p className="text-xs font-bold text-slate-900 truncate group-hover:text-emerald-700 transition-colors">Bukti Bayar & TOP</p>
+                <p className="text-[10px] text-slate-500 truncate mt-0.5">Pelunasan & konfirmasi</p>
               </div>
             </div>
 
+            {/* Card 3: e-Sign SP */}
             <div
               onClick={() => setActiveTab("riwayat")}
-              className="bg-surface-container-lowest border border-outline-variant/30 hover:border-primary/45 rounded-2xl p-5 flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 cursor-pointer relative group shadow-sm"
+              className="bg-white border border-slate-200/80 hover:border-emerald-500/50 rounded-2xl p-4 flex items-center gap-3.5 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 cursor-pointer relative group shadow-2xs"
             >
               {orders.filter((o) => o.status === "PENDING_APPROVAL" && !o.spSignature).length > 0 && (
-                <span className="absolute top-4 right-4 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                <span className="absolute top-3.5 right-3.5 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
                 </span>
               )}
-              <div className="w-10 h-10 rounded-xl bg-primary-container/20 flex items-center justify-center text-primary shrink-0 group-hover:scale-110 transition-transform duration-350">
-                <span className="material-symbols-outlined">draw</span>
+              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0 group-hover:scale-110 transition-transform">
+                <span className="material-symbols-outlined text-[20px]">draw</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">e-Sign SP</p>
-                <p className="text-[10px] text-on-surface-variant truncate">
-                  {orders.filter((o) => o.status === "PENDING_APPROVAL" && !o.spSignature).length} Menunggu
+                <p className="text-xs font-bold text-slate-900 truncate group-hover:text-emerald-700 transition-colors">e-Sign Surat Pesanan</p>
+                <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                  {orders.filter((o) => o.status === "PENDING_APPROVAL" && !o.spSignature).length} SP Menunggu TTD
                 </p>
               </div>
             </div>
@@ -571,10 +590,9 @@ export default function DashboardOverview({
 
           {/* Progress Bar Container */}
           <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200/50 relative z-10">
-            <div 
-              className={`h-full transition-all duration-1000 ease-out rounded-full ${
-                limitUsageRatio > 0.8 ? "bg-rose-500" : limitUsageRatio > 0.5 ? "bg-amber-500" : "bg-emerald-600"
-              }`} 
+            <div
+              className={`h-full transition-all duration-1000 ease-out rounded-full ${limitUsageRatio > 0.8 ? "bg-rose-500" : limitUsageRatio > 0.5 ? "bg-amber-500" : "bg-emerald-600"
+                }`}
               style={{ width: `${animateWidth}%` }}
             ></div>
           </div>
@@ -584,7 +602,7 @@ export default function DashboardOverview({
               <span className="material-symbols-outlined text-emerald-600 text-sm">event_repeat</span>
               <span className="text-[10.5px] font-extrabold text-slate-600">Jatuh tempo {institution.topDays || 30} hari lagi</span>
             </div>
-            <button 
+            <button
               onClick={() => {
                 triggerHapticImpact();
                 setActiveTab("tagihan");
@@ -606,7 +624,7 @@ export default function DashboardOverview({
 
           <div className="grid grid-cols-3 gap-2.5">
             {/* 1. Katalog Obat PBF */}
-            <button 
+            <button
               onClick={() => {
                 triggerHapticImpact();
                 setActiveTab("belanja");
@@ -620,7 +638,7 @@ export default function DashboardOverview({
             </button>
 
             {/* 2. E-Sign SP (Surat Pesanan CDOB) */}
-            <button 
+            <button
               onClick={() => {
                 triggerHapticImpact();
                 setActiveTab("riwayat");
@@ -639,7 +657,7 @@ export default function DashboardOverview({
             </button>
 
             {/* 3. Pelunasan TOP & Tagihan */}
-            <button 
+            <button
               onClick={() => {
                 triggerHapticImpact();
                 setActiveTab("tagihan");
@@ -653,7 +671,7 @@ export default function DashboardOverview({
             </button>
 
             {/* 4. Lacak Pengiriman Kurir */}
-            <button 
+            <button
               onClick={() => {
                 triggerHapticImpact();
                 setActiveTab("status");
@@ -670,7 +688,7 @@ export default function DashboardOverview({
             </button>
 
             {/* 5. Legalitas SIA & SIPA */}
-            <button 
+            <button
               onClick={() => {
                 triggerHapticImpact();
                 setActiveTab("legalitas");
@@ -684,7 +702,7 @@ export default function DashboardOverview({
             </button>
 
             {/* 6. Faktur & Dokumen PDF */}
-            <button 
+            <button
               onClick={() => {
                 triggerHapticImpact();
                 setActiveTab("dokumen");
@@ -703,23 +721,23 @@ export default function DashboardOverview({
         <section>
           <div className="flex justify-between items-end mb-4">
             <h2 className="text-sm font-black">Pengiriman Aktif</h2>
-            <button 
+            <button
               onClick={() => setActiveTab("riwayat")}
               className="text-primary text-[10px] font-bold border-none bg-transparent cursor-pointer"
             >
               Lihat Semua
             </button>
           </div>
-          
+
           <div className="flex overflow-x-auto gap-4 no-scrollbar pb-2 -mx-4 px-4">
             {realActiveShipments.length > 0 ? (
               realActiveShipments.map((shipment) => {
                 const isDelivered = shipment.status === "DELIVERED";
                 const isShipped = shipment.status === "SHIPPED";
-                
+
                 return (
-                  <div 
-                    key={shipment.id} 
+                  <div
+                    key={shipment.id}
                     onClick={() => {
                       if (setViewingDetailOrder) setViewingDetailOrder(shipment);
                       else setActiveTab("status");
@@ -752,8 +770,8 @@ export default function DashboardOverview({
 
                     {isShipped ? (
                       <div className="relative h-24 w-full rounded-xl overflow-hidden border border-slate-200">
-                        <div 
-                          className="absolute inset-0 bg-cover bg-center" 
+                        <div
+                          className="absolute inset-0 bg-cover bg-center"
                           style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAALaaR7an7VLifbMOEEWX1en_fjaSdHx4voL57p8ErU3BKiOgtk0DsaEAOFG9aJLwxmzMn082xMJySFOUJoxOsFaIfY0CbRJKl5kLlddNudcPfotCvUY3c8c6eJwDBei1WHlElM4yvfCiYXUpEcIoa6_n2RLhY9XAIwoTEzn1hLj0ZPKW6u-MmCu3siAefyqGAL55sDDt_ADm8g_f81FnOVed-QAyhcBr0VuLBqCuz2G7Oz_xopxaob6umqCfkLhw_UN6Tg72MewQ')" }}
                         ></div>
                         <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur px-2 py-0.5 rounded-md text-[8px] font-black text-blue-700 uppercase shadow-xs flex items-center gap-1">
@@ -805,7 +823,7 @@ export default function DashboardOverview({
               <div className="w-full bg-white p-6 rounded-2xl border border-slate-200 text-center space-y-2">
                 <p className="text-xs font-bold text-slate-700">Belum Ada Pengiriman Aktif</p>
                 <p className="text-[10px] text-slate-500 font-medium">Semua pesanan Anda telah tiba atau buat Surat Pesanan baru di katalog.</p>
-                <button 
+                <button
                   onClick={() => setActiveTab("belanja")}
                   className="mt-2 px-4 py-1.5 bg-emerald-600 text-white font-extrabold text-[10px] rounded-xl border-none cursor-pointer active:scale-95 transition-all"
                 >
@@ -829,7 +847,7 @@ export default function DashboardOverview({
               const isRejected = o.status === "REJECTED";
 
               return (
-                <div 
+                <div
                   key={o.id}
                   onClick={() => setViewingDetailOrder(o)}
                   className="bg-white p-4 rounded-xl shadow-sm border border-outline-variant/10 flex items-center justify-between cursor-pointer hover:bg-slate-50 active:scale-[0.99] transition-all duration-100"
@@ -851,7 +869,7 @@ export default function DashboardOverview({
                       </p>
                     </div>
                   </div>
-                  
+
                   {/* Status Badges */}
                   {isShipped && (
                     <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold border border-blue-100">Dikirim</span>
@@ -872,7 +890,7 @@ export default function DashboardOverview({
               );
             })}
           </div>
-          <button 
+          <button
             onClick={() => setActiveTab("riwayat")}
             className="w-full mt-4 py-3 border border-primary text-primary font-bold rounded-xl active:bg-primary/5 transition-colors cursor-pointer text-xs bg-transparent"
           >

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
-  const id = searchParams.get("id");
+  const id = searchParams.get("id") || searchParams.get("provinceId") || searchParams.get("regencyId") || searchParams.get("districtId");
   const q = searchParams.get("q");
 
   let targetUrl = "";
