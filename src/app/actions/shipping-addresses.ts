@@ -97,7 +97,14 @@ export async function createShippingAddress(data: {
 
     // Sync to Institution address if main
     if (data.isMain && newAddress) {
-      const formatted = `Alamat: ${newAddress.fullAddress}, Kec: ${newAddress.district || ''}, Kota/Kab: ${newAddress.city || ''}, Prov: ${newAddress.province || ''}, Kode Pos: ${newAddress.postalCode || ''}`;
+      let village = "";
+      let cleanDistrict = newAddress.district || "";
+      if (cleanDistrict.includes("Desa/Kel:")) {
+        const parts = cleanDistrict.split("(Desa/Kel:");
+        cleanDistrict = parts[0].trim();
+        if (parts[1]) village = parts[1].replace(")", "").trim();
+      }
+      const formatted = `Alamat: ${newAddress.fullAddress}, ${village ? `Kel/Desa: ${village}, ` : ''}Kec: ${cleanDistrict}, Kab/Kota: ${newAddress.city || ''}, Provinsi: ${newAddress.province || ''}, Kode Pos: ${newAddress.postalCode || ''}`;
       await prisma.institution.update({
         where: { id: data.institutionId },
         data: { address: formatted }
@@ -148,7 +155,14 @@ export async function updateShippingAddress(
 
     // Sync to Institution address if main
     if (updated.isMain) {
-      const formatted = `Alamat: ${updated.fullAddress}, Kec: ${updated.district || ''}, Kota/Kab: ${updated.city || ''}, Prov: ${updated.province || ''}, Kode Pos: ${updated.postalCode || ''}`;
+      let village = "";
+      let cleanDistrict = updated.district || "";
+      if (cleanDistrict.includes("Desa/Kel:")) {
+        const parts = cleanDistrict.split("(Desa/Kel:");
+        cleanDistrict = parts[0].trim();
+        if (parts[1]) village = parts[1].replace(")", "").trim();
+      }
+      const formatted = `Alamat: ${updated.fullAddress}, ${village ? `Kel/Desa: ${village}, ` : ''}Kec: ${cleanDistrict}, Kab/Kota: ${updated.city || ''}, Provinsi: ${updated.province || ''}, Kode Pos: ${updated.postalCode || ''}`;
       await prisma.institution.update({
         where: { id: existing.institutionId },
         data: { address: formatted }
@@ -232,5 +246,27 @@ export async function setMainShippingAddress(id: string, institutionId: string) 
   } catch (error: any) {
     console.error("Error setting main shipping address:", error);
     return { success: false, error: error.message };
+  }
+}
+
+export async function getOperationalAddress(institutionId: string) {
+  try {
+    if (!institutionId) return { success: false, address: "" };
+    const inst = await prisma.institution.findUnique({
+      where: { id: institutionId },
+      include: { users: true }
+    });
+    if (!inst) return { success: false, address: "" };
+
+    return {
+      success: true,
+      address: inst.address || "",
+      institutionName: inst.name,
+      siaNumber: inst.siaNumber,
+      phone: inst.users?.[0]?.phone || "08123456789"
+    };
+  } catch (error: any) {
+    console.error("Error getting operational address:", error);
+    return { success: false, address: "" };
   }
 }

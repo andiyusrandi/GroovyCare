@@ -6,12 +6,15 @@ import {
   X, 
   Loader2
 } from "lucide-react";
+import { parseFullAddress } from "@/lib/address-parser";
+import { getInstitutionTypeInfo } from "@/lib/institution-helpers";
 
 interface AddressFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   addressToEdit?: any;
   institutionId: string;
+  institutionType?: string;
   onSaveSuccess: () => void;
 }
 
@@ -20,8 +23,10 @@ export default function AddressFormModal({
   onClose,
   addressToEdit,
   institutionId,
+  institutionType,
   onSaveSuccess,
 }: AddressFormModalProps) {
+  const typeInfo = getInstitutionTypeInfo(institutionType);
   const [label, setLabel] = useState("");
   const [recipientName, setRecipientName] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
@@ -142,6 +147,21 @@ export default function AddressFormModal({
       .catch((err) => console.error("Gagal load desa:", err));
   }, [selectedDistrictId]);
 
+  // Match village text to villagesList options when list arrives
+  useEffect(() => {
+    if (selectedVillageName && villagesList.length > 0) {
+      const cleanV = selectedVillageName.trim().toLowerCase();
+      const match = villagesList.find(
+        (v) => v.name.trim().toLowerCase() === cleanV ||
+               v.name.trim().toLowerCase().includes(cleanV) ||
+               cleanV.includes(v.name.trim().toLowerCase())
+      );
+      if (match) {
+        setSelectedVillageName(match.name);
+      }
+    }
+  }, [villagesList]);
+
   // Auto fetch Postcode when village / district selected
   useEffect(() => {
     if (!selectedVillageName || !district || !city) return;
@@ -159,8 +179,9 @@ export default function AddressFormModal({
             selectedVillageName.toLowerCase().includes(item.village.toLowerCase())
           ) || resData.data[0];
 
-          if (match && match.code) {
-            setPostalCode(match.code.toString());
+          const code = match ? (match.postalcode || match.postcode || match.code) : null;
+          if (code) {
+            setPostalCode(code.toString());
           }
         }
       })
@@ -168,43 +189,79 @@ export default function AddressFormModal({
       .finally(() => setIsFetchingPostcode(false));
   }, [selectedVillageName, district, city]);
 
+  const handleLoadOperationalAddress = async () => {
+    if (!institutionId) return;
+    try {
+      const { getOperationalAddress } = await import("@/app/actions/shipping-addresses");
+      const res = await getOperationalAddress(institutionId);
+      if (res.success && res.address) {
+        if (
+          res.address.includes("Alamat belum dilengkapi") ||
+          res.address.includes("lengkapi di Pengaturan") ||
+          res.address.trim().length < 5
+        ) {
+          alert("Alamat operasional sarana di Pengaturan Akun belum dilengkapi. Silakan isi alamat di menu Pengaturan Akun terlebih dahulu.");
+          return;
+        }
+
+        const parsed = parseFullAddress(res.address);
+        setLabel(typeInfo.mainAddressLabel);
+        if (res.institutionName) setRecipientName(res.institutionName);
+        if (res.phone) setRecipientPhone(res.phone);
+        if (res.siaNumber) setCdobNote(`${typeInfo.licenseShort}: ${res.siaNumber}`);
+
+        const cleanDetail = parsed.detail || res.address.replace(/^Alamat:\s*/i, "").split(/,\s*(?:Kel\/Desa|Kel|Kec|Kab\/Kota|Provinsi):/i)[0].trim();
+        setFullAddress(cleanDetail);
+
+        // Reset IDs to force cascading matching effects to run cleanly
+        setSelectedProvinceId("");
+        setSelectedRegencyId("");
+        setSelectedDistrictId("");
+
+        if (parsed.province) setProvince(parsed.province);
+        if (parsed.regency) setCity(parsed.regency);
+        if (parsed.district) setDistrict(parsed.district);
+        if (parsed.village) setSelectedVillageName(parsed.village);
+        if (parsed.postalCode) setPostalCode(parsed.postalCode);
+      } else {
+        alert("Alamat operasional tidak ditemukan di sistem.");
+      }
+    } catch (e) {
+      console.error("Gagal load alamat operasional:", e);
+    }
+  };
+
   useEffect(() => {
     if (addressToEdit) {
-      setLabel(addressToEdit.label || "");
+      setLabel(addressToEdit.label || typeInfo.mainAddressLabel);
       setRecipientName(addressToEdit.recipientName || "");
       setRecipientPhone(addressToEdit.recipientPhone || "");
-      setFullAddress(addressToEdit.fullAddress || "");
       
-      const rawDist = addressToEdit.district || "";
-      if (rawDist.includes("Desa/Kel:")) {
-        const parts = rawDist.split("(Desa/Kel:");
-        setDistrict(parts[0].trim());
-        if (parts[1]) {
-          setSelectedVillageName(parts[1].replace(")", "").trim());
-        }
-      } else {
-        setDistrict(rawDist);
-      }
+      const parsed = parseFullAddress(addressToEdit.fullAddress || "");
+      const cleanDetail = parsed.detail || (addressToEdit.fullAddress || "").replace(/^Alamat:\s*/i, "").split(/,\s*(?:Kel\/Desa|Kel|Kec|Kab\/Kota|Provinsi):/i)[0].trim();
 
-      setCity(addressToEdit.city || "");
-      setProvince(addressToEdit.province || "");
-      setPostalCode(addressToEdit.postalCode || "");
+      setFullAddress(cleanDetail);
+      
+      const finalProvince = addressToEdit.province || parsed.province || "";
+      const finalCity = addressToEdit.city || parsed.regency || "";
+      const finalDistrict = addressToEdit.district || parsed.district || "";
+      const finalVillage = parsed.village || "";
+      const finalPostcode = addressToEdit.postalCode || parsed.postalCode || "";
+
+      setProvince(finalProvince);
+      setCity(finalCity);
+      setDistrict(finalDistrict);
+      if (finalVillage) {
+        setSelectedVillageName(finalVillage);
+      }
+      setPostalCode(finalPostcode);
+
       setIsMain(!!addressToEdit.isMain);
       setCdobNote(addressToEdit.cdobNote || "");
-    } else {
-      setLabel("Alamat Pengiriman");
-      setRecipientName("");
-      setRecipientPhone("");
-      setFullAddress("");
-      setDistrict("Tamalanrea");
-      setCity("Kota Makassar");
-      setProvince("Sulawesi Selatan");
-      setPostalCode("90245");
-      setSelectedVillageName("");
-      setIsMain(false);
-      setCdobNote("");
+    } else if (isOpen && institutionId) {
+      handleLoadOperationalAddress();
     }
-  }, [addressToEdit, isOpen]);
+  }, [addressToEdit, isOpen, institutionId]);
 
   if (!isOpen) return null;
 
@@ -303,6 +360,23 @@ export default function AddressFormModal({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-4 md:p-6 overflow-y-auto flex-1 space-y-4 text-xs">
           
+          {/* Action Bar: Auto Load Operational Address */}
+          <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200/80 p-3 rounded-2xl">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="text-[11px] font-bold text-emerald-900">
+                Format Standar Kurir &amp; Ekspedisi Biteship API
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleLoadOperationalAddress}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-extrabold text-[10px] cursor-pointer border-none shadow-2xs transition-all active:scale-95 shrink-0"
+            >
+              Muat Alamat Operasional
+            </button>
+          </div>
+          
           {/* Label Alamat */}
           <div>
             <label className="block font-bold text-slate-700 mb-1">Label Alamat:</label>
@@ -370,7 +444,7 @@ export default function AddressFormModal({
             <div>
               <label className="block font-bold text-slate-700 mb-1">Kota / Kabupaten:</label>
               <select
-                disabled={!selectedProvinceId && regenciesList.length === 0}
+                disabled={!selectedProvinceId && !province && regenciesList.length === 0}
                 value={selectedRegencyId}
                 onChange={(e) => {
                   const rId = e.target.value;
@@ -396,7 +470,7 @@ export default function AddressFormModal({
             <div>
               <label className="block font-bold text-slate-700 mb-1">Kecamatan:</label>
               <select
-                disabled={!selectedRegencyId && districtsList.length === 0}
+                disabled={!selectedRegencyId && !city && districtsList.length === 0}
                 value={selectedDistrictId}
                 onChange={(e) => {
                   const dId = e.target.value;
@@ -417,12 +491,15 @@ export default function AddressFormModal({
             <div>
               <label className="block font-bold text-slate-700 mb-1">Kelurahan / Desa:</label>
               <select
-                disabled={!selectedDistrictId && villagesList.length === 0}
+                disabled={!selectedDistrictId && !district && villagesList.length === 0}
                 value={selectedVillageName}
                 onChange={(e) => setSelectedVillageName(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none text-slate-900 font-medium bg-white disabled:opacity-50"
               >
-                <option value="">{selectedVillageName ? selectedVillageName : "Pilih Kelurahan/Desa"}</option>
+                <option value="">Pilih Kelurahan/Desa</option>
+                {selectedVillageName && !villagesList.some((v) => v.name.toLowerCase() === selectedVillageName.toLowerCase()) && (
+                  <option value={selectedVillageName}>{selectedVillageName}</option>
+                )}
                 {villagesList.map((v) => (
                   <option key={v.id} value={v.name}>{v.name}</option>
                 ))}

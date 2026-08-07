@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getCourierMeta } from "@/lib/courier-logos";
+import { parseFullAddress } from "@/lib/address-parser";
 import CourierLogoBadge from "@/components/CourierLogoBadge";
 import AddressManagerModal from "@/components/AddressManagerModal";
 import AddressFormModal from "@/components/AddressFormModal";
@@ -101,8 +102,19 @@ export default function CheckoutView({
     setSelectedAddress(addr);
     setShippingProvince(addr.province || "Sulawesi Selatan");
     setShippingRegency(addr.city || "Makassar");
-    setShippingDistrict(addr.district || "Tamalanrea");
-    setShippingPostalCode(addr.postalCode || "90245");
+
+    let cleanDist = addr.district || "";
+    let village = "";
+    if (cleanDist.includes("(Desa/Kel:")) {
+      const parts = cleanDist.split("(Desa/Kel:");
+      cleanDist = parts[0].trim();
+      village = parts[1].replace(")", "").trim();
+    }
+    const parsed = parseFullAddress(addr.fullAddress);
+
+    setShippingDistrict(cleanDist || parsed.district || "Tamalanrea");
+    setShippingVillage(village || parsed.village || cleanDist || "");
+    setShippingPostalCode(addr.postalCode || parsed.postalCode || "");
     setShippingAddressDetail(addr.fullAddress);
     if (addr.recipientPhone) setPhoneNumber(addr.recipientPhone);
   };
@@ -246,8 +258,9 @@ export default function CheckoutView({
             shippingVillage.toLowerCase().includes(item.village.toLowerCase())
           ) || resData.data[0];
           
-          if (match && match.code) {
-            setShippingPostalCode(match.code.toString());
+          const code = match ? (match.postalcode || match.postcode || match.code) : null;
+          if (code) {
+            setShippingPostalCode(code.toString());
           }
         }
       })
@@ -271,7 +284,11 @@ export default function CheckoutView({
 
     const destProv = shippingProvince.trim() || selectedAddress?.province || "Sulawesi Selatan";
     const destCity = shippingRegency.trim() || selectedAddress?.city || "Kota Makassar";
-    const destDist = shippingDistrict.trim() || selectedAddress?.district || "Tamalanrea";
+    let rawDist = shippingDistrict.trim() || selectedAddress?.district || "Tamalanrea";
+    if (rawDist.includes("(Desa/Kel:")) {
+      rawDist = rawDist.split("(Desa/Kel:")[0].trim();
+    }
+    const destDist = rawDist;
 
     fetch("/api/biteship/rates", {
       method: "POST",
@@ -282,6 +299,8 @@ export default function CheckoutView({
         destination_province: destProv,
         destination_city: destCity,
         destination_district: destDist,
+        destination_village: shippingVillage || selectedAddress?.village || "",
+        destination_postal_code: shippingPostalCode || selectedAddress?.postalCode || "",
         weight: totalWeight,
       }),
     })
@@ -297,41 +316,106 @@ export default function CheckoutView({
       .then((data) => {
         if (data && data.success && data.pricing && data.pricing.length > 0) {
           setBiteshipRates(data.pricing);
-          const firstRate = data.pricing[0];
-          setSelectedRate(firstRate);
-          setShippingFee(firstRate.price);
+          const firstValidRate = data.pricing.find((p: any) => typeof p.price === "number") || data.pricing[0];
+          setSelectedRate(firstValidRate);
+          setShippingFee(typeof firstValidRate.price === "number" ? firstValidRate.price : 0);
+          if (data.warning) {
+            setRatesError(data.warning);
+          } else {
+            setRatesError(null);
+          }
         } else {
           setBiteshipRates([]);
           setSelectedRate(null);
-          setShippingFee(isColdChain ? 85000 : 50000);
+          setRatesError(data?.error || "Tidak ada tarif kurir real-time dari Biteship API untuk lokasi ini.");
         }
       })
       .catch((err) => {
         console.error("Rates fetch error:", err);
-        setRatesError(err.message || "Layanan pengiriman sedang dalam pemeliharaan (Maintenance)");
+        setRatesError(err.message || "Layanan pengiriman Biteship API sedang bermasalah.");
         setBiteshipRates([]);
         setSelectedRate(null);
-        setShippingFee(isColdChain ? 85000 : 50000);
       })
       .finally(() => {
         setIsLoadingRates(false);
       });
   }, [shippingProvince, shippingRegency, shippingDistrict, selectedAddress, totalWeight, isColdChain]);
 
+  const rawAddressText = selectedAddress
+    ? selectedAddress.fullAddress
+    : (shippingAddressDetail || institution?.address || "");
+
+  const isAddressIncomplete =
+    !rawAddressText ||
+    rawAddressText.includes("Alamat belum dilengkapi") ||
+    rawAddressText.includes("lengkapi di Pengaturan") ||
+    rawAddressText.trim().length < 5;
+
   const isShippingFormValid =
-    selectedAddress !== null ||
+    !isAddressIncomplete &&
+    (selectedAddress !== null ||
     shippingAddressDetail.trim() !== "" ||
-    (institution && institution.address && institution.address.trim() !== "");
+    (institution && institution.address && institution.address.trim() !== ""));
+
+  const handleConfirmClick = () => {
+    if (isAddressIncomplete) {
+      triggerHapticImpact();
+      alert("Alamat pengiriman belum dilengkapi. Silakan klik 'Ubah Alamat' untuk memilih atau melengkapi Alamat Utama Anda.");
+      setIsAddressManagerOpen(true);
+      return;
+    }
+    if (!hasSigned || !signatureDataUrl) {
+      alert("Harap bubuhkan e-Sign SP (Tanda tangan digital) terlebih dahulu.");
+      return;
+    }
+    handleCheckout(consolidatedAddress);
+  };
+
+  const durationText = selectedRate?.shipment_duration ? ` (${selectedRate.shipment_duration} hari)` : "";
+  const courierPriceText = typeof selectedRate?.price === "number"
+    ? ` - Rp ${selectedRate.price.toLocaleString("id-ID")}`
+    : " - Tarif Realtime Belum Dimuat";
 
   const courierString = selectedRate
-    ? ` | Kurir: ${selectedRate.courier_name.toUpperCase()} ${selectedRate.courier_service_name} [code: ${selectedRate.courier_code}:${selectedRate.courier_service_code || selectedRate.type || 'reg'}] (${selectedRate.shipment_duration} hari) - Rp ${selectedRate.price.toLocaleString("id-ID")}`
+    ? ` | Kurir: ${selectedRate.courier_name.toUpperCase()} ${selectedRate.courier_service_name} [code: ${selectedRate.courier_code}:${selectedRate.courier_service_code || selectedRate.type || 'reg'}]${durationText}${courierPriceText}`
     : " | Kurir: Standard Flat Rate";
+
+  const cleanDetail = parseFullAddress(shippingAddressDetail).detail || shippingAddressDetail.replace(/^Alamat:\s*/i, "").split(/,\s*(?:Kel\/Desa|Kel|Kec|Kab\/Kota|Provinsi):/i)[0].replace(/,\s*Tamalanrea,\s*Makassar.*$/i, "").trim();
 
   const activeAddressText = selectedAddress
     ? `${selectedAddress.fullAddress} (Penerima: ${selectedAddress.recipientName} - ${selectedAddress.recipientPhone})`
-    : `Alamat: ${shippingAddressDetail}, Kec: ${shippingDistrict}, Kab/Kota: ${shippingRegency}, Provinsi: ${shippingProvince} | Email: ${businessEmail} | Telp: ${phoneNumber}`;
+    : `Alamat: ${cleanDetail}, Kel/Desa: ${shippingVillage}, Kec: ${shippingDistrict}, Kab/Kota: ${shippingRegency}, Provinsi: ${shippingProvince}, Kode Pos: ${shippingPostalCode} | Email: ${businessEmail} | Telp: ${phoneNumber}`;
 
   const consolidatedAddress = `${activeAddressText}${courierString}`;
+
+  useEffect(() => {
+    console.log("%c[CHECKOUT DEBUG VERIFICATION]", "background: #064e3b; color: #34d399; font-weight: bold; padding: 4px 8px; border-radius: 4px;");
+    console.log("📍 ALAMAT TERPILIH:", {
+      recipient: selectedAddress ? selectedAddress.recipientName : institution.name,
+      phone: selectedAddress ? selectedAddress.recipientPhone : phoneNumber,
+      fullAddress: selectedAddress ? selectedAddress.fullAddress : rawAddressText,
+      village: shippingVillage || selectedAddress?.village || "-",
+      district: shippingDistrict,
+      city: shippingRegency,
+      province: shippingProvince,
+      postalCode: shippingPostalCode || selectedAddress?.postalCode || "-",
+      isAddressIncomplete
+    });
+    console.log("🚚 KURIR TERPILIH:", {
+      courier_name: selectedRate ? selectedRate.courier_name : "Standard Flat Rate",
+      courier_code: selectedRate ? selectedRate.courier_code : "default",
+      service_name: selectedRate ? selectedRate.courier_service_name : "Logistik PBF",
+      duration: selectedRate ? (selectedRate.duration || `${selectedRate.shipment_duration} hari`) : "1 - 2 Hari",
+      shippingFee: shippingFee
+    });
+    console.log("💰 RINCIAN BIAYA:", {
+      subtotal: cartTotal,
+      vat11: vatAmount,
+      shippingFee: shippingFee,
+      totalBilling: totalBilling
+    });
+    console.log("📄 CONSOLIDATED ADDRESS (FORMAT DB):", consolidatedAddress);
+  }, [selectedAddress, selectedRate, shippingFee, totalBilling, consolidatedAddress, shippingDistrict, shippingRegency, shippingProvince, shippingVillage, shippingPostalCode, rawAddressText, isAddressIncomplete, cartTotal, vatAmount, institution.name, phoneNumber]);
 
   return (
     <div className="space-y-6 animate-fadeIn font-sans text-xs">
@@ -368,6 +452,8 @@ export default function CheckoutView({
           </div>
         </div>
       </div>
+
+
 
       {checkoutError && (
         <div className="bg-rose-50 border border-rose-200/80 rounded-2xl p-4 text-xs text-rose-700 flex items-start gap-2.5">
@@ -554,7 +640,27 @@ export default function CheckoutView({
               </button>
             </div>
 
-            {selectedAddress ? (
+            {isAddressIncomplete ? (
+              <div className="p-3.5 bg-amber-50 border border-amber-200/90 rounded-xl space-y-2 text-xs text-amber-900 animate-fadeIn">
+                <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                  <span className="material-symbols-outlined text-amber-600 text-[18px]">warning</span>
+                  <span>Alamat Pengiriman Belum Lengkap</span>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  {rawAddressText || "Alamat instansi Anda belum dilengkapi."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHapticImpact();
+                    setIsAddressManagerOpen(true);
+                  }}
+                  className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold text-xs rounded-xl shadow-2xs transition-all text-center cursor-pointer border-none active:scale-95"
+                >
+                  Lengkapi / Ubah Alamat Sekarang →
+                </button>
+              </div>
+            ) : selectedAddress ? (
               <div className="space-y-1 text-xs">
                 <p className="font-bold text-slate-900">{selectedAddress.recipientName} • <span className="font-mono text-slate-600">{selectedAddress.recipientPhone}</span></p>
                 <p className="text-[11px] text-slate-500 leading-relaxed">{selectedAddress.fullAddress}</p>
@@ -585,10 +691,17 @@ export default function CheckoutView({
             )}
 
             {!isLoadingRates && biteshipRates.length === 0 && (
-              <div className="p-3 bg-slate-50 rounded-xl text-center border border-slate-100">
-                <span className="text-[10px] text-slate-500 font-medium block">
-                  {ratesError || "Standard Flat Rate Logistik PBF"}
-                </span>
+              <div className="p-3.5 bg-rose-50 rounded-xl border border-rose-200 text-xs text-rose-800 space-y-1.5 animate-fadeIn">
+                <div className="flex items-center gap-1.5 font-bold text-rose-900">
+                  <span className="material-symbols-outlined text-rose-600 text-[18px]">error</span>
+                  <span>Gagal Memuat Tarif Real-time Biteship API</span>
+                </div>
+                <p className="text-[11px] text-rose-700 leading-relaxed font-mono">
+                  {ratesError || "Respon API Biteship tidak tersedia atau saldo kosong."}
+                </p>
+                <p className="text-[10px] text-rose-600 italic pt-1 border-t border-rose-200/60">
+                  Fallback server telah dinonaktifkan. Silakan periksa kunci API / Top Up saldo akun Biteship Anda.
+                </p>
               </div>
             )}
 
@@ -600,8 +713,19 @@ export default function CheckoutView({
                     <label
                       key={i}
                       onClick={() => {
+                        console.log("=========================================");
+                        console.log("[DEBUG MITRA COURIER SELECTION CHANGED]");
+                        console.log("Selected Courier:", {
+                          courier_company: rate.courier_code,
+                          courier_type: rate.courier_service_code || rate.type || 'reg',
+                          courier_name: rate.courier_name,
+                          service_name: rate.courier_service_name,
+                          price: rate.price,
+                          duration: rate.shipment_duration || rate.duration
+                        });
+                        console.log("=========================================");
                         setSelectedRate(rate);
-                        setShippingFee(rate.price);
+                        setShippingFee(typeof rate.price === "number" ? rate.price : 0);
                       }}
                       className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
                         isSelected
@@ -620,9 +744,17 @@ export default function CheckoutView({
                           </p>
                         </div>
                       </div>
-                      <span className="text-xs font-extrabold text-emerald-700 font-sans">
-                        Rp {rate.price.toLocaleString("id-ID")}
-                      </span>
+                      <div className="text-right shrink-0">
+                        {typeof rate.price === "number" ? (
+                          <span className="text-xs font-extrabold text-emerald-700 font-sans block">
+                            Rp {rate.price.toLocaleString("id-ID")}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-1 rounded-lg block">
+                            Gagal Memuat Tarif
+                          </span>
+                        )}
+                      </div>
                     </label>
                   );
                 })}
@@ -710,11 +842,11 @@ export default function CheckoutView({
 
             <button
               type="button"
-              onClick={() => handleCheckout(consolidatedAddress)}
-              disabled={isSubmittingOrder || !hasSigned || !isShippingFormValid}
+              onClick={handleConfirmClick}
+              disabled={isSubmittingOrder || !hasSigned || isAddressIncomplete}
               className={`w-full py-3 px-4 rounded-xl font-bold text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer border-none ${
-                !hasSigned || isSubmittingOrder || !isShippingFormValid
-                  ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                !hasSigned || isSubmittingOrder || isAddressIncomplete
+                  ? "bg-slate-200 text-slate-500 cursor-not-allowed shadow-none"
                   : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
               }`}
             >
@@ -722,11 +854,15 @@ export default function CheckoutView({
               <span>→</span>
             </button>
 
-            {!hasSigned && (
+            {isAddressIncomplete ? (
+              <p className="text-[11px] text-amber-800 font-bold text-center bg-amber-50 p-2.5 rounded-xl border border-amber-200/80">
+                ⚠️ Alamat pengiriman belum dilengkapi. Klik "Ubah Alamat" di atas untuk melengkapi alamat Anda.
+              </p>
+            ) : !hasSigned ? (
               <p className="text-[10px] text-amber-700 font-bold text-center animate-pulse">
                 ⚠️ Harap bubuhkan e-Sign SP terlebih dahulu di kolom kiri
               </p>
-            )}
+            ) : null}
           </div>
 
         </div>

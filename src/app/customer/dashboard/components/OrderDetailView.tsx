@@ -4,6 +4,7 @@ import { useState } from "react";
 import { printCDOBDocument } from "@/lib/pdf-generator";
 import BiteshipTrackingModal from "@/app/components/BiteshipTrackingModal";
 import CdobDocumentModal from "@/components/CdobDocumentModal";
+import { formatDisplayAddress } from "@/lib/address-parser";
 import { 
   Package, 
   Truck, 
@@ -27,6 +28,22 @@ interface OrderDetailViewProps {
   setViewingFaktur: (order: any) => void;
   handleConfirmDelivery: (orderId: string) => void;
   setCancelingOrder?: (order: any) => void;
+}
+
+function getSelectedCourierName(addr?: string): string {
+  if (!addr) return "-";
+  const match = addr.match(/Kurir:\s*([^\s(|]+(?:\s+[^\s(|]+)?)/i);
+  if (match && match[1]) {
+    const raw = match[1].trim();
+    if (raw.toLowerCase() === "standard" || raw.toLowerCase() === "flat" || raw.toLowerCase().includes("standard flat")) {
+      return "-";
+    }
+    return raw;
+  }
+  if (addr.includes("groovyrx") || addr.includes("Logistik")) {
+    return "Logistik Groovyrx";
+  }
+  return "-";
 }
 
 export default function OrderDetailView({
@@ -401,7 +418,7 @@ export default function OrderDetailView({
                     </div>
                     <p className="font-bold text-foreground">Dalam Perjalanan</p>
                     <p className="text-[10px] text-on-surface-variant mt-0.5">
-                      Pesanan sedang dikirim kurir internal. Resi: <strong className="font-mono text-primary">{order.trackingNumber || "PBF-LOG-88219"}</strong>
+                      Pesanan sedang dikirim kurir. Resi: <strong className="font-mono text-primary">{order.trackingNumber || order.biteshipOrderId || "-"}</strong>
                     </p>
                   </div>
                 )}
@@ -670,15 +687,15 @@ export default function OrderDetailView({
             <div>
               <span className="text-[9.5px] text-slate-400 font-bold uppercase tracking-wider block">No. Resi / Airwaybill</span>
               <span className="font-mono text-xs font-black text-slate-900 mt-0.5 block">
-                {order.trackingNumber || "Logistik Internal PBF"}
+                {order.trackingNumber || order.biteshipOrderId || "-"}
               </span>
             </div>
-            {order.trackingNumber && (
+            {(order.trackingNumber || order.biteshipOrderId) && (
               <button
                 type="button"
                 onClick={() => {
                   triggerHapticImpact();
-                  navigator.clipboard.writeText(order.trackingNumber);
+                  navigator.clipboard.writeText(order.trackingNumber || order.biteshipOrderId);
                   alert("No. Resi disalin ke clipboard!");
                 }}
                 className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-xl text-slate-700 font-bold text-[10px] flex items-center gap-1 border-none cursor-pointer"
@@ -692,8 +709,12 @@ export default function OrderDetailView({
           <div className="p-4">
             <span className="text-[9.5px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Kurir Expedisi</span>
             <span className="text-xs text-slate-800 font-extrabold flex items-center gap-2">
-              {isColdChain ? "Reguler (Cold-Chain Rantai Dingin ❄)" : "Reguler (Standard PBF)"}
-              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase">Verified CDOB</span>
+              {getSelectedCourierName(order.shippingAddress)}
+              {getSelectedCourierName(order.shippingAddress) !== "-" && (
+                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase">
+                  Verified CDOB
+                </span>
+              )}
             </span>
           </div>
 
@@ -701,7 +722,7 @@ export default function OrderDetailView({
             <span className="text-[9.5px] text-slate-400 font-bold uppercase tracking-wider block">Alamat Penerima</span>
             <span className="text-xs text-slate-900 font-black block">{order.institution?.name || "Apotek Mitra"}</span>
             <p className="text-[10.5px] text-slate-600 leading-relaxed font-medium">
-              {order.shippingAddress || order.institution?.address || "Alamat belum disetel"}
+              {formatDisplayAddress(order.shippingAddress || order.institution?.address)}
             </p>
           </div>
         </section>

@@ -24,6 +24,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import { getInstitutionTypeInfo } from "@/lib/institution-helpers";
+
 interface User {
   id: string;
   name: string;
@@ -64,8 +66,36 @@ interface Order {
   status: string;
   paymentStatus: string;
   paymentMethod: string;
+  shippingAddress?: string | null;
+  shippingFee?: number | null;
   items: OrderItem[];
   batchAllocations: OrderBatchAllocation[];
+}
+
+function calculateOrderTotals(order: any) {
+  const subtotal = order.items ? order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0) : 0;
+  const vat = Math.round(subtotal * 0.11);
+
+  let shippingFee = order.shippingFee || 0;
+  if (!shippingFee && order.shippingAddress) {
+    const feeMatch = order.shippingAddress.match(/-\s*Rp\s*([0-9.,]+)/);
+    if (feeMatch && feeMatch[1]) {
+      shippingFee = parseInt(feeMatch[1].replace(/[.,]/g, ""), 10) || 0;
+    } else if (order.shippingAddress.includes("Kurir: Standard Flat Rate")) {
+      const isColdChain = (order.items || []).some((item: any) =>
+        item.product?.category === "COLD_CHAIN" || item.product?.category?.toLowerCase() === "cold chain" ||
+        item.product?.name?.toLowerCase().includes("insulin") || item.product?.code?.toLowerCase().includes("amx")
+      );
+      shippingFee = isColdChain ? 85000 : 50000;
+    } else {
+      shippingFee = 50000;
+    }
+  } else if (!shippingFee) {
+    shippingFee = 50000;
+  }
+
+  const total = subtotal + vat + shippingFee;
+  return { subtotal, vat, shippingFee, total };
 }
 
 interface Partner {
@@ -111,6 +141,7 @@ export default function PartnerDetailClient({
   adminRole,
 }: PartnerDetailClientProps) {
   const router = useRouter();
+  const typeInfo = getInstitutionTypeInfo(partner.type);
   const [activeTab, setActiveTab] = useState<"profile" | "finance" | "history" | "outstanding">("profile");
   const [isEditing, setIsEditing] = useState(false);
 
@@ -175,9 +206,7 @@ export default function PartnerDetailClient({
   };
 
   const handleLogout = async () => {
-    await logout();
-    router.push("/login");
-    router.refresh();
+    window.location.href = "/api/logout";
   };
 
   const handleViewFile = (fileUrl: string | null | undefined, defaultFileName: string) => {
@@ -586,7 +615,7 @@ export default function PartnerDetailClient({
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1">
-                          Nomor SIA / Izin
+                          Nomor {typeInfo.licenseShort} / Izin
                         </label>
                         <input
                           type="text"
@@ -779,11 +808,11 @@ export default function PartnerDetailClient({
                   </h4>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* SIA Card */}
+                    {/* SIA / Izin Card */}
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-start gap-3">
                       <FileText className="w-8 h-8 text-emerald-800 shrink-0 mt-0.5" />
                       <div className="space-y-1.5 flex-1 min-w-0">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Dokumen SIA / Izin Sarana</span>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Dokumen {typeInfo.licenseShort} / Izin Sarana</span>
                         <p className="text-[11px] font-bold text-slate-900 truncate">
                           SIA_{partner.name.replace(/\s+/g, "_")}.pdf
                         </p>
@@ -953,7 +982,7 @@ export default function PartnerDetailClient({
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-800">
                         {partner.orders.map((order) => {
-                          const totalAmount = order.items.reduce((sum, item) => sum + item.quantity * item.price, 0);
+                          const { total: totalAmount } = calculateOrderTotals(order);
                           return (
                             <tr key={order.id} className="hover:bg-slate-50/50 transition-all">
                               <td className="p-4 font-mono font-bold text-slate-900">{order.orderNumber}</td>
@@ -1008,7 +1037,7 @@ export default function PartnerDetailClient({
                 ) : (
                   <div className="space-y-4">
                     {outstandingOrders.map((order) => {
-                      const totalAmount = order.items.reduce((sum, item) => sum + item.quantity * item.price, 0);
+                      const { total: totalAmount } = calculateOrderTotals(order);
                       return (
                         <div
                           key={order.id}
@@ -1058,64 +1087,54 @@ export default function PartnerDetailClient({
 
       {/* OVERLAY / MODAL: Order Detail & FEFO Batch Allocation */}
       {selectedOrder && (
-        <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-fade-in font-sans">
-          <div className="relative w-full max-w-2xl bg-white rounded-3xl p-6 md:p-8 shadow-2xl space-y-6 animate-scale-in">
-            {/* Header */}
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6 shadow-2xl animate-scaleUp">
             <div className="flex justify-between items-start border-b border-slate-100 pb-4">
               <div>
-                <h3 className="text-sm font-heading font-black text-slate-900 uppercase">
-                  Rincian Pesanan: {selectedOrder.orderNumber}
+                <h3 className="font-heading font-black text-lg text-slate-900">
+                  Rincian Pesanan {selectedOrder.orderNumber}
                 </h3>
-                <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                  Tanggal SP: {new Date(selectedOrder.createdAt).toLocaleDateString("id-ID", {
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Dibuat pada: {new Date(selectedOrder.createdAt).toLocaleDateString("id-ID", {
                     day: "numeric",
                     month: "long",
                     year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
                   })}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="p-1.5 hover:bg-slate-100 rounded-full border-none bg-transparent cursor-pointer flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all"
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-all border-none bg-transparent cursor-pointer"
               >
-                <ChevronLeft className="w-5 h-5 rotate-90" />
+                ✕
               </button>
             </div>
 
-            {/* Status Summary */}
-            <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 rounded-2xl text-[10px] font-bold">
-              <div>
-                <span className="text-slate-400 block mb-0.5">Status Pengiriman</span>
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div className="p-4 bg-slate-50 rounded-2xl space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Status Pesanan</span>
                 {getStatusBadge(selectedOrder.status)}
               </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Status Pembayaran</span>
+              <div className="p-4 bg-slate-50 rounded-2xl space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Status Pembayaran</span>
                 {getPaymentStatusBadge(selectedOrder.paymentStatus)}
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Metode Bayar</span>
-                <span className="text-slate-900">{selectedOrder.paymentMethod === "VA" ? "Virtual Account" : selectedOrder.paymentMethod}</span>
               </div>
             </div>
 
-            {/* Products Table */}
+            {/* Items Table */}
             <div className="space-y-3">
-              <h4 className="font-extrabold text-slate-800 text-[11px] uppercase tracking-wider">
-                Produk Yang Dipesan
-              </h4>
-              <div className="border border-slate-100 rounded-2xl overflow-hidden text-xs">
-                <table className="w-full text-left border-collapse">
+              <h4 className="font-extrabold text-slate-800 text-[11px] uppercase tracking-wider">Daftar Produk</h4>
+              <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+                <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100 text-[10px] text-slate-500 uppercase font-extrabold">
-                      <th className="p-3">Obat / SKU</th>
+                    <tr className="bg-slate-50 text-[10px] text-slate-500 uppercase tracking-wider font-extrabold border-b border-slate-100">
+                      <th className="p-3">Nama Obat</th>
                       <th className="p-3 text-center">Jumlah</th>
                       <th className="p-3 text-right">Harga Satuan</th>
                       <th className="p-3 text-right">Subtotal</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  <tbody className="divide-y divide-slate-100">
                     {selectedOrder.items.map((item) => (
                       <tr key={item.id} className="hover:bg-slate-50/30">
                         <td className="p-3">
@@ -1166,12 +1185,32 @@ export default function PartnerDetailClient({
               </div>
             )}
 
-            {/* Total Footer */}
-            <div className="flex justify-between items-center pt-4 border-t border-slate-100">
-              <span className="text-xs font-bold text-slate-500 uppercase">Total Transaksi</span>
-              <span className="text-lg font-heading font-black text-emerald-800 font-mono">
-                Rp {selectedOrder.items.reduce((sum, item) => sum + item.quantity * item.price, 0).toLocaleString("id-ID")}
-              </span>
+            {/* Total Footer Breakdown */}
+            <div className="pt-4 border-t border-slate-100 space-y-1.5">
+              <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
+                <span>Subtotal Produk</span>
+                <span className="font-mono font-bold text-slate-700">
+                  Rp {calculateOrderTotals(selectedOrder).subtotal.toLocaleString("id-ID")}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
+                <span>PPN (11%)</span>
+                <span className="font-mono font-bold text-slate-700">
+                  Rp {calculateOrderTotals(selectedOrder).vat.toLocaleString("id-ID")}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
+                <span>Biaya Pengiriman & Kurir</span>
+                <span className="font-mono font-bold text-slate-700">
+                  Rp {calculateOrderTotals(selectedOrder).shippingFee.toLocaleString("id-ID")}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+                <span className="text-xs font-bold text-slate-800 uppercase">Total Akumulasi Transaksi</span>
+                <span className="text-lg font-heading font-black text-emerald-800 font-mono">
+                  Rp {calculateOrderTotals(selectedOrder).total.toLocaleString("id-ID")}
+                </span>
+              </div>
             </div>
           </div>
         </div>

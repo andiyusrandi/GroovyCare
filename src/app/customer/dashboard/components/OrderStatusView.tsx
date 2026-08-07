@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Clock, Truck, CheckCircle, AlertTriangle, PenTool, Search } from "lucide-react";
 import { printCDOBDocument } from "@/lib/pdf-generator";
 import { syncBiteshipOrderStatus } from "@/app/actions/orders";
@@ -51,6 +52,7 @@ export default function OrderStatusView({
   products,
   setCancelingOrder,
 }: OrderStatusViewProps) {
+  const router = useRouter();
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [trackingModalOrderId, setTrackingModalOrderId] = useState<string | null>(null);
 
@@ -266,11 +268,11 @@ export default function OrderStatusView({
                       )}
 
                       {/* Info Resi Kurir & Expedisi */}
-                      {order.trackingNumber && (
+                      {(order.trackingNumber || order.biteshipOrderId) && (
                         <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
                           <div className="flex items-center gap-2">
                             <Truck className="w-4 h-4 text-primary shrink-0" />
-                            <span className="text-[11px] font-bold text-slate-800">Resi Expedisi: {order.trackingNumber}</span>
+                            <span className="text-[11px] font-bold text-slate-800">Resi Expedisi: {order.trackingNumber || order.biteshipOrderId}</span>
                           </div>
                           {order.biteshipOrderId ? (
                             <div className="flex items-center gap-1.5">
@@ -281,7 +283,7 @@ export default function OrderStatusView({
                                     const res = await syncBiteshipOrderStatus(order.id);
                                     if (res.success) {
                                       alert(res.message || "Status berhasil disinkronkan dengan Biteship API!");
-                                      window.location.reload();
+                                      router.refresh();
                                     } else {
                                       alert("Gagal sinkronisasi: " + res.error);
                                     }

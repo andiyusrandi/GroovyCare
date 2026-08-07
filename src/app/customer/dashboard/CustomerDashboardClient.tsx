@@ -48,8 +48,10 @@ import WelcomeTourModal from "@/components/WelcomeTourModal";
 import { triggerHapticImpact } from "@/lib/mobile-haptics";
 import { getBiteshipStatusMeta } from "@/lib/biteship-status";
 import { getCourierMeta } from "@/lib/courier-logos";
+import { parseFullAddress } from "@/lib/address-parser";
 import CourierLogoBadge from "@/components/CourierLogoBadge";
 import CdobDocumentModal from "@/components/CdobDocumentModal";
+import { useRealtimeLogisticsSync } from "@/lib/useRealtimeLogisticsSync";
 
 const DashboardOverview = dynamic(() => import("./components/DashboardOverview"), { ssr: false });
 const ProductCatalog = dynamic(() => import("./components/ProductCatalog"), { ssr: false });
@@ -187,6 +189,9 @@ export default function CustomerDashboardClient({
   const isMobileBrowser = useMobileBrowser();
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [orders, setOrders] = useState<Order[]>(initialOrders);
+  
+  // Aktifkan silent real-time sync untuk status logistik pesanan mitra
+  useRealtimeLogisticsSync(orders, 10000);
   const [activeTab, setActiveTab] = useState<"dashboard" | "belanja" | "status" | "riwayat" | "tagihan" | "dokumen" | "legalitas" | "pengaturan" | "keranjang" | "alamat">("dashboard");
   const [isLoadingTab, setIsLoadingTab] = useState(false);
 
@@ -360,60 +365,16 @@ export default function CustomerDashboardClient({
 
   // Parse and resolve consolidated/simple address from database on mount or when address changes
   useEffect(() => {
-    const addr = institution.address || "";
-    if (addr.includes("Kel/Desa:") || addr.includes("Kel:") || addr.includes("Provinsi:")) {
-      try {
-        const detailPart = addr.match(/Alamat:\s*(.*?),\s*Kel/)?.[1] || "";
-        const kelPart = addr.match(/Kel(?:Desa)?:\s*(.*?),\s*Kec/)?.[1] || addr.match(/Kel\/Desa:\s*(.*?),\s*Kec/)?.[1] || "";
-        const kecPart = addr.match(/Kec:\s*(.*?),\s*Kab/)?.[1] || addr.match(/Kec:\s*(.*?),\s*Kota/)?.[1] || "";
-        const kabPart = addr.match(/Kab\/Kota:\s*(.*?),\s*Prov/)?.[1] || addr.match(/Kota\/Kab:\s*(.*?),\s*Prov/)?.[1] || "";
-        const provPart = addr.match(/Prov(?:insi)?:\s*(.*?)(?:,\s*Kode Pos:|$)/)?.[1] || "";
-        const posPart = addr.match(/Kode Pos:\s*(\d+)/)?.[1] || "";
+    const rawAddr = institution.address || "";
+    const parsed = parseFullAddress(rawAddr);
 
-        if (provPart) setShippingProvince(provPart.trim());
-        if (kabPart) setShippingRegency(kabPart.trim());
-        if (kecPart) setShippingDistrict(kecPart.trim());
-        if (kelPart) setShippingVillage(kelPart.trim());
-        if (posPart) setShippingPostalCode(posPart.trim());
-        if (detailPart) setShippingAddressDetail(detailPart.trim());
-      } catch (e) {
-        setShippingAddressDetail(addr);
-      }
-    } else {
-      // Fallback for simple address format (like in seeds: "Jakarta Selatan", "Makassar", "Bandung", "Bekasi")
-      const lower = addr.toLowerCase();
-      if (lower.includes("makassar")) {
-        setShippingProvince("SULAWESI SELATAN");
-        setShippingRegency("KOTA MAKASSAR");
-        setShippingDistrict("TAMALANREA");
-        setShippingVillage("TAMALANREA INDAH");
-        setShippingPostalCode("90245");
-        setShippingAddressDetail(addr);
-      } else if (lower.includes("jakarta selatan")) {
-        setShippingProvince("DKI JAKARTA");
-        setShippingRegency("KOTA JAKARTA SELATAN");
-        setShippingDistrict("KEBAYORAN BARU");
-        setShippingVillage("SELOONG");
-        setShippingPostalCode("12110");
-        setShippingAddressDetail(addr);
-      } else if (lower.includes("bekasi")) {
-        setShippingProvince("JAWA BARAT");
-        setShippingRegency("KOTA BEKASI");
-        setShippingDistrict("BEKASI BARAT");
-        setShippingVillage("BINTARA");
-        setShippingPostalCode("17134");
-        setShippingAddressDetail(addr);
-      } else if (lower.includes("bandung")) {
-        setShippingProvince("JAWA BARAT");
-        setShippingRegency("KOTA BANDUNG");
-        setShippingDistrict("COBLONG");
-        setShippingVillage("SILIWANGI");
-        setShippingPostalCode("40132");
-        setShippingAddressDetail(addr);
-      } else {
-        setShippingAddressDetail(addr);
-      }
-    }
+    if (parsed.province) setShippingProvince(parsed.province);
+    if (parsed.regency) setShippingRegency(parsed.regency);
+    if (parsed.district) setShippingDistrict(parsed.district);
+    if (parsed.village) setShippingVillage(parsed.village);
+    if (parsed.postalCode) setShippingPostalCode(parsed.postalCode);
+    if (parsed.detail) setShippingAddressDetail(parsed.detail);
+    else if (rawAddr) setShippingAddressDetail(rawAddr);
   }, [institution.address]);
 
   // Match Province Name -> Province ID
@@ -512,8 +473,9 @@ export default function CustomerDashboardClient({
             item.village.toLowerCase().includes(shippingVillage.toLowerCase()) ||
             shippingVillage.toLowerCase().includes(item.village.toLowerCase())
           ) || resData.data[0];
-          if (match && match.code) {
-            setShippingPostalCode(match.code.toString());
+          const code = match ? (match.postalcode || match.postcode || match.code) : null;
+          if (code) {
+            setShippingPostalCode(code.toString());
           }
         }
       })
@@ -557,9 +519,9 @@ export default function CustomerDashboardClient({
       .then((data) => {
         if (data && data.success && data.pricing && data.pricing.length > 0) {
           setBiteshipRates(data.pricing);
-          const firstRate = data.pricing[0];
-          setSelectedRate(firstRate);
-          setShippingFeeMobile(firstRate.price);
+          const firstValidRate = data.pricing.find((p: any) => typeof p.price === "number") || data.pricing[0];
+          setSelectedRate(firstValidRate);
+          setShippingFeeMobile(typeof firstValidRate?.price === "number" ? firstValidRate.price : 0);
           setRatesError(null);
         } else {
           // Fallback kurir lokal jika API pengiriman offline / bernilai kosong
@@ -1125,9 +1087,7 @@ export default function CustomerDashboardClient({
   }
 
   async function handleLogout() {
-    await logout();
-    router.push("/login");
-    router.refresh();
+    window.location.href = "/api/logout";
   }
 
   async function handleConfirmDelivery(orderId: string) {
@@ -2376,7 +2336,7 @@ export default function CustomerDashboardClient({
                                   </div>
                                   <div className="flex items-center gap-1.5 shrink-0">
                                     <span className="text-xs font-extrabold text-emerald-800 font-mono">
-                                      {selectedRate ? `Rp ${selectedRate.price.toLocaleString("id-ID")}` : "-"}
+                                      {selectedRate && typeof selectedRate.price === "number" ? `Rp ${selectedRate.price.toLocaleString("id-ID")}` : selectedRate ? "Gagal Memuat Tarif" : "-"}
                                     </span>
                                     <span className="material-symbols-outlined text-emerald-700 text-base font-bold">chevron_right</span>
                                   </div>
@@ -2491,10 +2451,15 @@ export default function CustomerDashboardClient({
                                 }
 
                                 // Save the consolidated address with selected courier info
+                                const durationText = selectedRate?.shipment_duration ? ` (${selectedRate.shipment_duration} hari)` : "";
+                                const courierPriceText = typeof selectedRate?.price === "number"
+                                  ? ` - Rp ${selectedRate.price.toLocaleString("id-ID")}`
+                                  : " - Tarif Realtime Belum Dimuat";
                                 const courierString = selectedRate
-                                  ? ` | Kurir: ${selectedRate.courier_name.toUpperCase()} ${selectedRate.courier_service_name} [code: ${selectedRate.courier_code}:${selectedRate.courier_service_code || selectedRate.type || 'reg'}] (${selectedRate.shipment_duration} hari) - Rp ${selectedRate.price.toLocaleString("id-ID")}`
+                                  ? ` | Kurir: ${selectedRate.courier_name.toUpperCase()} ${selectedRate.courier_service_name} [code: ${selectedRate.courier_code}:${selectedRate.courier_service_code || selectedRate.type || 'reg'}]${durationText}${courierPriceText}`
                                   : " | Kurir: Standard Flat Rate";
-                                const finalAddress = `Alamat: ${shippingAddressDetail}, Kel/Desa: ${shippingVillage}, Kec: ${shippingDistrict}, Kab/Kota: ${shippingRegency}, Provinsi: ${shippingProvince}, Kode Pos: ${shippingPostalCode}${courierString}`;
+                                const cleanDetail = parseFullAddress(shippingAddressDetail).detail || shippingAddressDetail.replace(/^Alamat:\s*/i, "").split(/,\s*(?:Kel\/Desa|Kel|Kec|Kab\/Kota|Provinsi):/i)[0].replace(/,\s*Tamalanrea,\s*Makassar.*$/i, "").trim();
+                                const finalAddress = `Alamat: ${cleanDetail}, Kel/Desa: ${shippingVillage}, Kec: ${shippingDistrict}, Kab/Kota: ${shippingRegency}, Provinsi: ${shippingProvince}, Kode Pos: ${shippingPostalCode}${courierString}`;
                                 setTempShippingAddress(finalAddress);
 
                                 // Execute order checkout directly
@@ -3375,7 +3340,7 @@ export default function CustomerDashboardClient({
                     key={i}
                     onClick={() => {
                       setSelectedRate(rate);
-                      setShippingFeeMobile(rate.price);
+                      setShippingFeeMobile(typeof rate.price === "number" ? rate.price : 0);
                       setIsCourierSelectorOpenMobile(false);
                     }}
                     className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${isSelected
@@ -3395,9 +3360,15 @@ export default function CustomerDashboardClient({
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-black font-mono">
-                        Rp {rate.price.toLocaleString("id-ID")}
-                      </span>
+                      {typeof rate.price === "number" ? (
+                        <span className="text-xs font-black font-mono">
+                          Rp {rate.price.toLocaleString("id-ID")}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-1 rounded-lg block">
+                          Gagal Memuat Tarif
+                        </span>
+                      )}
                       {isSelected && (
                         <span className="material-symbols-outlined text-primary text-sm font-bold">check_circle</span>
                       )}

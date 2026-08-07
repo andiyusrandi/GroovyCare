@@ -181,7 +181,7 @@ export default function RegisterForm({ logoUrl }: RegisterFormProps) {
   };
 
   const validateStep2 = () => {
-    if (!formDataState.institutionName || !formDataState.siaNumber || !formDataState.sipaNumber || !formDataState.address) {
+    if (!formDataState.institutionName || !formDataState.siaNumber || !formDataState.sipaNumber) {
       setError("Harap isi seluruh data legalitas instansi & nomor izin sarana");
       return false;
     }
@@ -212,7 +212,7 @@ export default function RegisterForm({ logoUrl }: RegisterFormProps) {
       siaNumber: formDataState.siaNumber,
       siaExpiry: "2099-12-31",
       siaFileUrl: siaFile?.dataUrl || undefined,
-      address: formDataState.address,
+      address: formDataState.address || "Alamat belum dilengkapi (Silakan lengkapi di Pengaturan Akun)",
       name: formDataState.name,
       email: formDataState.email,
       password: formDataState.password,
@@ -478,20 +478,6 @@ export default function RegisterForm({ logoUrl }: RegisterFormProps) {
                     className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium text-slate-800 shadow-2xs"
                   />
                 </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-700 block">
-                  Alamat Lengkap Pengiriman Sediaan Obat
-                </label>
-                <textarea 
-                  name="address"
-                  rows={3}
-                  value={formDataState.address}
-                  onChange={handleInputChange}
-                  placeholder="Jl. Farmasi Raya No. 45, Kecamatan, Kota, Provinsi, Kode Pos"
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium text-slate-800 shadow-2xs"
-                />
               </div>
 
               <div className="flex gap-3 pt-3">

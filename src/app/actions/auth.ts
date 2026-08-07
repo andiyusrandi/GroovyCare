@@ -187,6 +187,7 @@ export async function getInstitutionProfile() {
         userEmail: user.email,
         sipaNumber: user.sipaNumber || "",
         institutionName: user.institution?.name || "Apotek Sehat Farma",
+        institutionType: user.institution?.type || "APOTEK",
         siaNumber: user.institution?.siaNumber || "",
         ownerKtp: user.institution?.ownerKtp || "",
         ownerNpwp: user.institution?.ownerNpwp || "",
@@ -231,6 +232,52 @@ export async function updateInstitutionProfile(data: {
           ...(data.address ? { address: data.address } : {}),
         },
       });
+
+      // Synchronize Operational Address to Main Address in ShippingAddress (Buku Alamat)
+      if (data.address) {
+        const { parseFullAddress } = await import("@/lib/address-parser");
+        const parsed = parseFullAddress(data.address);
+        const prisma = db as any;
+
+        const mainAddr = await prisma.shippingAddress.findFirst({
+          where: { institutionId: user.institutionId, isMain: true },
+        });
+
+        const formattedDistrict = parsed.village
+          ? `${parsed.district} (Desa/Kel: ${parsed.village})`
+          : parsed.district;
+
+        const { getInstitutionTypeInfo } = await import("@/lib/institution-helpers");
+        const typeInfo = getInstitutionTypeInfo(user.institution?.type);
+
+        if (mainAddr) {
+          await prisma.shippingAddress.update({
+            where: { id: mainAddr.id },
+            data: {
+              fullAddress: parsed.detail || data.address,
+              district: formattedDistrict,
+              city: parsed.regency,
+              province: parsed.province,
+              postalCode: parsed.postalCode,
+            },
+          });
+        } else {
+          await prisma.shippingAddress.create({
+            data: {
+              institutionId: user.institutionId,
+              label: typeInfo.mainAddressLabel,
+              recipientName: user.name || user.institution?.name || `${typeInfo.shortLabel} Mitra`,
+              recipientPhone: user.phone || "08123456789",
+              fullAddress: parsed.detail || data.address,
+              district: formattedDistrict,
+              city: parsed.regency,
+              province: parsed.province,
+              postalCode: parsed.postalCode,
+              isMain: true,
+            },
+          });
+        }
+      }
     }
 
     await db.user.update({

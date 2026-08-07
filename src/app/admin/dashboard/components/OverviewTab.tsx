@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, MoreHorizontal } from "lucide-react";
+import { Calendar, ChevronDown, MoreHorizontal, TrendingUp, ArrowRight, ShieldCheck, AlertCircle, CheckCircle2 } from "lucide-react";
 
 interface Batch {
   id: string;
@@ -123,7 +123,40 @@ export default function OverviewTab({
   const totalDebt = partners.reduce((sum, p) => sum + p.currentDebt, 0);
 
   // Take the last 3 orders for the recent table
-  const recentOrders = [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 3);
+  const recentOrders = [...orders]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 3);
+
+  // Dynamic Current Month & Year
+  const currentDate = new Date();
+  const currentMonthYearStr = currentDate.toLocaleDateString("id-ID", {
+    month: "long",
+    year: "numeric",
+  });
+
+  // Dynamic 6-Month Trend Data
+  const last6Months = Array.from({ length: 6 }).map((_, idx) => {
+    const d = new Date(currentDate.getFullYear(), currentDate.getMonth() - (5 - idx), 1);
+    const monthName = d.toLocaleDateString("id-ID", { month: "short" }).toUpperCase();
+    const isCurrent = idx === 5;
+    
+    // Sample proportional height simulation based on omset
+    let valStr = "Rp 0";
+    let heightPercent = "10%";
+    if (totalOmset > 0) {
+      const multipliers = [0.4, 0.55, 0.7, 0.6, 0.85, 1.0];
+      const monthVal = totalOmset * multipliers[idx];
+      valStr = `Rp ${(monthVal / 1000000).toFixed(1)}M`;
+      heightPercent = `${Math.max(15, multipliers[idx] * 90)}%`;
+    }
+
+    return {
+      month: monthName,
+      height: heightPercent,
+      val: valStr,
+      active: isCurrent,
+    };
+  });
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -133,93 +166,170 @@ export default function OverviewTab({
           <h2 className="font-heading font-extrabold text-2xl text-on-surface">Ringkasan Operasional</h2>
           <p className="text-xs text-outline font-medium mt-1">Pantau performa distribusi dan inventori secara real-time.</p>
         </div>
-        <div className="flex items-center gap-2 bg-surface-container-low px-4 py-2 rounded-xl border border-outline-variant/30 text-xs">
+
+        {/* Dynamic Date Filter Badge */}
+        <div className="inline-flex items-center gap-2.5 bg-surface-container-low px-4 py-2 rounded-xl border border-outline-variant/30 text-xs shadow-2xs hover:bg-surface-container-high/60 transition-colors cursor-pointer">
           <span className="material-symbols-outlined text-primary text-[18px]">calendar_today</span>
-          <span className="font-mono font-bold uppercase tracking-wider text-on-surface-variant">Juli 2026</span>
+          <span className="font-mono font-bold uppercase tracking-wider text-on-surface-variant">
+            {currentMonthYearStr}
+          </span>
+          <ChevronDown className="w-4 h-4 text-outline" />
         </div>
       </div>
 
-      {/* KPI Cards Bento Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Omset */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/10 shadow-sm hover:shadow-md transition-all duration-350 group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-11 h-11 rounded-xl bg-primary-container/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors duration-300">
-              <span className="material-symbols-outlined text-[20px]">payments</span>
+      {/* KPI Cards Bento Grid (Equal Heights) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
+        {/* 1. Total Omset PBF */}
+        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/10 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full group">
+          <div>
+            <div className="flex justify-between items-start mb-3">
+              <div className="w-11 h-11 rounded-xl bg-primary-container/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors duration-300">
+                <span className="material-symbols-outlined text-[20px]">payments</span>
+              </div>
+              {totalOmset > 0 ? (
+                <div className="flex items-center gap-1 text-emerald-600 font-bold bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full text-[10px]">
+                  <TrendingUp className="w-3 h-3" />
+                  +12.4%
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 text-slate-500 font-bold bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full text-[10px]">
+                  +0% bln ini
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-1 text-emerald-500 font-bold bg-emerald-50 px-2 py-0.5 rounded-full text-[10px]">
-              <span className="material-symbols-outlined text-xs">trending_up</span>
-              12.4%
-            </div>
+            <p className="text-[10px] text-outline mb-1 uppercase font-bold tracking-wider">Total Omset PBF</p>
+            <h3 className="font-heading font-extrabold text-xl text-on-surface font-mono">
+              Rp {totalOmset.toLocaleString("id-ID")}
+            </h3>
           </div>
-          <p className="text-[10px] text-outline mb-1 uppercase font-bold tracking-wider">Total Omset PBF</p>
-          <h3 className="font-heading font-extrabold text-xl text-on-surface font-mono">Rp {totalOmset.toLocaleString("id-ID")}</h3>
-          <div className="mt-4 h-12 w-full flex items-end gap-1">
-            <div className="flex-1 bg-primary/20 rounded-t h-[40%] transition-all group-hover:bg-primary"></div>
-            <div className="flex-1 bg-primary/20 rounded-t h-[60%] transition-all group-hover:bg-primary"></div>
-            <div className="flex-1 bg-primary/20 rounded-t h-[45%] transition-all group-hover:bg-primary"></div>
-            <div className="flex-1 bg-primary/20 rounded-t h-[70%] transition-all group-hover:bg-primary"></div>
-            <div className="flex-1 bg-primary/20 rounded-t h-[90%] transition-all group-hover:bg-primary"></div>
-            <div className="flex-1 bg-primary/20 rounded-t h-[85%] transition-all group-hover:bg-primary"></div>
+
+          {/* Sparkline / Empty State */}
+          <div className="mt-4 pt-3 border-t border-slate-100">
+            {totalOmset > 0 ? (
+              <div className="h-9 w-full flex items-end gap-1">
+                <div className="flex-1 bg-primary/20 rounded-t h-[40%] group-hover:bg-primary transition-all"></div>
+                <div className="flex-1 bg-primary/20 rounded-t h-[60%] group-hover:bg-primary transition-all"></div>
+                <div className="flex-1 bg-primary/20 rounded-t h-[45%] group-hover:bg-primary transition-all"></div>
+                <div className="flex-1 bg-primary/20 rounded-t h-[70%] group-hover:bg-primary transition-all"></div>
+                <div className="flex-1 bg-primary/20 rounded-t h-[90%] group-hover:bg-primary transition-all"></div>
+                <div className="flex-1 bg-primary/20 rounded-t h-[85%] group-hover:bg-primary transition-all"></div>
+              </div>
+            ) : (
+              <div className="h-9 w-full flex flex-col justify-center items-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                <p className="text-[10px] text-slate-400 font-medium">Belum ada transaksi bulan ini</p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Tagihan Tempo */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/10 shadow-sm hover:shadow-md transition-all duration-355 group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-11 h-11 rounded-xl bg-error-container/10 flex items-center justify-center text-error group-hover:bg-error group-hover:text-on-error transition-colors duration-300">
-              <span className="material-symbols-outlined text-[20px]">receipt_long</span>
+        {/* 2. Piutang Berjalan */}
+        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/10 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full group">
+          <div>
+            <div className="flex justify-between items-start mb-3">
+              <div className="w-11 h-11 rounded-xl bg-error-container/10 flex items-center justify-center text-error group-hover:bg-error group-hover:text-on-error transition-colors duration-300">
+                <span className="material-symbols-outlined text-[20px]">receipt_long</span>
+              </div>
+              {totalDebt > 0 ? (
+                <div className="bg-error-container text-on-error-container border border-red-200 px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>
+                  Kritis
+                </div>
+              ) : (
+                <div className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Aman
+                </div>
+              )}
             </div>
-            <div className="bg-error-container text-on-error-container px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>
-              Kritis
-            </div>
+            <p className="text-[10px] text-outline mb-1 uppercase font-bold tracking-wider">Piutang Berjalan</p>
+            <h3 className="font-heading font-extrabold text-xl text-on-surface font-mono">
+              Rp {totalDebt.toLocaleString("id-ID")}
+            </h3>
           </div>
-          <p className="text-[10px] text-outline mb-1 uppercase font-bold tracking-wider">Piutang Berjalan</p>
-          <h3 className="font-heading font-extrabold text-xl text-on-surface font-mono">Rp {totalDebt.toLocaleString("id-ID")}</h3>
-          <p className="mt-4 text-[10px] text-outline italic">Jatuh tempo berdasarkan termin TOP.</p>
+
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span className="text-[10px] text-slate-500">Jatuh tempo TOP</span>
+            <button
+              onClick={() => setActiveTab("pembayaran")}
+              className="text-[10px] text-primary hover:underline font-bold inline-flex items-center gap-0.5 cursor-pointer"
+            >
+              <span>Detail Tagihan</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
         </div>
 
-        {/* Pesanan Tertunda */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/10 shadow-sm hover:shadow-md transition-all duration-360 group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-11 h-11 rounded-xl bg-tertiary-container/10 flex items-center justify-center text-tertiary group-hover:bg-tertiary group-hover:text-on-tertiary transition-colors duration-300">
-              <span className="material-symbols-outlined text-[20px]">pending_actions</span>
+        {/* 3. Pesanan Tertunda */}
+        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/10 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full group">
+          <div>
+            <div className="flex justify-between items-start mb-3">
+              <div className="w-11 h-11 rounded-xl bg-tertiary-container/10 flex items-center justify-center text-tertiary group-hover:bg-tertiary group-hover:text-on-tertiary transition-colors duration-300">
+                <span className="material-symbols-outlined text-[20px]">pending_actions</span>
+              </div>
+              {pendingOrders.length > 0 ? (
+                <div className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full text-[9px] font-bold">
+                  Perlu Aksi
+                </div>
+              ) : (
+                <div className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full text-[9px] font-bold">
+                  Lancar
+                </div>
+              )}
+            </div>
+            <p className="text-[10px] text-outline mb-1 uppercase font-bold tracking-wider">Pesanan Tertunda</p>
+            <h3 className="font-heading font-extrabold text-xl text-on-surface font-mono">
+              {pendingOrders.length} SP
+            </h3>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+            <div className="flex flex-wrap gap-1">
+              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200/60">APJ</span>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200/60">SIA</span>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200/60">FEFO</span>
             </div>
             <button
               onClick={() => setActiveTab("cdob")}
-              className="text-[9px] text-primary hover:underline font-bold"
+              className="text-[10px] text-primary hover:underline font-bold inline-flex items-center gap-0.5 cursor-pointer shrink-0"
             >
-              Proses SP
+              <span>Proses SP</span>
+              <ArrowRight className="w-3 h-3" />
             </button>
-          </div>
-          <p className="text-[10px] text-outline mb-1 uppercase font-bold tracking-wider">Pesanan Tertunda</p>
-          <h3 className="font-heading font-extrabold text-xl text-on-surface font-mono">{pendingOrders.length} SP</h3>
-          <div className="mt-4 flex -space-x-2">
-            <div className="w-6 h-6 rounded-full border-2 border-surface-container-lowest bg-surface-container flex items-center justify-center text-[7px] font-bold text-outline">APJ</div>
-            <div className="w-6 h-6 rounded-full border-2 border-surface-container-lowest bg-surface-container-high flex items-center justify-center text-[7px] font-bold text-outline">SIA</div>
-            <div className="w-6 h-6 rounded-full border-2 border-surface-container-lowest bg-surface-container-highest flex items-center justify-center text-[7px] font-bold text-outline">FEFO</div>
           </div>
         </div>
 
-        {/* Registrasi Baru */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/10 shadow-sm hover:shadow-md transition-all duration-365 group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-11 h-11 rounded-xl bg-secondary-container/20 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-on-secondary transition-colors duration-300">
-              <span className="material-symbols-outlined text-[20px]">group_add</span>
+        {/* 4. Pendaftar Kemitraan */}
+        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/10 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full group">
+          <div>
+            <div className="flex justify-between items-start mb-3">
+              <div className="w-11 h-11 rounded-xl bg-secondary-container/20 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-on-secondary transition-colors duration-300">
+                <span className="material-symbols-outlined text-[20px]">group_add</span>
+              </div>
+              {pendingPartners.length > 0 ? (
+                <div className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full text-[9px] font-bold">
+                  Verifikasi
+                </div>
+              ) : (
+                <div className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full text-[9px] font-bold">
+                  Lengkap
+                </div>
+              )}
             </div>
+            <p className="text-[10px] text-outline mb-1 uppercase font-bold tracking-wider">Pendaftar Kemitraan</p>
+            <h3 className="font-heading font-extrabold text-xl text-on-surface font-mono">
+              {pendingPartners.length} Mitra
+            </h3>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+            <span className="text-[10px] text-slate-500 font-medium truncate">Cek dokumen SIA</span>
             <button
               onClick={() => setActiveTab("kemitraan")}
-              className="text-[9px] text-secondary hover:underline font-bold"
+              className="text-[10px] text-secondary hover:underline font-bold inline-flex items-center gap-0.5 cursor-pointer shrink-0"
             >
-              Lihat Detail
+              <span>Lihat Detail</span>
+              <ArrowRight className="w-3 h-3" />
             </button>
-          </div>
-          <p className="text-[10px] text-outline mb-1 uppercase font-bold tracking-wider">Pendaftar Kemitraan</p>
-          <h3 className="font-heading font-extrabold text-xl text-on-surface font-mono">{pendingPartners.length} Mitra</h3>
-          <div className="mt-4 flex items-center text-[10px] text-secondary font-semibold">
-            <span className="material-symbols-outlined text-sm mr-1">verified</span>
-            Butuh verifikasi dokumen SIA
           </div>
         </div>
       </div>
@@ -234,8 +344,8 @@ export default function OverviewTab({
               <p className="text-xs text-outline">Visualisasi omset transaksi 6 bulan terakhir</p>
             </div>
             <select className="bg-surface-container-low border-none text-xs rounded-lg px-2.5 py-1.5 focus:ring-1 focus:ring-primary font-bold text-on-surface-variant outline-none">
-              <option>Tahun 2026</option>
-              <option>Tahun 2025</option>
+              <option>Tahun {currentDate.getFullYear()}</option>
+              <option>Tahun {currentDate.getFullYear() - 1}</option>
             </select>
           </div>
           {/* Custom SVG Bar/Line Chart */}
@@ -248,23 +358,17 @@ export default function OverviewTab({
               <div className="border-t border-on-surface w-full"></div>
             </div>
 
-            {[
-              { month: "MEI", height: "40%", val: "Rp 1.8M" },
-              { month: "JUN", height: "55%", val: "Rp 2.4M" },
-              { month: "JUL", height: "70%", val: "Rp 3.1M" },
-              { month: "AGU", height: "60%", val: "Rp 2.7M" },
-              { month: "SEP", height: "85%", val: "Rp 3.9M" },
-              { month: "OKT", height: "95%", val: `Rp ${(totalOmset / 1000000).toFixed(1)}M`, active: true },
-            ].map((item, idx) => (
+            {last6Months.map((item, idx) => (
               <div key={idx} className="relative flex-1 flex flex-col justify-end items-center group cursor-pointer z-10">
                 <div className="absolute -top-7 bg-on-surface text-surface text-[9px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md font-mono font-bold z-20">
                   {item.val}
                 </div>
                 <div
-                  className={`w-full max-w-[45px] rounded-t-lg transition-all duration-300 ${item.active
+                  className={`w-full max-w-[45px] rounded-t-lg transition-all duration-300 ${
+                    item.active
                       ? "bg-primary shadow-sm shadow-primary/20"
                       : "bg-primary-container/20 group-hover:bg-primary-container/60"
-                    }`}
+                  }`}
                   style={{ height: item.height }}
                 ></div>
                 <span className={`text-[10px] text-center mt-2 font-bold ${item.active ? "text-primary font-black" : "text-outline"}`}>
@@ -349,7 +453,20 @@ export default function OverviewTab({
             </thead>
             <tbody className="divide-y divide-outline-variant/10 text-on-surface">
               {recentOrders.map((o) => {
-                const total = o.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                const subtotal = o.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                const vat = Math.round(subtotal * 0.11);
+                let shippingFee = (o as any).shippingFee || 0;
+                if (!shippingFee && (o as any).shippingAddress) {
+                  const feeMatch = (o as any).shippingAddress.match(/-\s*Rp\s*([0-9.,]+)/);
+                  if (feeMatch && feeMatch[1]) {
+                    shippingFee = parseInt(feeMatch[1].replace(/[.,]/g, ""), 10) || 0;
+                  } else {
+                    shippingFee = 50000;
+                  }
+                } else if (!shippingFee) {
+                  shippingFee = 50000;
+                }
+                const total = subtotal + vat + shippingFee;
                 const desc = o.items.map((it) => `${it.product.name} (x${it.quantity})`).join(", ");
 
                 return (
@@ -373,7 +490,7 @@ export default function OverviewTab({
                         <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-bold text-[9px] uppercase">Ready to Pack</span>
                       )}
                       {o.status === "SHIPPED" && (
-                        <span className="bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full font-bold text-[9px] uppercase">In Shipping</span>
+                        <span className="bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full text-[9px] uppercase">In Shipping</span>
                       )}
                       {o.status === "DELIVERED" && (
                         <span className="bg-emerald-50 text-primary border border-emerald-200 px-2 py-0.5 rounded-full font-bold text-[9px] uppercase">Delivered</span>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { login, quickLogin } from "@/app/actions/auth";
 
 interface LoginFormProps {
   logoUrl?: string;
@@ -26,11 +27,6 @@ export default function LoginForm({ logoUrl }: LoginFormProps) {
     setLoading(true);
 
     try {
-      await fetch("/api/logout", { method: "POST" });
-    } catch {}
-
-    try {
-      const { login } = await import("@/app/actions/auth");
       const formData = new FormData();
       formData.append("email", email);
       formData.append("password", password);
@@ -38,11 +34,8 @@ export default function LoginForm({ logoUrl }: LoginFormProps) {
       const res = await login(formData);
 
       if (res.success && res.role) {
-        if (res.role === "PBF_ADMIN") {
-          router.push("/admin/dashboard");
-        } else {
-          router.push("/customer/dashboard");
-        }
+        const target = res.role === "PBF_ADMIN" || res.role === "SYSTEM_ADMIN" ? "/admin/dashboard" : "/customer/dashboard";
+        window.location.href = target;
       } else {
         setError(res.error || "Login gagal, silakan periksa email & password Anda.");
         setLoading(false);
@@ -59,17 +52,11 @@ export default function LoginForm({ logoUrl }: LoginFormProps) {
     setLoading(true);
 
     try {
-      await fetch("/api/seed", { method: "POST" });
-
-      const { quickLogin } = await import("@/app/actions/auth");
       const res = await quickLogin(roleType);
 
       if (res.success && res.role) {
-        if (res.role === "PBF_ADMIN") {
-          router.push("/admin/dashboard");
-        } else {
-          router.push("/customer/dashboard");
-        }
+        const target = res.role === "PBF_ADMIN" || res.role === "SYSTEM_ADMIN" ? "/admin/dashboard" : "/customer/dashboard";
+        window.location.href = target;
       } else {
         setError(res.error || `Gagal simulasi login sebagai ${label}`);
         setLoading(false);
@@ -120,7 +107,7 @@ export default function LoginForm({ logoUrl }: LoginFormProps) {
         {/* Email Input */}
         <div className="space-y-1">
           <label htmlFor="email" className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
-            Email Bisnis
+            Email Bisnis <span className="text-rose-500">*</span>
           </label>
           <input
             id="email"
@@ -137,7 +124,7 @@ export default function LoginForm({ logoUrl }: LoginFormProps) {
         <div className="space-y-1">
           <div className="flex justify-between items-center">
             <label htmlFor="password-input" className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
-              Kata Sandi
+              Kata Sandi <span className="text-rose-500">*</span>
             </label>
           </div>
           <div className="relative flex items-center">
@@ -168,7 +155,7 @@ export default function LoginForm({ logoUrl }: LoginFormProps) {
           </div>
         </div>
 
-        {/* Primary Action Button (Native Mobile Touch Feedback active:scale-[0.98]) */}
+        {/* Primary Action Button */}
         <button
           type="submit"
           disabled={loading}

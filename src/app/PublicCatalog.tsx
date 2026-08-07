@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { Lock, ArrowRight, CheckCircle2 } from "lucide-react";
 
 interface Product {
   id: string;
@@ -18,14 +19,14 @@ interface Product {
   expDate?: string;
 }
 
-// 5 Produk Dummy Utama dengan data presisi & fallback gambar kustom
+// 5 Produk Utama
 const DUMMY_PRODUCTS: Product[] = [
   {
     id: "dummy-1",
     code: "INF-001",
     name: "Undenatured Collagen Type II (UC II) 40mg",
     activeIngredient: "Collagen 40mg",
-    price: 1000,
+    price: 150000,
     category: "Suplemen",
     description: "Formulasi collagen tipe 2 khusus kesehatan sendi & tulang.",
     unit: "Pack",
@@ -138,11 +139,12 @@ export default function PublicCatalog({ products }: { products: Product[] }) {
       {displayProducts.map((p, idx) => {
         const golongan = getGolonganBadge(p);
         const imgSrc = getProductImage(p);
+        const hasPrice = p.price && p.price > 0;
 
         return (
           <div
             key={`${p.id}-${idx}`}
-            className="bg-white rounded-2xl border border-slate-200/80 p-2.5 sm:p-3.5 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all duration-200 flex flex-col justify-between group"
+            className="bg-white rounded-2xl border border-slate-200/80 p-2.5 sm:p-3.5 shadow-2xs hover:shadow-md hover:border-emerald-300 transition-all duration-200 flex flex-col justify-between group"
           >
             <div>
               {/* Code & Badge */}
@@ -155,7 +157,7 @@ export default function PublicCatalog({ products }: { products: Product[] }) {
                 </span>
               </div>
 
-              {/* Product Image Container (h-24 sm:h-28) */}
+              {/* Product Image Container */}
               <div className="relative w-full h-24 sm:h-28 bg-slate-50 rounded-xl overflow-hidden mb-2 border border-slate-100 flex items-center justify-center p-2">
                 <img
                   src={imgSrc}
@@ -170,7 +172,7 @@ export default function PublicCatalog({ products }: { products: Product[] }) {
                 )}
               </div>
 
-              {/* Brand & Name (min-h-[32px] for line clamping balance) */}
+              {/* Brand & Name */}
               <p className="text-[9px] font-bold text-slate-400 tracking-wider uppercase truncate">
                 {p.manufacturer || "FARMASI RESMI"}
               </p>
@@ -201,19 +203,26 @@ export default function PublicCatalog({ products }: { products: Product[] }) {
               </div>
             </div>
 
-            {/* Footer Card Action (min-w-0 & shrink-0) */}
+            {/* Footer Card Action */}
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
               <div className="min-w-0">
-                <span className="text-[8px] text-slate-400 block leading-none">Harga / Pack</span>
-                <span className="text-xs font-bold text-slate-900 font-mono truncate block">
-                  Rp {p.price.toLocaleString("id-ID")}
-                </span>
+                <span className="text-[8px] text-slate-400 block leading-none">Harga / {p.unit || "Pack"}</span>
+                {hasPrice ? (
+                  <span className="text-xs font-bold text-slate-900 font-mono truncate block">
+                    Rp {p.price.toLocaleString("id-ID")}
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-emerald-700 font-mono truncate block flex items-center gap-0.5">
+                    <Lock className="w-2.5 h-2.5 text-emerald-600 inline" /> Khusus Mitra
+                  </span>
+                )}
               </div>
               <Link
                 href="/login"
-                className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-[11px] font-semibold transition-all shrink-0 inline-block"
+                className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-[11px] font-semibold transition-all shrink-0 inline-flex items-center gap-1 shadow-2xs"
+                title="Login Mitra untuk Memesan Obat"
               >
-                Pesan
+                <span>Pesan</span>
               </Link>
             </div>
           </div>

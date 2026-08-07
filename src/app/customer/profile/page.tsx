@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { getInstitutionTypeInfo } from "@/lib/institution-helpers";
+
 export default function MobileProfilePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"pemilik" | "sarana">("pemilik");
@@ -12,6 +14,7 @@ export default function MobileProfilePage() {
 
   // Form State
   const [institutionName, setInstitutionName] = useState("Apotek Sehat Farma");
+  const [institutionType, setInstitutionType] = useState("APOTEK");
   const [ownerKtp, setOwnerKtp] = useState("");
   const [ownerNpwp, setOwnerNpwp] = useState("");
   const [siaNumber, setSiaNumber] = useState("");
@@ -48,6 +51,7 @@ export default function MobileProfilePage() {
         if (res.success && res.data) {
           const d = res.data;
           if (d.institutionName) setInstitutionName(d.institutionName);
+          if (d.institutionType) setInstitutionType(d.institutionType);
           if (d.ownerKtp) setOwnerKtp(d.ownerKtp);
           if (d.ownerNpwp) setOwnerNpwp(d.ownerNpwp);
           if (d.siaNumber) setSiaNumber(d.siaNumber);
@@ -225,6 +229,8 @@ export default function MobileProfilePage() {
 
   const isProfileIncomplete = !ownerKtp || !ownerNpwp || !siaNumber || !sipaNumber;
 
+  const typeInfo = getInstitutionTypeInfo(institutionType);
+
   return (
     <div className="min-h-screen bg-slate-50 pb-24 font-sans text-slate-800 select-none">
       {/* Header Sticky khusus Mobile */}
@@ -309,10 +315,10 @@ export default function MobileProfilePage() {
                 Data Pemilik &amp; Alamat Sarana
               </h2>
 
-              {/* Nama Apotek / Sarana */}
+              {/* Nama Sarana / Mitra */}
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                  Nama Apotek / Sarana
+                  Nama {typeInfo.shortLabel} / Sarana
                 </label>
                 <input
                   type="text"
@@ -325,7 +331,7 @@ export default function MobileProfilePage() {
               {/* Alamat Operasional Cascading Wilayah */}
               <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 space-y-3">
                 <h3 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider block border-b border-slate-200/60 pb-1.5">
-                  Alamat Operasional Apotek
+                  {typeInfo.addressLabel}
                 </h3>
 
                 <div className="space-y-1">
@@ -494,21 +500,21 @@ export default function MobileProfilePage() {
 
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                  Nomor SIA (Surat Izin Apotek) *
+                  Nomor {typeInfo.licenseShort} ({typeInfo.licenseName}) *
                 </label>
                 <input
                   type="text"
                   required
                   value={siaNumber}
                   onChange={(e) => setSiaNumber(e.target.value)}
-                  placeholder="SIA/123/ABC/2024"
+                  placeholder={typeInfo.licensePlaceholder}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-mono text-slate-800 focus:border-emerald-600 focus:outline-none"
                 />
               </div>
 
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                  Nomor SIPA APJ *
+                  Nomor SIPA ({typeInfo.managerTitle}) *
                 </label>
                 <input
                   type="text"

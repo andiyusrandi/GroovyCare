@@ -25,6 +25,7 @@ import {
   bulkShipOrders,
   verifyPayment,
   deleteOrder,
+  deleteBulkOrders,
   markOrderAsPaidManually,
 } from "@/app/actions/orders";
 import {
@@ -482,9 +483,7 @@ export default function AdminDashboardClient({
 
   // Logout Handler
   async function handleLogout() {
-    await logout();
-    router.push("/login");
-    router.refresh();
+    window.location.href = "/api/logout";
   }
 
   // Kemitraan Action
@@ -632,6 +631,16 @@ export default function AdminDashboardClient({
 
   async function handleDeleteOrder(orderId: string) {
     const res = await deleteOrder(orderId);
+    if (res.success) {
+      alert(res.message);
+      window.location.reload();
+    } else {
+      alert(res.error);
+    }
+  }
+
+  async function handleDeleteBulkOrders(orderIds: string[]) {
+    const res = await deleteBulkOrders(orderIds);
     if (res.success) {
       alert(res.message);
       window.location.reload();
@@ -835,6 +844,7 @@ export default function AdminDashboardClient({
               orders={orders}
               onRejectOrder={handleRejectOrder}
               onDeleteOrder={handleDeleteOrder}
+              onDeleteBulkOrders={handleDeleteBulkOrders}
             />
           )}
 

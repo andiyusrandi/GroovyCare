@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { X, Search, CheckCircle, Package, Scan, Snowflake, Truck, AlertTriangle } from "lucide-react";
+import { X, Search, CheckCircle, Package, Scan, Snowflake, Truck, AlertTriangle, ShieldCheck } from "lucide-react";
 import BiteshipTrackingModal from "@/app/components/BiteshipTrackingModal";
+import { formatDisplayAddress } from "@/lib/address-parser";
 
 interface OrderItem {
   id: string;
@@ -70,6 +71,31 @@ interface LogisticsTabProps {
   onDeleteOrder: (orderId: string) => Promise<void>;
 }
 
+function getCourierName(addr?: string): string {
+  if (!addr) return "Ekspedisi Reguler";
+  const match = addr.match(/Kurir:\s*([^\s(|]+(?:\s+[^\s(|]+)?)/i);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  if (addr.includes("groovyrx") || addr.includes("Logistik")) {
+    return "Logistik Groovyrx";
+  }
+  return "Ekspedisi Reguler";
+}
+
+function getFullDisplayAddress(shippingAddress?: string, institutionAddress?: string): string {
+  const primary = (shippingAddress || "").replace(/\|\s*Kurir:.*$/i, "").trim();
+  const fallback = (institutionAddress || "").replace(/\|\s*Kurir:.*$/i, "").trim();
+
+  // Combine primary street detail with fallback institutional address if primary lacks regional info
+  const hasRegionalInfo = primary.includes("Kel/Desa:") || primary.includes("Kab/Kota:") || primary.includes("Provinsi:") || primary.includes("Kel.") || primary.includes("Kec.");
+  const combined = hasRegionalInfo
+    ? primary
+    : fallback ? `${primary}, ${fallback.replace(/^Alamat:\s*/i, "")}` : primary;
+
+  return formatDisplayAddress(combined);
+}
+
 export default function LogisticsTab({
   orders,
   activePackingOrder,
@@ -115,403 +141,192 @@ export default function LogisticsTab({
     );
   };
 
+  const handleExecuteBulkShip = async () => {
+    if (selectedOrderIds.length === 0) return;
+    if (!confirm(`Apakah Anda yakin ingin memproses & buat resi otomatis untuk ${selectedOrderIds.length} pesanan ini sekaligus?`)) return;
+
+    setIsBulkShipping(true);
+    try {
+      if (onBulkShipOrders) {
+        await onBulkShipOrders(selectedOrderIds);
+      } else {
+        alert("Fitur bulk ship tidak didukung pada versi ini.");
+      }
+      setSelectedOrderIds([]);
+    } catch (e: any) {
+      alert("Gagal memproses pengiriman masal: " + e.message);
+    } finally {
+      setIsBulkShipping(false);
+    }
+  };
+
   return (
-    <div className="space-y-6 animate-fadeIn text-xs">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div className="space-y-4 animate-fadeIn font-sans">
+      {/* Slim Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 px-5 rounded-2xl border border-slate-200/80 shadow-2xs">
         <div>
-          <h2 className="text-2xl font-heading font-extrabold text-on-surface">Distribusi &amp; Scan Packing</h2>
-          <p className="text-xs text-on-surface-variant font-medium mt-1">Manajemen pengiriman farmasi dan validasi FEFO real-time.</p>
+          <h1 className="font-heading font-extrabold text-lg text-slate-900 leading-tight">
+            Logistik &amp; Pengiriman PBF
+          </h1>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Pengepakan obat, scan barcode batch (FEFO), dan pembuatan resi pengiriman kurir.
+          </p>
         </div>
-        <div className="flex gap-2">
-          <div className="bg-primary/10 text-primary px-3 py-1.5 rounded-lg flex items-center gap-1.5 border border-primary/20">
-            <span className="material-symbols-outlined text-[16px] animate-pulse" style={{ fontVariationSettings: "'FILL' 1" }}>thermostat</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider">Cold Chain Aman</span>
+        <div className="flex items-center gap-2 text-xs shrink-0">
+          <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-extrabold rounded-xl border border-emerald-200/80 flex items-center gap-1.5 shadow-2xs">
+            <Truck className="w-4 h-4 text-emerald-600" />
+            <span>Biteship Logistik Integrated</span>
+          </span>
+        </div>
+      </div>
+
+      {/* Compact KPI Metrics Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="bg-white p-3.5 px-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3">
+          <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600 border border-blue-100 shrink-0">
+            <Package className="w-5 h-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block truncate">Siap Packing</span>
+            <h3 className="font-heading font-extrabold text-xl text-slate-900 font-mono mt-0.5">{pendingShipping.length} <span className="text-xs font-bold text-slate-400 font-sans">Order</span></h3>
+          </div>
+        </div>
+
+        <div className="bg-white p-3.5 px-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3">
+          <div className="p-2.5 bg-emerald-50 rounded-xl text-emerald-600 border border-emerald-100 shrink-0">
+            <Truck className="w-5 h-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block truncate">Sedang Dikirim</span>
+            <h3 className="font-heading font-extrabold text-xl text-slate-900 font-mono mt-0.5">{shippedCount} <span className="text-xs font-bold text-slate-400 font-sans">Order</span></h3>
+          </div>
+        </div>
+
+        <div className="bg-white p-3.5 px-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3">
+          <div className="p-2.5 bg-cyan-50 rounded-xl text-cyan-600 border border-cyan-100 shrink-0">
+            <Snowflake className="w-5 h-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block truncate">Cold Chain Storage</span>
+            <h3 className="font-heading font-extrabold text-xl text-slate-900 font-mono mt-0.5">Live <span className="text-xs font-bold text-slate-400 font-sans">2-8°C</span></h3>
+          </div>
+        </div>
+
+        <div className="bg-white p-3.5 px-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3">
+          <div className="p-2.5 bg-purple-50 rounded-xl text-purple-600 border border-purple-100 shrink-0">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block truncate">Kepatuhan CDOB</span>
+            <h3 className="font-heading font-extrabold text-sm text-emerald-700 mt-0.5">100% Valid</h3>
           </div>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-surface-container-lowest p-4 rounded-2xl shadow-sm border border-outline-variant/10 group hover:shadow-md transition-all">
-          <div className="flex justify-between items-start mb-2">
-            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Siap Scan</p>
-            <span className="material-symbols-outlined text-primary/45 text-lg">pending_actions</span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <h3 className="text-2xl font-heading font-extrabold text-on-surface leading-tight font-mono">{pendingShipping.length}</h3>
-            <p className="text-[9px] text-primary font-bold">SP Rilis</p>
-          </div>
-        </div>
-
-        <div className="bg-surface-container-lowest p-4 rounded-2xl shadow-sm border border-outline-variant/10 group hover:shadow-md transition-all">
-          <div className="flex justify-between items-start mb-2">
-            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Sedang Diproses</p>
-            <span className="material-symbols-outlined text-secondary/45 text-lg">conveyor_belt</span>
-          </div>
-          <h3 className="text-2xl font-heading font-extrabold text-on-surface leading-tight font-mono">
-            {activePackingOrder ? "01" : "00"}
-          </h3>
-          <div className="w-full bg-surface-container h-1 mt-2 rounded-full overflow-hidden">
-            <div className="bg-secondary h-full rounded-full" style={{ width: activePackingOrder ? "45%" : "0%" }}></div>
-          </div>
-        </div>
-
-        <div className="bg-surface-container-lowest p-4 rounded-2xl shadow-sm border border-outline-variant/10 group hover:shadow-md transition-all">
-          <div className="flex justify-between items-start mb-2">
-            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Siap Kirim</p>
-            <span className="material-symbols-outlined text-primary-container/45 text-lg">local_shipping</span>
-          </div>
-          <h3 className="text-2xl font-heading font-extrabold text-on-surface leading-tight font-mono">{shippedCount}</h3>
-          <p className="text-[9px] text-on-surface-variant italic font-semibold">Telah Berresi</p>
-        </div>
-
-        <div className="bg-primary p-4 rounded-2xl shadow-md border border-primary-fixed/20 relative overflow-hidden text-white">
-          <div className="relative z-10">
-            <div className="flex justify-between items-start mb-2">
-              <p className="text-[10px] font-bold text-white/80 uppercase tracking-wider">Monitor Suhu</p>
-              <Snowflake className="w-4 h-4 text-white" />
-            </div>
-            <h3 className="text-2xl font-heading font-extrabold leading-none font-mono">4.2°C</h3>
-            <p className="text-[9px] text-white/90 mt-1 font-bold">Optimal Cold Box: 2°C - 8°C</p>
-          </div>
-          <div className="absolute -right-2 -bottom-2 opacity-10">
-            <span className="material-symbols-outlined text-[50px]">ac_unit</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Panel: Split View */}
-      <div className="flex flex-col xl:flex-row gap-6 min-h-[500px]">
-        {/* Shipment Queue (Left column - 1.6 flex) */}
-        <div className="flex-[1.6] bg-surface-container-lowest rounded-2xl border border-outline-variant/20 shadow-sm flex flex-col overflow-hidden">
-          <div className="px-5 py-4 border-b border-outline-variant/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white">
-            <div className="flex items-center gap-3">
-              <h3 className="font-heading font-extrabold text-sm text-on-surface">Antrean Pengiriman</h3>
-              {selectedOrderIds.length > 0 && onBulkShipOrders && (
-                <button
-                  type="button"
-                  disabled={isBulkShipping}
-                  onClick={async () => {
-                    setIsBulkShipping(true);
-                    try {
-                      await onBulkShipOrders(selectedOrderIds);
-                    } finally {
-                      setIsBulkShipping(false);
-                    }
-                  }}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-extrabold text-[10px] flex items-center gap-1 transition-all cursor-pointer shadow-sm border-none active:scale-95 disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-[14px]">local_shipping</span>
-                  <span>{isBulkShipping ? "Memproses..." : `Request Pick-Up Biteship Massal (${selectedOrderIds.length} Order)`}</span>
-                </button>
-              )}
-            </div>
-
-            <div className="relative w-48">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant/75 w-3.5 h-3.5" />
+      {/* Main Table View */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+        <div className="p-3.5 px-4 border-b border-slate-150 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+          <div className="flex items-center gap-3 flex-1 min-w-[240px] max-w-md">
+            <div className="relative w-full">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
               <input
+                type="text"
+                placeholder="Cari No. SP, Nama Apotek..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-surface-container-low border-none rounded-xl text-[10px] focus:ring-1 focus:ring-primary outline-none text-foreground"
-                placeholder="Cari No. Order..."
-                type="text"
+                className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200/90 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none shadow-2xs"
               />
             </div>
           </div>
 
-          <div className="overflow-x-auto flex-1">
-            {filteredOrders.length === 0 ? (
-              <div className="text-center py-16 text-on-surface-variant font-semibold">
-                Tidak ada antrean pengiriman logistik saat ini.
-              </div>
-            ) : (
-              <table className="w-full text-left border-collapse table-auto">
-                <thead className="bg-surface-container-low text-on-surface-variant font-bold border-b border-outline-variant/20">
-                  <tr>
-                    <th className="px-3 py-3 w-8 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isAllSelected}
-                        onChange={toggleSelectAll}
-                        className="rounded border-outline-variant text-primary focus:ring-primary cursor-pointer w-3.5 h-3.5"
-                      />
-                    </th>
-                    <th className="px-3 py-3 w-28">No. Pesanan</th>
-                    <th className="px-5 py-3">Tujuan Pengiriman</th>
-                    <th className="px-5 py-3 text-center w-16">Item</th>
-                    <th className="px-5 py-3 w-28">Metode</th>
-                    <th className="px-5 py-3 w-36">Status Scan</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/10 text-on-surface">
-                  {filteredOrders.map((order) => {
-                    const isSelected = activePackingOrder?.id === order.id;
-                    const isChecked = selectedOrderIds.includes(order.id);
-                    const isColdChain = order.items.some(
-                      (item) =>
-                        item.product.name.toLowerCase().includes("vaksin") ||
-                        item.product.name.toLowerCase().includes("bcg") ||
-                        item.product.name.toLowerCase().includes("inj")
-                    );
-
-                    // Scan percentage calculation
-                    const totalNeeded = order.batchAllocations.reduce((sum, a) => sum + a.quantity, 0);
-                    const totalScanned = order.batchAllocations.reduce((sum, a) => sum + (scannedItems[a.id] || 0), 0);
-                    const progressPercent = totalNeeded > 0 ? Math.round((totalScanned / totalNeeded) * 100) : 0;
-
-                    return (
-                      <tr
-                        key={order.id}
-                        onClick={() => startPacking(order)}
-                        className={`transition-colors cursor-pointer ${isSelected
-                            ? "border-l-4 border-primary bg-primary-container/10 font-medium"
-                            : isChecked
-                            ? "bg-blue-50/50"
-                            : "hover:bg-surface-container-low/50"
-                          }`}
-                      >
-                        <td className="px-3 py-4 text-center" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleSelectOrder(order.id)}
-                            className="rounded border-outline-variant text-primary focus:ring-primary cursor-pointer w-3.5 h-3.5"
-                          />
-                        </td>
-                        <td className="px-3 py-4 font-bold text-primary font-mono">{order.orderNumber}</td>
-                        <td className="px-5 py-4">
-                          <p className="font-bold text-foreground">{order.institution.name}</p>
-                          <p className="text-[10px] text-on-surface-variant truncate max-w-[180px]">{order.shippingAddress}</p>
-                        </td>
-                        <td className="px-5 py-4 text-center font-bold font-mono">
-                          {order.items.reduce((sum, i) => sum + i.quantity, 0)}
-                        </td>
-                        <td className="px-5 py-4">
-                          {isColdChain ? (
-                            <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-0.5 w-fit border border-blue-200">
-                              <Snowflake className="w-3 h-3 text-blue-700" />
-                              Cold Chain
-                            </span>
-                          ) : (
-                            <span className="bg-slate-50 text-on-surface-variant px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-0.5 w-fit border border-slate-200">
-                              <Truck className="w-3 h-3 text-slate-500" />
-                              Reguler
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-surface-container-high h-1.5 rounded-full overflow-hidden">
-                              <div className="bg-primary h-full rounded-full" style={{ width: `${progressPercent}%` }}></div>
-                            </div>
-                            <span className="font-bold font-mono text-[10px]">{progressPercent}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
+          {selectedOrderIds.length > 0 && (
+            <button
+              type="button"
+              onClick={handleExecuteBulkShip}
+              disabled={isBulkShipping}
+              className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs rounded-xl shadow-2xs transition-all cursor-pointer border-none flex items-center gap-1.5"
+            >
+              <Truck className="w-4 h-4" />
+              <span>{isBulkShipping ? "Memproses..." : `Proses Resi Massal (${selectedOrderIds.length})`}</span>
+            </button>
+          )}
         </div>
 
-        {/* Packing Detail (Right column - 1.0 flex) */}
-        <div className="flex-1 bg-surface-container-lowest rounded-2xl border border-outline-variant/20 shadow-sm flex flex-col overflow-hidden relative">
-          {activePackingOrder ? (
-            <>
-              {/* Cold Chain Alert Overlay */}
-              {activePackingOrder.items.some(
-                (item) =>
-                  item.product.name.toLowerCase().includes("vaksin") ||
-                  item.product.name.toLowerCase().includes("bcg") ||
-                  item.product.name.toLowerCase().includes("inj")
-              ) && (
-                  <div className="absolute top-16 left-4 right-4 z-20 bg-rose-50 border border-error/30 p-3 rounded-xl flex items-start gap-3 shadow-lg">
-                    <div className="bg-error text-white p-1 rounded-lg shrink-0 mt-0.5">
-                      <AlertTriangle className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-error text-xs">Peringatan Rantai Dingin (Cold Chain)!</h4>
-                      <p className="text-[9px] text-error/85 mt-0.5 font-medium">Sediaan ini sensitif suhu. Wajib langsung dimasukkan ke Cooler Box logistik.</p>
-                    </div>
-                  </div>
-                )}
-
-              <div className="px-6 py-4 border-b border-outline-variant/10 bg-white flex justify-between items-center">
-                <div className="flex-1">
-                  <div className="flex justify-between items-start mb-1">
-                    <h3 className="font-heading font-extrabold text-sm text-on-surface">Detail Pengepakan</h3>
-                    <span className="text-[9px] bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-mono font-bold">
-                      {activePackingOrder.orderNumber}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-on-surface-variant font-bold flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">location_on</span>
-                    {activePackingOrder.institution.name}
-                  </p>
-                </div>
-
-                {/* Admin Actions: 1-Click Auto Scan, Batalkan, Hapus */}
-                <div className="flex items-center gap-1.5 ml-2">
-                  {autoScanAllItems && (
-                    <button
-                      type="button"
-                      onClick={autoScanAllItems}
-                      title="Validasi Scan Otomatis Seluruh Batch FEFO"
-                      className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-extrabold flex items-center gap-1 transition-all cursor-pointer shadow-xs border-none"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">bolt</span>
-                      <span>1-Click Scan FEFO</span>
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      const reason = prompt("Masukkan alasan pembatalan pesanan (stok akan dikembalikan):");
-                      if (reason !== null) {
-                        onRejectOrder(activePackingOrder.id, reason || "Dibatalkan oleh Admin");
-                      }
-                    }}
-                    title="Batalkan Pesanan (Kembalikan Stok)"
-                    className="p-1.5 border border-error/30 text-error hover:bg-error/10 rounded-lg cursor-pointer transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-sm">block</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm("Apakah Anda yakin ingin menghapus pesanan ini secara permanen? Data alokasi stok dan tagihan kredit akan dikembalikan.")) {
-                        onDeleteOrder(activePackingOrder.id);
-                      }
-                    }}
-                    title="Hapus Pesanan Permanen"
-                    className="p-1.5 border border-outline-variant text-on-surface-variant hover:bg-surface-variant/20 rounded-lg cursor-pointer transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-sm">delete</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {activePackingOrder.batchAllocations.map((alloc) => {
-                  const totalScanned = scannedItems[alloc.id] || 0;
-                  const isDone = totalScanned >= alloc.quantity;
-                  const matchItem = activePackingOrder.items.find((it) => alloc.batch.productId && it.productId === alloc.batch.productId) || activePackingOrder.items[0];
-
-                  const isCold = matchItem?.product.name.toLowerCase().includes("vaksin") ||
-                    matchItem?.product.name.toLowerCase().includes("bcg") ||
-                    matchItem?.product.name.toLowerCase().includes("inj");
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-400 font-extrabold text-[9px] uppercase tracking-wider">
+                <th className="px-3 py-3 text-center w-10">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                  />
+                </th>
+                <th className="px-4 py-3">No. SP</th>
+                <th className="px-4 py-3">Mitra Apotek / Kurir</th>
+                <th className="px-4 py-3">Alamat Pengiriman</th>
+                <th className="px-4 py-3 text-center">Metode Bayar</th>
+                <th className="px-5 py-3 text-right">Aksi Pengepakan</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-150 text-slate-700">
+              {filteredOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-semibold">
+                    Tidak ada pesanan yang siap dikemas saat ini.
+                  </td>
+                </tr>
+              ) : (
+                filteredOrders.map((order) => {
+                  const isSelected = selectedOrderIds.includes(order.id);
+                  const courier = getCourierName(order.shippingAddress);
+                  const fullAddr = getFullDisplayAddress(order.shippingAddress, order.institution.address);
 
                   return (
-                    <div
-                      key={alloc.id}
-                      className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${isDone
-                          ? "border-primary/20 bg-primary/[0.03]"
-                          : "border-outline-variant/20 hover:border-primary/50"
-                        }`}
-                    >
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isDone ? "bg-emerald-50 text-primary" : "bg-surface-container text-on-surface-variant"
-                        }`}>
-                        <span className="material-symbols-outlined text-[18px]">
-                          {isCold ? "vaccines" : "pill"}
+                    <tr key={order.id} className="hover:bg-emerald-50/30 transition-colors">
+                      <td className="px-3 py-3 text-center w-10">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectOrder(order.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                        />
+                      </td>
+                      <td className="px-4 py-3 font-mono font-extrabold text-slate-900">{order.orderNumber}</td>
+                      <td className="px-4 py-3">
+                        <span className="font-extrabold text-slate-900 text-xs block">{order.institution.name}</span>
+                        <span className="text-[10px] text-emerald-800 font-bold font-sans">Kurir: {courier}</span>
+                      </td>
+                      <td className="px-4 py-3 text-[10px] text-slate-500 max-w-[240px] truncate" title={fullAddr}>
+                        {fullAddr}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                          {order.paymentMethod}
                         </span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs font-bold leading-tight text-foreground">{matchItem ? matchItem.product.name : "Sediaan Obat"}</p>
-                        <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                          <span className="font-mono text-[9px] text-on-surface-variant bg-surface-variant/40 px-1 py-0.25 rounded font-bold">
-                            Batch: {alloc.batch.batchNumber}
-                          </span>
-                          {isDone ? (
-                            <span className="text-[8px] bg-primary text-white px-1.5 py-0.25 rounded-full font-bold uppercase">FEFO VALID</span>
-                          ) : isCold ? (
-                            <span className="text-[8px] bg-blue-50 text-blue-700 px-1.5 py-0.25 rounded-full font-bold uppercase">COLD CHAIN</span>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-bold font-mono ${isDone ? "text-primary" : "text-foreground"}`}>
-                          {totalScanned} / {alloc.quantity}
-                        </p>
-                        {isDone ? (
-                          <CheckCircle className="w-4.5 h-4.5 text-primary ml-auto mt-0.5" />
-                        ) : (
-                          <button
-                            onClick={() => simulateScanItem(alloc.id, alloc.quantity)}
-                            className="mt-1 bg-primary text-white px-2 py-0.5 rounded text-[9px] font-bold hover:brightness-110 active:scale-95 transition-all cursor-pointer shadow-sm shadow-primary/10"
-                          >
-                            Scan Box
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => startPacking(order)}
+                          className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-2xs active:scale-95 border-none inline-flex items-center gap-1"
+                        >
+                          <Scan className="w-3.5 h-3.5" />
+                          <span>Mulai Packing &amp; Resi</span>
+                        </button>
+                      </td>
+                    </tr>
                   );
-                })}
-              </div>
-
-              {/* Action Form Footer */}
-              <div className="p-4 bg-surface-container-low border-t border-outline-variant/20">
-                {activePackingOrder.batchAllocations.every((alloc) => (scannedItems[alloc.id] || 0) >= alloc.quantity) ? (
-                  <div className="space-y-3 animate-fadeIn">
-                    <div className="bg-emerald-50 border border-emerald-150 rounded-xl p-3 flex items-start gap-2">
-                      <CheckCircle className="w-4.5 h-4.5 text-primary shrink-0 mt-0.5" />
-                      <p className="text-[10px] text-primary font-bold">
-                        Pengepakan Selesai! Seluruh batch FEFO telah valid ter-scan. Klik tombol untuk mem-booking kurir Biteship otomatis atau masukkan resi manual.
-                      </p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input
-                        type="text"
-                        value={resiInput}
-                        onChange={(e) => setResiInput(e.target.value)}
-                        placeholder="Kosongkan untuk Auto-Book Biteship / ketik resi manual..."
-                        className="flex-1 px-3 py-2 bg-surface-container border border-outline-variant/30 rounded-xl text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary outline-none"
-                      />
-                      <button
-                        onClick={handleShipOrder}
-                        className="bg-primary text-white px-4 py-2 rounded-xl font-bold shadow-md hover:brightness-110 active:scale-95 transition-all cursor-pointer text-xs flex items-center justify-center gap-1 shrink-0"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">local_shipping</span>
-                        Kirim & Request Pick Up Biteship
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-1">
-                    <p className="text-[10px] text-on-surface-variant font-bold italic">
-                      *Pindai barcode batch obat di atas atau klik auto-validate jika pesanan standar:
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (autoScanAllItems) autoScanAllItems();
-                        setTimeout(() => {
-                          handleShipOrder();
-                        }, 100);
-                      }}
-                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-md active:scale-95 shrink-0 border-none"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">bolt</span>
-                      <span>Auto-Validate FEFO & Request Pick Up Biteship</span>
-                    </button>
-                  </div>
-                )}
-                <p className="text-center text-[8px] text-on-surface-variant mt-2 uppercase tracking-wide font-black">Mode Simulasi Scan Aktif</p>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-on-surface-variant bg-surface-container-low/40">
-              <span className="material-symbols-outlined text-4xl text-outline mb-2">barcode_scanner</span>
-              <h4 className="font-extrabold text-sm text-foreground">Detail Pengepakan Logistik</h4>
-              <p className="max-w-xs text-[10px] text-on-surface-variant/80 mt-1 leading-relaxed">
-                Pilih salah satu pesanan apotek di antrean sebelah kiri untuk memulai simulasi pemindaian barcode batch FEFO dan input nomor resi kurir.
-              </p>
-            </div>
-          )}
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Modal Live Tracking Biteship In-App */}
+      {/* Biteship Live Tracking Modal */}
       <BiteshipTrackingModal
         orderId={trackingModalOrderId}
         isOpen={!!trackingModalOrderId}

@@ -4,9 +4,24 @@ import { revalidatePath } from "next/cache";
 import { BITESHIP_STATUS_MAP } from "@/lib/biteship-status";
 import { rejectOrder } from "@/app/actions/orders";
 
+export async function GET() {
+  return NextResponse.json({ success: true, message: "OK", status: "active" });
+}
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const rawText = await request.text();
+    if (!rawText || rawText.trim() === "") {
+      return NextResponse.json({ success: true, message: "OK" });
+    }
+
+    let body: any = {};
+    try {
+      body = JSON.parse(rawText);
+    } catch (e) {
+      return NextResponse.json({ success: true, message: "OK" });
+    }
+
     console.log("BiteShip Webhook received:", JSON.stringify(body, null, 2));
 
     const event = body.event || body.type;
@@ -95,9 +110,9 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, message: "Webhook processed successfully" });
+    return NextResponse.json({ success: true, message: "OK" });
   } catch (error: any) {
     console.error("BiteShip webhook error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, message: "OK" });
   }
 }

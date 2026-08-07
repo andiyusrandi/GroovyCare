@@ -1,3 +1,6 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -99,7 +102,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
               </Link>
               <Link
                 className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
-                href="#katalog"
+                href="#catalog"
               >
                 Catalog
               </Link>
@@ -172,7 +175,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
           }}
         >
           {/* Overlay Soft Transparan agar teks & elemen visual tetap terbaca jelas */}
-          <div className="absolute inset-0 pointer-events-none z-0"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-50/95 via-slate-50/85 to-transparent pointer-events-none z-0"></div>
 
           {/* Ambient Glows */}
           <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/10 rounded-full blur-[100px] pointer-events-none z-0"></div>
@@ -183,7 +186,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
 
               {/* Left Column: Copy & Actions (7/12) */}
               <div className="lg:col-span-7 space-y-6 lg:space-y-8 text-left">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/90 backdrop-blur-md text-emerald-800 border border-emerald-200/90 text-[11px] font-bold shadow-xs">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/90 backdrop-blur-md text-emerald-800 border border-emerald-200/90 text-[11px] font-bold shadow-2xs">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span>PBF Online System • Verifikasi BPOM &amp; CDOB Real-time</span>
                 </div>
@@ -195,7 +198,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
                 </h1>
 
                 {/* DESKRIPSI TEKS */}
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal max-w-xl">
+                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium max-w-xl bg-white/60 backdrop-blur-xs p-3 rounded-2xl border border-slate-200/40 shadow-2xs">
                   Solusi logistik obat satu pintu untuk apotek, rumah sakit, dan klinik. Pengelolaan transaksi tempo/kredit real-time, integrasi kurir instan, dan kepatuhan regulasi BPOM tertinggi di Indonesia.
                 </p>
 
@@ -211,7 +214,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
 
                   {/* Secondary Button */}
                   <Link
-                    href="#katalog"
+                    href="#catalog"
                     className="px-6 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs border border-slate-200/90 shadow-2xs active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
                     <span>Lihat Katalog</span>
@@ -306,7 +309,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
                 Mulai Sekarang
               </Link>
               <Link
-                href="#katalog"
+                href="#catalog"
                 className="w-full bg-white/50 backdrop-blur-md text-on-surface-variant text-center py-3.5 rounded-xl text-xs font-bold border border-outline-variant/35 active:scale-95 transition-all shadow-sm"
               >
                 Lihat Katalog
@@ -601,7 +604,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
               </div>
               <h3 className="text-sm font-bold text-slate-800 mb-1.5">Marketplace Hub</h3>
               <p className="text-xs text-on-surface-variant leading-relaxed mb-4">Akses langsung ke ribuan SKU dari berbagai PBF resmi dengan harga kompetitif.</p>
-              <Link href="#katalog" className="flex items-center text-primary font-bold text-xs">
+              <Link href="#catalog" className="flex items-center text-primary font-bold text-xs">
                 <span>Pelajari lebih lanjut</span>
                 <span className="material-symbols-outlined text-xs ml-1">arrow_forward</span>
               </Link>

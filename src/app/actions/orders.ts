@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth-session";
 import { revalidatePath } from "next/cache";
+import { parseFullAddress } from "@/lib/address-parser";
 
 // Helper untuk verifikasi session & role
 async function getActiveUser() {
@@ -59,6 +60,19 @@ export async function checkoutOrder(
 
     if (!user || !user.institution) {
       return { success: false, error: "Data institusi tidak ditemukan" };
+    }
+
+    const checkAddress = shippingAddress || user.institution.address || "";
+    if (
+      !checkAddress ||
+      checkAddress.includes("Alamat belum dilengkapi") ||
+      checkAddress.includes("lengkapi di Pengaturan") ||
+      checkAddress.trim().length < 5
+    ) {
+      return {
+        success: false,
+        error: "Alamat pengiriman belum dilengkapi. Silakan lengkapi alamat di Pengaturan Akun atau pilih alamat pengiriman yang valid.",
+      };
     }
 
     if (paymentMethod === "COD") {
@@ -574,6 +588,82 @@ export async function deleteOrder(orderId: string) {
   }
 }
 
+// 4.b Hapus Massal Pesanan (Bulk Delete Orders)
+export async function deleteBulkOrders(orderIds: string[]) {
+  try {
+    const session = await getActiveUser();
+    if (session.role !== "PBF_ADMIN" && session.role !== "SYSTEM_ADMIN") {
+      return { success: false, error: "Akses ditolak" };
+    }
+
+    if (!orderIds || orderIds.length === 0) {
+      return { success: false, error: "Tidak ada pesanan yang dipilih untuk dihapus" };
+    }
+
+    const orders = await db.order.findMany({
+      where: { id: { in: orderIds } },
+      include: {
+        batchAllocations: true,
+      },
+    });
+
+    if (orders.length === 0) {
+      return { success: false, error: "Pesanan tidak ditemukan" };
+    }
+
+    // Batal pesanan di Biteship jika ada
+    for (const order of orders) {
+      const biteshipId = (order as any).biteshipOrderId;
+      if (biteshipId) {
+        await cancelBiteshipDirect(biteshipId, "Pesanan dihapus massal dari sistem oleh Admin PBF").catch(() => {});
+      }
+    }
+
+    const affectedInstitutionIds = new Set<string>();
+
+    await db.$transaction(async (tx: any) => {
+      for (const order of orders) {
+        affectedInstitutionIds.add(order.institutionId);
+
+        if (order.batchAllocations && order.batchAllocations.length > 0) {
+          for (const alloc of order.batchAllocations) {
+            await tx.batch.update({
+              where: { id: alloc.batchId },
+              data: { stock: { increment: alloc.quantity } },
+            });
+          }
+
+          await tx.stockTransaction.deleteMany({
+            where: {
+              OR: [
+                { referenceNumber: order.orderNumber },
+                { referenceNumber: `RET-${order.orderNumber}` }
+              ]
+            },
+          });
+        }
+      }
+
+      // Hapus massal seluruh pesanan terpilih
+      await tx.order.deleteMany({
+        where: { id: { in: orderIds } },
+      });
+
+      // Rekalkulasi hutang apotek berjalan secara otomatis untuk setiap apotek
+      for (const instId of Array.from(affectedInstitutionIds)) {
+        await recalculateInstitutionDebt(tx, instId);
+      }
+    });
+
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/customer/dashboard");
+    return { success: true, count: orders.length, message: `${orders.length} pesanan berhasil dihapus massal` };
+  } catch (error: any) {
+    console.error("Delete bulk orders error:", error);
+    return { success: false, error: error.message || "Gagal menghapus pesanan massal" };
+  }
+}
+
 // 5. Kirim Barang & Update Resi (PBF Admin Portal)
 export async function shipOrder(orderId: string, trackingNumber: string) {
   try {
@@ -603,18 +693,35 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
     const addr = order.shippingAddress || "";
     let biteshipOrderId: string | null = null;
 
-    if (apiKey && (addr.includes("Kec:") || addr.includes("Alamat:"))) {
+    if (apiKey) {
       try {
         const mainAddrPart = addr.split(" | ")[0] || "";
         const emailPart = addr.match(/Email:\s*([^\s|]+)/)?.[1] || "";
         const phonePart = addr.match(/Telp:\s*([^\s|]+)/)?.[1] || "";
 
-        const addressDetail = mainAddrPart.match(/Alamat:\s*(.*?),\s*Kel\/Desa:/)?.[1] || order.institution.address;
-        const kelurahan = mainAddrPart.match(/Kel\/Desa:\s*(.*?),\s*Kec:/)?.[1] || "";
-        const kecamatan = mainAddrPart.match(/Kec:\s*(.*?),\s*Kab\/Kota:/)?.[1] || "";
-        const kota = mainAddrPart.match(/Kab\/Kota:\s*(.*?),\s*Provinsi:/)?.[1] || "";
-        const provinsi = mainAddrPart.match(/Provinsi:\s*(.*?),\s*Kode Pos:/)?.[1] || "";
-        const pos = mainAddrPart.match(/Kode Pos:\s*(\d+)/)?.[1] || "12440";
+        const combinedAddrText = `${addr} ${order.institution.address || ""}`;
+        const parsedAddr = parseFullAddress(combinedAddrText);
+
+        let addressDetail = (parsedAddr.detail || addr)
+          .split(" (Penerima:")[0]
+          .split(" | ")[0]
+          .replace(/^Alamat:\s*/i, "")
+          .trim();
+
+        const kelurahan = parsedAddr.village;
+        const kecamatan = parsedAddr.district;
+        const kota = parsedAddr.regency;
+        const provinsi = parsedAddr.province;
+        const pos = parsedAddr.postalCode;
+
+        const cleanDestinationAddress = [
+          addressDetail,
+          kelurahan ? `Kel. ${kelurahan}` : "",
+          kecamatan ? `Kec. ${kecamatan}` : "",
+          kota,
+          provinsi,
+          pos
+        ].filter(Boolean).join(", ");
 
         // 1. Check if explicit [code: company:service_type] tag is present
         const codeMatch = addr.match(/\[code:\s*([^:]+):([^\]]+)\]/i);
@@ -655,7 +762,7 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
           } else if (courierCompany === "sicepat") {
             if (rawType.includes("best")) courierType = "best";
             else if (rawType.includes("gokil") || rawType.includes("kargo")) courierType = "gokil";
-            else if (rawType.includes("halu")) courierType = "halu";
+            else if (rawType.includes("halu")) courierType = "reg"; // SiCepat Halu di API Biteship adalah tipe 'reg'
             else courierType = "reg";
           } else if (courierCompany === "anteraja") {
             if (rawType.includes("next")) courierType = "nextday";
@@ -669,15 +776,61 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
           }
         }
 
+        // Biteship valid courier slug check: convert custom/groovyrx to standard JNE REG for Biteship API booking
+        const validBiteshipCouriers = ["jne", "tiki", "sicepat", "jnt", "anteraja", "pos", "lion", "ninja", "grab", "gojek"];
+        if (!validBiteshipCouriers.includes(courierCompany.toLowerCase())) {
+          courierCompany = "jne";
+          courierType = "reg";
+        }
+
         let destinationAreaId = "";
-        const destInput = `${kecamatan}, ${kota}, ${provinsi}`;
-        const destRes = await fetch(`https://api.biteship.com/v1/maps/areas?countries=ID&input=${encodeURIComponent(destInput)}`, {
-          headers: { Authorization: apiKey }
-        });
-        if (destRes.ok) {
-          const destData = await destRes.json();
-          if (destData.areas && destData.areas.length > 0) {
-            destinationAreaId = destData.areas[0].id;
+        let areaPostalCode = "";
+
+        const cleanCity = (kota || "").replace(/KABUPATEN\s+|KOTA\s+/i, "").trim();
+        const cleanDist = (kecamatan || "").replace(/\(Desa\/Kel:.*?\)/i, "").trim();
+
+        const searchQueries = [
+          `${cleanDist}, ${cleanCity}`,
+          `${cleanDist}, ${cleanCity}, ${provinsi}`,
+          `${cleanCity}, ${provinsi}`
+        ].filter(Boolean);
+
+        for (const query of searchQueries) {
+          try {
+            const destRes = await fetch(`https://api.biteship.com/v1/maps/areas?countries=ID&input=${encodeURIComponent(query)}`, {
+              headers: { Authorization: apiKey }
+            });
+            if (destRes.ok) {
+              const destData = await destRes.json();
+              if (destData.areas && destData.areas.length > 0) {
+                const isDestMakassar = cleanCity.toLowerCase().includes("makassar");
+
+                const matchedArea = destData.areas.find((a: any) => {
+                  const nameLower = (a.name || "").toLowerCase();
+                  
+                  // Disqualify Makassar area entries if destination is NOT Makassar
+                  if (!isDestMakassar && (nameLower.includes("makassar") || a.id.includes("IDNC182") || a.id.includes("IDND2571"))) {
+                    return false;
+                  }
+
+                  const matchesDist = cleanDist && cleanDist.length > 2 && nameLower.includes(cleanDist.toLowerCase());
+                  const matchesCity = cleanCity && cleanCity.length > 2 && nameLower.includes(cleanCity.toLowerCase());
+
+                  return matchesDist || matchesCity;
+                });
+
+                if (matchedArea) {
+                  destinationAreaId = matchedArea.id;
+                  const match = (matchedArea.name || "").match(/\b\d{5}\b/);
+                  if (match) {
+                    areaPostalCode = match[0];
+                  }
+                  break;
+                }
+              }
+            }
+          } catch (e) {
+            console.warn(`Biteship destination area search error for '${query}':`, e);
           }
         }
 
@@ -694,20 +847,27 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
 
         const orderItems = order.items.map((it: any) => ({
           name: it.product.name,
+          description: it.product.description || it.product.name || "Obat-obatan PBF",
           quantity: it.quantity,
-          value: Math.max(1000, Math.round(it.product.price || 1000)),
+          value: Math.max(10000, Math.round(it.price || it.product?.price || 10000)),
           weight: 500,
           category: "others",
         }));
 
         const isCOD = order.paymentMethod === "COD";
         const codAmount = isCOD
-          ? Math.round(order.items.reduce((acc: number, it: any) => acc + it.price * it.quantity, 0))
+          ? Math.round(order.items.reduce((acc: number, it: any) => acc + (it.price || 10000) * it.quantity, 0))
           : 0;
 
-        // Standardize phone number format (at least 9 digits for Biteship validation)
-        const cleanPhone = (phonePart || order.institution.siaNumber || "08123456789").replace(/\D/g, "");
-        const validDestinationPhone = cleanPhone.length >= 9 ? cleanPhone : "08123456789";
+        // Standardize phone number format (must start with 08 or 62 and at least 10 digits for Biteship validation)
+        let cleanPhone = (phonePart || order.institution.siaNumber || "08123456789").replace(/\D/g, "");
+        if (!cleanPhone.startsWith("08") && !cleanPhone.startsWith("62")) {
+          cleanPhone = "08123456789";
+        }
+        const validDestinationPhone = cleanPhone.length >= 10 ? cleanPhone : "08123456789";
+
+        let rawCode = parseInt((pos || "").replace(/\D/g, "")) || (areaPostalCode ? parseInt(areaPostalCode) : 92811);
+        const resolvedPostalCode = !isNaN(rawCode) && rawCode >= 10000 ? rawCode : 92811;
 
         const biteshipPayload: any = {
           shipper_contact_name: "PBF GroovyCare",
@@ -718,11 +878,13 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
           origin_contact_phone: "08123456789",
           origin_address: "Jl. Tamalanrea Raya Ruko Pelangi Blok B No 7, Kelurahan Buntusu, Kecamatan Tamalanrea, Kota Makassar",
           origin_postal_code: 90245,
+          origin_area_id: originAreaId || "IDNP28IDNC248IDND2571",
           destination_contact_name: order.institution.name,
           destination_contact_phone: validDestinationPhone,
           destination_contact_email: emailPart || "apotek.sehat@groovycare.com",
-          destination_address: `${addressDetail}, Kel/Desa: ${kelurahan}, Kec: ${kecamatan}, Kab/Kota: ${kota}, Provinsi: ${provinsi}, Kode Pos: ${pos}`,
-          destination_postal_code: parseInt(pos) || 12440,
+          destination_address: cleanDestinationAddress,
+          destination_postal_code: resolvedPostalCode,
+          ...(destinationAreaId ? { destination_area_id: destinationAreaId } : {}),
           ...(isCOD ? {
             destination_cash_on_delivery: codAmount,
             destination_cash_on_delivery_type: "7_days"
@@ -735,7 +897,21 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
           order_note: `Pesanan SP: ${order.orderNumber}`
         };
 
-        const biteshipOrderRes = await fetch("https://api.biteship.com/v1/orders", {
+        const validationErrors: string[] = [];
+        if (!biteshipPayload.destination_address || biteshipPayload.destination_address.length < 10) {
+          validationErrors.push("Alamat tujuan pengiriman kurang lengkap (< 10 karakter)");
+        }
+        if (!biteshipPayload.destination_contact_phone || biteshipPayload.destination_contact_phone.length < 10) {
+          validationErrors.push("Nomor kontak penerima kurang dari 10 digit");
+        }
+        if (!biteshipPayload.items || biteshipPayload.items.length === 0) {
+          validationErrors.push("Item pesanan tidak ditemukan");
+        }
+        if (isNaN(biteshipPayload.destination_postal_code) || biteshipPayload.destination_postal_code < 10000) {
+          validationErrors.push("Kode pos tujuan tidak valid");
+        }
+
+        let biteshipOrderRes = await fetch("https://api.biteship.com/v1/orders", {
           method: "POST",
           headers: {
             Authorization: apiKey,
@@ -744,27 +920,54 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
           body: JSON.stringify(biteshipPayload)
         });
 
+        // Retry 1: Jika area_id menyebabkan error (e.g. 40002021 atau Failed getting rates), retry 1x tanpa area_id menggunakan pencocokan kode pos murni
+        if (!biteshipOrderRes.ok && (biteshipPayload.origin_area_id || biteshipPayload.destination_area_id)) {
+          const errPreview = await biteshipOrderRes.clone().json().catch(() => ({}));
+          console.warn(`[DEBUG BITESHIP CREATION FAILED WITH AREA ID]:`, errPreview);
+          console.warn(`Retrying '${courierCompany}:${courierType}' with pure postal codes (90245 -> ${resolvedPostalCode})...`);
+          delete biteshipPayload.origin_area_id;
+          delete biteshipPayload.destination_area_id;
+          biteshipOrderRes = await fetch("https://api.biteship.com/v1/orders", {
+            method: "POST",
+            headers: {
+              Authorization: apiKey,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(biteshipPayload)
+          });
+        }
+
         if (biteshipOrderRes.ok) {
           const biteshipOrderData = await biteshipOrderRes.json();
+          console.log("[DEBUG BITESHIP SUCCESS RESPONSE]:", biteshipOrderData);
           if (biteshipOrderData.id) {
             biteshipOrderId = biteshipOrderData.id;
           }
-          if (biteshipOrderData.courier && biteshipOrderData.courier.waybill_id) {
-            trackingNumber = biteshipOrderData.courier.waybill_id;
+          const bWaybill = biteshipOrderData.courier?.waybill_id || biteshipOrderData.courier?.tracking_id || biteshipOrderData.id;
+          if (bWaybill) {
+            trackingNumber = bWaybill;
           }
         } else {
-          const errData = await biteshipOrderRes.json();
-          console.warn("Biteship order creation error from Biteship API:", errData);
-          if (errData.error || errData.message) {
-            return { success: false, error: `Biteship Error (${errData.code || 'API'}): ${errData.error || errData.message}` };
-          }
+          const errData = await biteshipOrderRes.json().catch(() => ({}));
+          const biteshipErrMessage = errData.error || errData.message || "Gagal booking ekspedisi Biteship";
+          console.error("[DEBUG BITESHIP ERROR RESPONSE]:", JSON.stringify(errData, null, 2));
+
+          // HENTIKAN PROSES DAN TAMPILKAN PERINGATAN KETAT (TIDAK BISA LANJUT SEBELUM DIPERBAIKI)
+          return {
+            success: false,
+            error: `[PERINGATAN LOGISTIK BITESHIP]: Gagal memproses booking ekspedisi (${courierCompany.toUpperCase()} ${courierType.toUpperCase()}). Alasan Biteship: "${biteshipErrMessage}". Silakan periksa kelengkapan alamat apotek mitra atau sesuaikan pilihan kurir sebelum melanjutkan ke tahap pengiriman.`
+          };
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to book BiteShip courier:", err);
+        return {
+          success: false,
+          error: `[PERINGATAN LOGISTIK BITESHIP]: Terjadi kesalahan saat menghubungi API Biteship: ${err.message}. Harap perbaiki koneksi atau data sebelum melanjutkan.`
+        };
       }
     }
 
-    const finalTrackingNumber = trackingNumber && trackingNumber.trim() !== "" ? trackingNumber : `BT-MOCK-${Math.floor(100000 + Math.random() * 900000)}`;
+    const finalTrackingNumber = trackingNumber && trackingNumber.trim() !== "" ? trackingNumber : `BT-MANUAL-${Math.floor(100000 + Math.random() * 900000)}`;
 
     await db.order.update({
       where: { id: orderId },
@@ -1569,5 +1772,208 @@ export async function syncAllBiteshipOrders() {
     return { success: true, updatedCount };
   } catch (error: any) {
     return { success: false, error: error.message };
+  }
+}
+
+export async function pushOrderToBiteship(orderId: string) {
+  try {
+    const session = await getActiveUser();
+    if (session.role !== "PBF_ADMIN" && session.role !== "SYSTEM_ADMIN") {
+      return { success: false, error: "Akses ditolak" };
+    }
+
+    const apiKey = process.env.BITESHIP_API_KEY;
+    if (!apiKey) {
+      return { success: false, error: "BITESHIP_API_KEY tidak dikonfigurasi" };
+    }
+
+    const order = await db.order.findUnique({
+      where: { id: orderId },
+      include: {
+        institution: true,
+        items: { include: { product: true } }
+      }
+    });
+
+    if (!order) {
+      return { success: false, error: "Pesanan tidak ditemukan" };
+    }
+
+    const addr = order.shippingAddress || order.institution.address || "";
+    const emailPart = addr.match(/Email:\s*([^\s|]+)/)?.[1] || "";
+    const phonePart = addr.match(/Telp:\s*([^\s|]+)/)?.[1] || "";
+
+    const combinedAddrText = `${addr} ${order.institution.address || ""}`;
+    const parsedAddr = parseFullAddress(combinedAddrText);
+
+    let addressDetail = parsedAddr.detail || "";
+    if (!addressDetail || addressDetail.includes("| Kurir:")) {
+      addressDetail = addr.split(" (Penerima:")[0].split(" | ")[0].replace(/^Alamat:\s*/i, "").trim();
+    }
+
+    const kelurahan = parsedAddr.village;
+    const kecamatan = parsedAddr.district;
+    const kota = parsedAddr.regency;
+    const provinsi = parsedAddr.province;
+    const pos = parsedAddr.postalCode;
+
+    const cleanDestinationAddress = [
+      addressDetail,
+      kelurahan ? `Kel. ${kelurahan}` : "",
+      kecamatan ? `Kec. ${kecamatan}` : "",
+      kota,
+      provinsi,
+      pos
+    ].filter(Boolean).join(", ");
+
+    const codeMatch = addr.match(/\[code:\s*([^:]+):([^\]]+)\]/i);
+    let courierCompany = "";
+    let courierType = "";
+
+    if (codeMatch) {
+      courierCompany = codeMatch[1].toLowerCase().trim();
+      courierType = codeMatch[2].toLowerCase().trim();
+    } else {
+      const courierPart = addr.match(/Kurir:\s*([^\s]+)\s+([^\s(|]+)/i);
+      const rawCompany = (courierPart?.[1] || "jne").toLowerCase().trim();
+      const rawType = (courierPart?.[2] || "reg").toLowerCase().trim();
+
+      if (rawCompany.includes("jne")) courierCompany = "jne";
+      else if (rawCompany.includes("tiki")) courierCompany = "tiki";
+      else if (rawCompany.includes("sicepat")) courierCompany = "sicepat";
+      else if (rawCompany.includes("j&t") || rawCompany.includes("jnt")) courierCompany = "jnt";
+      else if (rawCompany.includes("anter")) courierCompany = "anteraja";
+      else if (rawCompany.includes("pos")) courierCompany = "pos";
+      else courierCompany = "jne";
+
+      courierType = rawType === "reguler" || rawType === "regular" ? "reg" : rawType;
+    }
+
+    const validBiteshipCouriers = ["jne", "tiki", "sicepat", "jnt", "anteraja", "pos", "lion", "ninja", "grab", "gojek"];
+    if (!validBiteshipCouriers.includes(courierCompany.toLowerCase())) {
+      courierCompany = "jne";
+      courierType = "reg";
+    }
+
+    let destinationAreaId = "";
+    let areaPostalCode = "";
+
+    const cleanCity = (kota || "").replace(/KABUPATEN\s+|KOTA\s+/i, "").trim();
+    const cleanDist = (kecamatan || "").replace(/\(Desa\/Kel:.*?\)/i, "").trim();
+
+    const searchQueries = [
+      `${cleanDist}, ${cleanCity}, ${provinsi}`,
+      `${cleanDist}, ${cleanCity}`,
+      `${cleanCity}, ${provinsi}`,
+      `${provinsi}`
+    ].filter(Boolean);
+
+    for (const query of searchQueries) {
+      try {
+        const destRes = await fetch(`https://api.biteship.com/v1/maps/areas?countries=ID&input=${encodeURIComponent(query)}`, {
+          headers: { Authorization: apiKey }
+        });
+        if (destRes.ok) {
+          const destData = await destRes.json();
+          if (destData.areas && destData.areas.length > 0) {
+            const isDestMakassar = cleanCity.toLowerCase().includes("makassar");
+
+            const matchedArea = destData.areas.find((a: any) => {
+              const nameLower = (a.name || "").toLowerCase();
+
+              // Disqualify Makassar area entries if destination is NOT Makassar
+              if (!isDestMakassar && (nameLower.includes("makassar") || a.id.includes("IDNC182") || a.id.includes("IDND2571"))) {
+                return false;
+              }
+
+              const matchesDist = cleanDist && cleanDist.length > 2 && nameLower.includes(cleanDist.toLowerCase());
+              const matchesCity = cleanCity && cleanCity.length > 2 && nameLower.includes(cleanCity.toLowerCase());
+
+              return matchesDist || matchesCity;
+            });
+
+            if (matchedArea) {
+              destinationAreaId = matchedArea.id;
+              const match = (matchedArea.name || "").match(/\b\d{5}\b/);
+              if (match) areaPostalCode = match[0];
+              break;
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    const orderItems = order.items.map((it: any) => ({
+      name: it.product.name,
+      description: it.product.description || it.product.name || "Obat-obatan PBF",
+      quantity: it.quantity,
+      value: Math.max(10000, Math.round(it.price || it.product?.price || 10000)),
+      weight: 500,
+      category: "others",
+    }));
+
+    let cleanPhone = (phonePart || order.institution.siaNumber || "08123456789").replace(/\D/g, "");
+    if (!cleanPhone.startsWith("08") && !cleanPhone.startsWith("62")) {
+      cleanPhone = "08123456789";
+    }
+    const validDestinationPhone = cleanPhone.length >= 10 ? cleanPhone : "08123456789";
+
+    let rawCode = parseInt((pos || "").replace(/\D/g, "")) || (areaPostalCode ? parseInt(areaPostalCode) : 92811);
+    const resolvedPostalCode = !isNaN(rawCode) && rawCode >= 10000 ? rawCode : 92811;
+
+    const biteshipPayload: any = {
+      shipper_contact_name: "PBF GroovyCare",
+      shipper_contact_phone: "08123456789",
+      shipper_contact_email: "admin@groovycare.com",
+      shipper_organization: "PBF GroovyCare",
+      origin_contact_name: "PBF GroovyCare",
+      origin_contact_phone: "08123456789",
+      origin_address: "Jl. Tamalanrea Raya Ruko Pelangi Blok B No 7, Kelurahan Buntusu, Kecamatan Tamalanrea, Kota Makassar",
+      origin_postal_code: 90245,
+      origin_area_id: "IDNP28IDNC248IDND2571",
+      destination_contact_name: order.institution.name,
+      destination_contact_phone: validDestinationPhone,
+      destination_contact_email: emailPart || "apotek.sehat@groovycare.com",
+      destination_address: cleanDestinationAddress,
+      destination_postal_code: resolvedPostalCode,
+      ...(destinationAreaId ? { destination_area_id: destinationAreaId } : {}),
+      courier_company: courierCompany,
+      courier_type: courierType,
+      delivery_type: "now",
+      reference_id: order.orderNumber,
+      items: orderItems,
+      order_note: `Pesanan SP: ${order.orderNumber}`
+    };
+
+    const biteshipOrderRes = await fetch("https://api.biteship.com/v1/orders", {
+      method: "POST",
+      headers: {
+        Authorization: apiKey,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(biteshipPayload)
+    });
+
+    if (biteshipOrderRes.ok) {
+      const bData = await biteshipOrderRes.json();
+      const newWaybill = bData.courier?.waybill_id || bData.courier?.tracking_id || bData.id || `WYB-${Date.now()}`;
+      await db.order.update({
+        where: { id: orderId },
+        data: {
+          biteshipOrderId: bData.id || null,
+          trackingNumber: newWaybill,
+          status: "SHIPPED",
+          shippingDate: new Date()
+        }
+      });
+      revalidatePath("/admin/dashboard");
+      revalidatePath("/customer/dashboard");
+      return { success: true, message: `Berhasil dikirim ke Biteship Dashboard! No Resi: ${newWaybill}`, biteshipOrderId: bData.id, waybillId: newWaybill };
+    } else {
+      const errData = await biteshipOrderRes.json();
+      return { success: false, error: errData.message || errData.error || "Gagal membuat order di Biteship" };
+    }
+  } catch (error: any) {
+    return { success: false, error: error.message || "Gagal mendorong pesanan ke Biteship" };
   }
 }

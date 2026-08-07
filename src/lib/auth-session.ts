@@ -37,5 +37,12 @@ export async function setSession(data: SessionData) {
 
 export async function destroySession() {
   const cookieStore = await cookies();
+  cookieStore.set(COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 0,
+    path: "/",
+    expires: new Date(0),
+  });
   cookieStore.delete(COOKIE_NAME);
 }

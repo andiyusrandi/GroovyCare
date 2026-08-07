@@ -17,7 +17,44 @@ export async function GET(request: Request) {
   } else if (type === "villages" && id) {
     targetUrl = `https://www.emsifa.com/api-wilayah-indonesia/api/villages/${id}.json`;
   } else if (type === "postcode" && q) {
-    targetUrl = `https://kodepos.vercel.app/search?q=${encodeURIComponent(q)}`;
+    try {
+      const res = await fetch(`https://kodepos.vercel.app/search?q=${encodeURIComponent(q)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.data && Array.isArray(data.data) && data.data.length > 0) {
+          return NextResponse.json(data);
+        }
+      }
+    } catch (e) {
+      console.warn("Kodepos Vercel API warning:", e);
+    }
+
+    // Fallback to Biteship maps/areas if kodepos API returns no match
+    const apiKey = process.env.BITESHIP_API_KEY;
+    if (apiKey) {
+      try {
+        const bRes = await fetch(`https://api.biteship.com/v1/maps/areas?countries=ID&input=${encodeURIComponent(q)}`, {
+          headers: { Authorization: apiKey }
+        });
+        if (bRes.ok) {
+          const bData = await bRes.json();
+          if (bData.areas && bData.areas.length > 0) {
+            const postalCodes = bData.areas.map((a: any) => {
+              const codeMatch = (a.name || "").match(/\b\d{5}\b/);
+              return codeMatch ? { village: a.name, code: codeMatch[0], postalcode: codeMatch[0] } : null;
+            }).filter(Boolean);
+
+            if (postalCodes.length > 0) {
+              return NextResponse.json({ statusCode: 200, status: true, data: postalCodes });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Biteship maps fallback warning:", e);
+      }
+    }
+
+    return NextResponse.json({ statusCode: 200, status: true, data: [] });
   } else {
     return NextResponse.json({ error: "Invalid type or missing parameter" }, { status: 400 });
   }
