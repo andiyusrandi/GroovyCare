@@ -2,6 +2,10 @@
 
 import { db } from "@/lib/db";
 import { setSession, destroySession } from "@/lib/auth-session";
+import {
+  sendRegistrationSubmittedMitraEmail,
+  sendNewRegistrationAdminAlertEmail,
+} from "@/lib/email-service";
 
 export async function login(formData: FormData) {
   const email = formData.get("email") as string;
@@ -144,6 +148,20 @@ export async function registerInstitution(data: {
         institutionId: institution.id,
       },
     });
+
+    // Trigger Notifikasi Email Registrasi Berhasil (Mitra & Admin Alert)
+    const partnerPayload = {
+      institutionName: institution.name,
+      institutionType: institution.type,
+      siaNumber: institution.siaNumber,
+      sipaNumber: user.sipaNumber || undefined,
+      apjName: user.name,
+      email: user.email,
+      phone: user.phone || undefined,
+      address: institution.address,
+    };
+    sendRegistrationSubmittedMitraEmail(partnerPayload).catch((e) => console.error("Async sendRegistrationSubmittedMitraEmail err:", e));
+    sendNewRegistrationAdminAlertEmail(partnerPayload).catch((e) => console.error("Async sendNewRegistrationAdminAlertEmail err:", e));
 
     // Sesuaikan pesan sukses berdasarkan tipe institusi
     let typeMessage = "Mitra";

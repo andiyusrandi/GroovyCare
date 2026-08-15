@@ -8,6 +8,7 @@ import {
   getSystemSettings,
   updateSystemSettings,
 } from "@/app/actions/superadmin";
+import { getCmsPage, updateCmsPage, CmsPageData } from "@/app/actions/cms";
 import {
   Users,
   UserPlus,
@@ -24,7 +25,13 @@ import {
   User,
   Phone,
   Shield,
+  ShieldCheck,
+  FileText,
+  ExternalLink,
+  Clock,
+  Activity,
 } from "lucide-react";
+import { getSecurityAuditLogs } from "@/app/actions/password-reset";
 
 interface SuperAdminTabProps {
   currentUserEmail: string;
@@ -54,6 +61,72 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
   const [isSubmittingUser, setIsSubmittingUser] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [alertMessage, setAlertMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // CMS Pages States
+  const [selectedCmsSlug, setSelectedCmsSlug] = useState<string>("about");
+  const [loadingCms, setLoadingCms] = useState(false);
+  const [isSavingCms, setIsSavingCms] = useState(false);
+  const [cmsForm, setCmsForm] = useState<{ title: string; subtitle: string; body: string }>({
+    title: "",
+    subtitle: "",
+    body: "",
+  });
+
+  // Security Audit Logs State
+  const [securityLogs, setSecurityLogs] = useState<any[]>([]);
+  const [loadingSecurityLogs, setLoadingSecurityLogs] = useState(false);
+
+  const loadSecurityAuditLogs = async () => {
+    setLoadingSecurityLogs(true);
+    try {
+      const logs = await getSecurityAuditLogs();
+      setSecurityLogs(logs);
+    } catch (err: any) {
+      console.error("Gagal memuat Security Audit Logs:", err);
+    } finally {
+      setLoadingSecurityLogs(false);
+    }
+  };
+
+  const loadCmsPageData = async (slug: string) => {
+    setLoadingCms(true);
+    try {
+      const page = await getCmsPage(slug);
+      setCmsForm({
+        title: page.title,
+        subtitle: page.subtitle,
+        body: page.body,
+      });
+    } catch (err: any) {
+      console.error("Gagal memuat CMS page:", err);
+    } finally {
+      setLoadingCms(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSubTab === "settings") {
+      loadCmsPageData(selectedCmsSlug);
+      loadSecurityAuditLogs();
+    }
+  }, [selectedCmsSlug, activeSubTab]);
+
+  const handleSaveCms = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingCms(true);
+    try {
+      const res = await updateCmsPage(selectedCmsSlug, cmsForm);
+      if (res.success) {
+        showAlert("success", res.message || "Halaman berhasil diperbarui");
+      } else {
+        showAlert("error", res.error || "Gagal memperbarui halaman");
+      }
+    } catch (err: any) {
+      showAlert("error", err.message || "Terjadi kesalahan saat menyimpan halaman");
+    } finally {
+      setIsSavingCms(false);
+    }
+  };
 
   // User Form States
   const [newUser, setNewUser] = useState({
@@ -86,7 +159,7 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
     try {
       const data = await getSystemSettings();
       setSettings({
-        logo_url: data.logo_url || "https://res.cloudinary.com/rumahhostcom/image/upload/v1785256133/IMG_20260725_184829_670_odzsui.png",
+        logo_url: data.logo_url || "https://res.cloudinary.com/rumahhostcom/image/upload/v1785321525/logo_care_fcfgwq.png",
         app_name: data.app_name || "GroovyCare",
       });
     } catch (error: any) {
@@ -500,26 +573,50 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
           </div>
         ) : (
           /* Settings Tab Section */
-          <div className="bg-white border border-outline-variant/30 rounded-3xl p-8 shadow-sm">
-            <h3 className="font-heading font-extrabold text-base text-slate-900 mb-6 flex items-center gap-2">
-              <Image className="w-4 h-4 text-primary" />
-              Identitas Aplikasi & Kustomisasi Logo
-            </h3>
-
+          <div className="bg-white border border-outline-variant/30 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            
             {loadingSettings ? (
               <div className="py-12 text-center text-xs text-on-surface-variant flex flex-col items-center justify-center gap-3">
                 <span className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></span>
                 Memuat konfigurasi...
               </div>
             ) : (
-              <form onSubmit={handleSaveSettings} className="space-y-8 max-w-2xl">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <form onSubmit={handleSaveSettings} className="space-y-4">
+                {/* Header Section dengan Inline Action Button */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Image className="w-4 h-4 text-emerald-700" />
+                    <h3 className="font-heading font-extrabold text-base text-slate-900">
+                      Identitas Aplikasi &amp; Kustomisasi Logo
+                    </h3>
+                  </div>
 
-                  {/* Left Column: Form inputs */}
-                  <div className="space-y-4">
+                  <button
+                    type="submit"
+                    disabled={isSavingSettings}
+                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-60 disabled:cursor-not-allowed border-none"
+                  >
+                    {isSavingSettings ? (
+                      <>
+                        <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full"></span>
+                        Menyimpan...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-3.5 h-3.5" />
+                        Simpan Perubahan
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Form & Pratinjau Horizontal Grid (Compact Row) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center pt-1">
+                  {/* Input Fields (2 Kolom) */}
+                  <div className="md:col-span-2 space-y-3">
                     {/* App Name Input */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-bold text-on-surface-variant">
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase font-bold text-slate-600">
                         Nama Aplikasi
                       </label>
                       <input
@@ -527,14 +624,14 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
                         required
                         value={settings.app_name}
                         onChange={(e) => setSettings({ ...settings, app_name: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-xl text-on-surface text-xs focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all font-bold text-slate-800"
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs font-bold focus:ring-2 focus:ring-emerald-600 focus:bg-white outline-none transition-all"
                         placeholder="Contoh: GroovyCare"
                       />
                     </div>
 
                     {/* Logo URL Input */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-bold text-on-surface-variant">
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase font-bold text-slate-600">
                         URL Logo Aplikasi (Cloudinary/Public URL)
                       </label>
                       <input
@@ -542,60 +639,261 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
                         required
                         value={settings.logo_url}
                         onChange={(e) => setSettings({ ...settings, logo_url: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-xl text-on-surface text-xs focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all font-mono text-slate-700"
+                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs font-mono focus:ring-2 focus:ring-emerald-600 focus:bg-white outline-none transition-all"
                         placeholder="https://example.com/logo.png"
                       />
                     </div>
                   </div>
 
-                  {/* Right Column: Logo Preview Card */}
-                  <div className="bg-slate-50 border border-outline-variant/20 rounded-2xl p-6 flex flex-col items-center justify-center text-center space-y-4">
-                    <span className="text-[10px] uppercase font-bold text-on-surface-variant">
-                      Pratinjau Live Logo
+                  {/* Pratinjau Kompak (1 Kolom) */}
+                  <div className="flex flex-col items-center justify-center p-3 border border-dashed border-slate-200 rounded-2xl bg-slate-50/80 h-full min-h-[100px]">
+                    <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">
+                      Pratinjau Logo
                     </span>
-                    <div className="w-48 h-20 bg-white rounded-xl border border-outline-variant/10 shadow-sm p-4 flex items-center justify-center overflow-hidden">
+                    <div className="h-14 w-full flex items-center justify-center p-2 bg-white rounded-xl border border-slate-200/80 shadow-2xs overflow-hidden">
                       {settings.logo_url ? (
                         <img
                           src={settings.logo_url}
                           alt="Pratinjau Logo"
-                          className="max-w-full max-h-full object-contain"
+                          className="max-h-full max-w-full object-contain"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = "https://www.groovyrx.com/store/1/logogroovyrx.png";
+                            (e.target as HTMLImageElement).src = "https://res.cloudinary.com/rumahhostcom/image/upload/v1785321525/logo_care_fcfgwq.png";
                           }}
                         />
                       ) : (
                         <span className="text-[10px] text-slate-400">Belum ada logo</span>
                       )}
                     </div>
-                    <span className="text-[9px] text-on-surface-variant/60 leading-normal max-w-[200px]">
-                      Logo ini akan langsung diaplikasikan pada seluruh halaman login, registrasi, header dasbor apotek, dan admin backoffice setelah Anda menyimpannya.
-                    </span>
                   </div>
-
-                </div>
-
-                {/* Save Button */}
-                <div className="pt-4 border-t border-outline-variant/20">
-                  <button
-                    type="submit"
-                    disabled={isSavingSettings}
-                    className="px-6 py-3.5 bg-primary text-white text-xs font-bold rounded-xl shadow-md hover:bg-primary/95 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isSavingSettings ? (
-                      <>
-                        <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-                        Menyimpan...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        Simpan & Muat Ulang Pengaturan
-                      </>
-                    )}
-                  </button>
                 </div>
               </form>
             )}
+
+            {/* SECTION 2: CMS Dynamic Pages Editor */}
+            <div className="mt-12 pt-8 border-t border-slate-200/80 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-heading font-extrabold text-base text-slate-900 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-emerald-700" />
+                    Manajemen Halaman Informasi &amp; Legal PBF (CMS)
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Kelola konten 8 halaman resmi footer PBF yang terhubung langsung di frontend.
+                  </p>
+                </div>
+
+                <a
+                  href={`/${selectedCmsSlug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold transition-all border border-emerald-200/80 shrink-0 self-start sm:self-auto text-decoration-none"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Lihat Live Halaman (/{selectedCmsSlug})
+                </a>
+              </div>
+
+              {/* Selector Tabs for 8 Pages */}
+              <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-2 pt-1 border-b border-slate-100">
+                {[
+                  { slug: "about", label: "About Us" },
+                  { slug: "contact", label: "Contact Support" },
+                  { slug: "career", label: "Career" },
+                  { slug: "legal", label: "Legal" },
+                  { slug: "terms", label: "Terms of Service" },
+                  { slug: "privacy", label: "Privacy Policy" },
+                  { slug: "certificates", label: "Compliance Certificates" },
+                  { slug: "quality-assurance", label: "Quality Assurance" },
+                ].map((item) => (
+                  <button
+                    key={item.slug}
+                    type="button"
+                    onClick={() => setSelectedCmsSlug(item.slug)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer border-none ${
+                      selectedCmsSlug === item.slug
+                        ? "bg-slate-900 text-white shadow-xs"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200/70"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* CMS Page Editor Form */}
+              {loadingCms ? (
+                <div className="py-12 text-center text-xs text-slate-400 flex flex-col items-center justify-center gap-3">
+                  <span className="animate-spin h-6 w-6 border-2 border-emerald-600 border-t-transparent rounded-full"></span>
+                  Membaca konten halaman {selectedCmsSlug}...
+                </div>
+              ) : (
+                <form onSubmit={handleSaveCms} className="space-y-4 max-w-3xl animate-fadeIn">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-extrabold tracking-wider text-slate-500">
+                      Judul Halaman ({selectedCmsSlug})
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={cmsForm.title}
+                      onChange={(e) => setCmsForm({ ...cmsForm, title: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-extrabold tracking-wider text-slate-500">
+                      Subjudul / Deskripsi Ringkas
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={cmsForm.subtitle}
+                      onChange={(e) => setCmsForm({ ...cmsForm, subtitle: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:ring-2 focus:ring-emerald-600 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-extrabold tracking-wider text-slate-500 flex items-center justify-between">
+                      <span>Isi Konten Halaman (Format Markdown)</span>
+                      <span className="text-slate-400 font-normal">Gunakan ### untuk judul section, - untuk list bullet</span>
+                    </label>
+                    <textarea
+                      rows={12}
+                      required
+                      value={cmsForm.body}
+                      onChange={(e) => setCmsForm({ ...cmsForm, body: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none transition-all leading-relaxed"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSavingCms}
+                      className="px-6 py-3 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-md transition-all active:scale-95 border-none cursor-pointer flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {isSavingCms ? (
+                        <>
+                          <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                          Menyimpan Halaman...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          Simpan Konten Halaman ({selectedCmsSlug})
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* SECTION 3: Security Audit Trail & Log Lupa Kata Sandi */}
+            <div className="mt-12 pt-8 border-t border-slate-200/80 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-heading font-extrabold text-base text-slate-900 flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                    Security Audit Trail &amp; Log Pemulihan Kata Sandi PBF
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Catatan audit log otentikasi realtime untuk kepatuhan regulasi CDOB &amp; BPOM.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={loadSecurityAuditLogs}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all border-none cursor-pointer shrink-0 self-start sm:self-auto"
+                >
+                  <Activity className="w-3.5 h-3.5 text-emerald-700" />
+                  Refresh Audit Logs
+                </button>
+              </div>
+
+              {loadingSecurityLogs ? (
+                <div className="py-8 text-center text-xs text-slate-400 flex flex-col items-center justify-center gap-2">
+                  <span className="animate-spin h-5 w-5 border-2 border-emerald-600 border-t-transparent rounded-full"></span>
+                  Memuat catatan log keamanan...
+                </div>
+              ) : securityLogs.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200/80 text-xs text-slate-500 space-y-1">
+                  <Clock className="w-6 h-6 text-slate-400 mx-auto mb-2" />
+                  <p className="font-bold text-slate-700">Belum Ada Audit Log Keamanan</p>
+                  <p className="text-[11px]">Setiap permohonan reset password atau anomali akses akan otomatis tercatat di sini.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-2xl border border-slate-200/80 shadow-2xs">
+                  <table className="w-full text-left text-xs font-sans">
+                    <thead className="bg-slate-100/80 border-b border-slate-200 text-[10px] font-extrabold uppercase text-slate-600 tracking-wider">
+                      <tr>
+                        <th className="px-4 py-3">Waktu</th>
+                        <th className="px-4 py-3">Tipe Event</th>
+                        <th className="px-4 py-3">Email &amp; Mitra</th>
+                        <th className="px-4 py-3">IP / Device</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">Rincian Log</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {securityLogs.map((log: any) => (
+                        <tr key={log.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap font-mono text-[11px] text-slate-600">
+                            {new Date(log.createdAt).toLocaleString("id-ID", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span
+                              className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${
+                                log.eventType === "AUTH_PASSWORD_RESET_SUCCESS"
+                                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                  : log.eventType === "SECURITY_ALERT"
+                                  ? "bg-rose-50 text-rose-800 border-rose-200"
+                                  : "bg-amber-50 text-amber-800 border-amber-200"
+                              }`}
+                            >
+                              {log.eventType}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="font-bold text-slate-800">{log.email}</div>
+                            <div className="text-[10px] text-slate-500">{log.institution || "-"}</div>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-[10px] text-slate-500">
+                            <div>{log.ipAddress || "127.0.0.1"}</div>
+                            <div className="truncate max-w-[150px] text-slate-400">{log.userAgent}</div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span
+                              className={`text-[10px] font-bold ${
+                                log.status === "SUCCESS"
+                                  ? "text-emerald-700"
+                                  : log.status === "BLOCKED"
+                                  ? "text-rose-700"
+                                  : "text-amber-700"
+                              }`}
+                            >
+                              {log.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-[11px] text-slate-600">
+                            {log.details || "-"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
 
           </div>
         )}

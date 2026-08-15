@@ -144,12 +144,12 @@ export default function PublicCatalog({ products }: { products: Product[] }) {
         return (
           <div
             key={`${p.id}-${idx}`}
-            className="bg-white rounded-2xl border border-slate-200/80 p-2.5 sm:p-3.5 shadow-2xs hover:shadow-md hover:border-emerald-300 transition-all duration-200 flex flex-col justify-between group"
+            className="bg-white rounded-2xl border border-slate-200/80 p-3 shadow-2xs hover:shadow-md hover:border-emerald-300 transition-all duration-200 flex flex-col justify-between group"
           >
             <div>
               {/* Code & Badge */}
               <div className="flex items-center justify-between gap-1 mb-2">
-                <span className="text-[9px] font-mono font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded truncate">
+                <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded truncate">
                   {p.code || `MED-00${idx + 1}`}
                 </span>
                 <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded border shrink-0 ${golongan.cls}`}>
@@ -157,8 +157,8 @@ export default function PublicCatalog({ products }: { products: Product[] }) {
                 </span>
               </div>
 
-              {/* Product Image Container */}
-              <div className="relative w-full h-24 sm:h-28 bg-slate-50 rounded-xl overflow-hidden mb-2 border border-slate-100 flex items-center justify-center p-2">
+              {/* Product Image Container (Aspect Square 1:1) */}
+              <div className="relative w-full aspect-square bg-slate-50 rounded-xl overflow-hidden mb-2 border border-slate-100 flex items-center justify-center p-2">
                 <img
                   src={imgSrc}
                   alt={p.name}
@@ -180,24 +180,18 @@ export default function PublicCatalog({ products }: { products: Product[] }) {
                 {p.name}
               </h3>
 
-              {/* Details Box */}
-              <div className="bg-slate-50/80 p-2 rounded-xl border border-slate-100/80 space-y-1 text-[10px] mb-2.5">
-                <div className="flex justify-between items-center gap-1">
-                  <span className="text-slate-400 shrink-0">Zat Aktif:</span>
-                  <span className="font-semibold text-slate-700 truncate">
-                    {p.activeIngredient || "Sediaan Farmasi"}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Exp:</span>
-                  <span className="font-mono text-slate-600 text-[9px]">
-                    {p.expDate || "Agu 2027"}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Stok:</span>
-                  <span className="font-bold text-emerald-600 font-mono text-[10px]">
+              {/* Details Box (Ringkasan Info Bersih Native) */}
+              <div className="bg-slate-50/80 p-2 rounded-xl border border-slate-100/80 space-y-1 text-[10px] mb-3">
+                <div className="flex justify-between items-center text-slate-500">
+                  <span>Stok:</span>
+                  <span className="font-bold text-emerald-700 font-mono">
                     {p.totalStock > 0 ? `${p.totalStock} ${p.unit || "Units"}` : "100 Units"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-slate-500">
+                  <span>Exp:</span>
+                  <span className="font-mono text-slate-600">
+                    {p.expDate || "Agu 2027"}
                   </span>
                 </div>
               </div>
@@ -208,21 +202,22 @@ export default function PublicCatalog({ products }: { products: Product[] }) {
               <div className="min-w-0">
                 <span className="text-[8px] text-slate-400 block leading-none">Harga / {p.unit || "Pack"}</span>
                 {hasPrice ? (
-                  <span className="text-xs font-bold text-slate-900 font-mono truncate block">
+                  <span className="text-xs font-black text-slate-900 font-mono truncate block mt-0.5">
                     Rp {p.price.toLocaleString("id-ID")}
                   </span>
                 ) : (
-                  <span className="text-[10px] font-bold text-emerald-700 font-mono truncate block flex items-center gap-0.5">
-                    <Lock className="w-2.5 h-2.5 text-emerald-600 inline" /> Khusus Mitra
+                  <span className="text-[10px] font-extrabold text-emerald-700 truncate flex items-center gap-0.5 mt-0.5">
+                    <Lock className="w-2.5 h-2.5 text-emerald-700 shrink-0" />
+                    Khusus Mitra
                   </span>
                 )}
               </div>
               <Link
                 href="/login"
-                className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-[11px] font-semibold transition-all shrink-0 inline-flex items-center gap-1 shadow-2xs"
+                className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white text-[11px] font-bold transition-all shrink-0 no-underline shadow-2xs"
                 title="Login Mitra untuk Memesan Obat"
               >
-                <span>Pesan</span>
+                Pesan
               </Link>
             </div>
           </div>

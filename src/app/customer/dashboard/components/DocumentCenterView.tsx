@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FileText, Edit3, Truck, Receipt, Download, Clock, CheckCircle, PenTool } from "lucide-react";
+import { canOpenEFaktur } from "./OrderDetailView";
 
 interface Batch {
   id: string;
@@ -74,7 +75,7 @@ export default function DocumentCenterView({
   const spOrders = orders.filter(o => o.status !== "REJECTED");
   const esignPendingOrders = orders.filter(o => o.status === "PENDING_APPROVAL" && !o.spSignature);
   const doOrders = orders.filter(o => o.status === "SHIPPED" || o.status === "DELIVERED");
-  const fakturOrders = orders.filter(o => o.status === "SHIPPED" || o.status === "DELIVERED");
+  const fakturOrders = orders.filter(o => canOpenEFaktur(o));
 
   return (
     <div className="space-y-6 animate-fadeIn">

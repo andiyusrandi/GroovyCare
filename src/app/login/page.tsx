@@ -16,7 +16,7 @@ export default async function LoginPage() {
   });
   const logoUrl =
     logoSetting?.value ||
-    "https://res.cloudinary.com/rumahhostcom/image/upload/v1785256133/IMG_20260725_184829_670_odzsui.png";
+    "https://res.cloudinary.com/rumahhostcom/image/upload/v1785321525/logo_care_fcfgwq.png";
 
   // Redirect jika sudah login
   if (session) {

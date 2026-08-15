@@ -22,24 +22,6 @@ export async function POST(request: Request) {
       const rawPricing: any[] = [];
 
       if (isMakassar) {
-        rawPricing.push({
-          available_for_cash_on_delivery: true,
-          available_for_proof_of_delivery: true,
-          available_for_instant_waybill_id: true,
-          courier_name: "Logistik Groovyrx",
-          courier_code: "groovyrx",
-          courier_service_name: "Same Day",
-          courier_service_code: "same_day",
-          description: "Pengiriman Same Day Kurir Internal PBF (Area Makassar)",
-          duration: "Same Day (1-2 Jam)",
-          shipment_duration_range: "1 - 2",
-          shipment_duration_unit: "hours",
-          service_type: "same_day",
-          shipping_type: "parcel",
-          price: Math.round(15000 * weightKg),
-          type: "same_day"
-        });
-
         rawPricing.push(
           {
             available_for_cash_on_delivery: true,
@@ -268,6 +250,7 @@ export async function POST(request: Request) {
       ];
 
       // Attempt 1: High Accuracy Area ID + Postal Code
+      const authHeader = apiKey ? (apiKey.startsWith("biteship_") ? apiKey : `Bearer ${apiKey}`) : "";
       let ratesPayload: any = {
         origin_postal_code: originPostalCode,
         ...(originAreaId ? { origin_area_id: originAreaId } : {}),
@@ -281,11 +264,13 @@ export async function POST(request: Request) {
 
       let ratesRes = await fetch("https://api.biteship.com/v1/rates/couriers", {
         method: "POST",
-        headers: { Authorization: apiKey, "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify(ratesPayload),
       });
 
       let ratesData = await ratesRes.json();
+      const isAuthError = ratesData.code === 40000001 || (ratesData.error && ratesData.error.includes("Authentication for your key is failed"));
+
       console.log("[BITESHIP RATES API RESULT - Attempt 1]:", {
         status: ratesRes.status,
         ok: ratesRes.ok,
@@ -294,8 +279,12 @@ export async function POST(request: Request) {
         error: ratesData.error || ratesData.message
       });
 
-      // Attempt 2: If Attempt 1 returned no rates, retry using Postal Code query only (Resolves Biteship sandbox Area ID coverage gaps)
-      if ((!ratesRes.ok || !ratesData.success || !ratesData.pricing || ratesData.pricing.length === 0) && destinationPostalCode) {
+      if (isAuthError) {
+        console.warn("[BITESHIP RATES WARNING] Kunci BITESHIP_API_KEY di .env/environment tidak valid atau telah kedaluwarsa di Biteship Dashboard.");
+      }
+
+      // Attempt 2: If Attempt 1 returned no rates (and not an auth failure), retry using Postal Code query only
+      if (!isAuthError && (!ratesRes.ok || !ratesData.success || !ratesData.pricing || ratesData.pricing.length === 0) && destinationPostalCode) {
         ratesPayload = {
           origin_postal_code: originPostalCode,
           destination_postal_code: destinationPostalCode,
@@ -307,7 +296,7 @@ export async function POST(request: Request) {
 
         ratesRes = await fetch("https://api.biteship.com/v1/rates/couriers", {
           method: "POST",
-          headers: { Authorization: apiKey, "Content-Type": "application/json" },
+          headers: { Authorization: authHeader, "Content-Type": "application/json" },
           body: JSON.stringify(ratesPayload),
         });
 
@@ -322,119 +311,17 @@ export async function POST(request: Request) {
       }
 
       let pricingList: any[] = (ratesData.success && Array.isArray(ratesData.pricing)) ? [...ratesData.pricing] : [];
-      const weightKg = totalWeight / 1000;
 
-      // 1. Only include Logistik Groovyrx (Internal Same-Day Courier) if destination is within Kota Makassar local area
-      const cleanCityLower = city.toLowerCase();
-      const isLocalMakassarCity = cleanCityLower.includes("makassar") || cleanCityLower.includes("tamalanrea");
-
-      const hasGroovyRx = pricingList.some((p: any) =>
-        p.courier_name?.toLowerCase().includes("groovyrx") || p.courier_code?.toLowerCase().includes("groovyrx")
-      );
-      if (!hasGroovyRx && isLocalMakassarCity) {
-        pricingList.unshift({
-          available_for_cash_on_delivery: true,
-          available_for_proof_of_delivery: true,
-          available_for_instant_waybill_id: true,
-          courier_name: "Logistik Groovyrx",
-          courier_code: "groovyrx",
-          courier_service_name: "Same Day",
-          courier_service_code: "same_day",
-          description: "Pengiriman Same Day Kurir Internal PBF (Khusus Kota Makassar)",
-          duration: "Same Day (1-2 Jam)",
-          shipment_duration_range: "1 - 2",
-          shipment_duration_unit: "hours",
-          service_type: "same_day",
-          shipping_type: "parcel",
-          price: Math.round(15000 * weightKg),
-          type: "same_day",
-          is_fallback: false
-        });
-      }
-
-      // 2. Ensure JNE, J&T, SiCepat, Anteraja options are populated without numeric fallback prices if realtime fetch failed
-      const hasJNE = pricingList.some((p: any) => p.courier_code === "jne");
-      if (!hasJNE) {
-        pricingList.push({
-          available_for_cash_on_delivery: false,
-          available_for_proof_of_delivery: true,
-          courier_name: "JNE",
-          courier_code: "jne",
-          courier_service_name: "Reguler (REG)",
-          courier_service_code: "reg",
-          description: "Gagal mengambil tarif realtime dari API Biteship",
-          duration: "-",
-          price: null,
-          type: "reg",
-          is_fallback: true,
-          error_message: "Gagal Memuat Tarif Realtime"
-        });
-      }
-
-      const hasJNT = pricingList.some((p: any) => p.courier_code === "jnt");
-      if (!hasJNT) {
-        pricingList.push({
-          available_for_cash_on_delivery: false,
-          available_for_proof_of_delivery: true,
-          courier_name: "J&T Express",
-          courier_code: "jnt",
-          courier_service_name: "EZ (Standard)",
-          courier_service_code: "ez",
-          description: "Gagal mengambil tarif realtime dari API Biteship",
-          duration: "-",
-          price: null,
-          type: "ez",
-          is_fallback: true,
-          error_message: "Gagal Memuat Tarif Realtime"
-        });
-      }
-
-      const hasSiCepat = pricingList.some((p: any) => p.courier_code === "sicepat");
-      if (!hasSiCepat) {
-        pricingList.push({
-          available_for_cash_on_delivery: false,
-          available_for_proof_of_delivery: true,
-          courier_name: "SiCepat",
-          courier_code: "sicepat",
-          courier_service_name: "HALU (Ekonomis)",
-          courier_service_code: "halu",
-          description: "Gagal mengambil tarif realtime dari API Biteship",
-          duration: "-",
-          price: null,
-          type: "halu",
-          is_fallback: true,
-          error_message: "Gagal Memuat Tarif Realtime"
-        });
-      }
-
-      const hasAnteraja = pricingList.some((p: any) => p.courier_code === "anteraja");
-      if (!hasAnteraja) {
-        pricingList.push({
-          available_for_cash_on_delivery: false,
-          available_for_proof_of_delivery: true,
-          courier_name: "Anteraja",
-          courier_code: "anteraja",
-          courier_service_name: "Reguler",
-          courier_service_code: "reg",
-          description: "Gagal mengambil tarif realtime dari API Biteship",
-          duration: "-",
-          price: null,
-          type: "reg",
-          is_fallback: true,
-          error_message: "Gagal Memuat Tarif Realtime"
-        });
-      }
-
-      let warningNote: string | undefined = undefined;
-      if (!ratesData.success || ratesData.error) {
-        warningNote = "Catatan Biteship API: Kurir pihak ketiga (JNE/J&T/SiCepat) belum diaktifkan di dashboard Biteship. Menampilkan opsi kurir standar.";
-      }
+      // Filter or mark courier availability strictly based on Biteship API response
+      pricingList = pricingList.map((p: any) => ({
+        ...p,
+        is_available: typeof p.price === "number" && p.price > 0 && p.available_for_instant_waybill_id !== false,
+      }));
 
       return NextResponse.json({
-        success: true,
-        isFallback: !ratesData.success,
+        success: ratesData.success ?? true,
         pricing: pricingList,
-        ...(warningNote ? { warning: warningNote } : {})
+        ...(ratesData.error ? { warning: ratesData.error } : {})
       });
     } catch (e: any) {
       console.warn("Rates API call error:", e);

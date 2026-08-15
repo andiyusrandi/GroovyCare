@@ -117,6 +117,19 @@ export default function RegisterForm({ logoUrl }: RegisterFormProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Batas Maksimal File 5 MB
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > MAX_FILE_SIZE) {
+      const mbSize = (file.size / (1024 * 1024)).toFixed(1);
+      setError(`⚠️ Ukuran berkas "${file.name}" (${mbSize} MB) melebihi batas maksimal 5 MB. Silakan kompres atau unggah file dokumen yang lebih kecil.`);
+      e.target.value = ""; // Reset file input
+      if (type === "sia") setSiaFile(null);
+      else setSipaFile(null);
+      return;
+    }
+
+    setError(null); // Clear previous errors
+
     const sizeStr = file.size > 1024 * 1024
       ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
       : `${Math.round(file.size / 1024)} KB`;

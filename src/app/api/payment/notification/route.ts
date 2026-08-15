@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import crypto from "crypto";
+import { sendPaymentReceivedMitraEmail } from "@/lib/email-service";
 
 const serverKey = process.env.MIDTRANS_SERVER_KEY || "";
 
@@ -27,7 +28,11 @@ export async function POST(req: Request) {
 
     // Cari order berdasarkan orderNumber asli
     const order = await db.order.findUnique({
-      where: { orderNumber: originalOrderNumber }
+      where: { orderNumber: originalOrderNumber },
+      include: {
+        createdBy: true,
+        institution: true,
+      },
     });
 
     if (!order) {
@@ -43,6 +48,14 @@ export async function POST(req: Request) {
         data: { paymentStatus: "PAID" }
       });
       console.log(`Order ${originalOrderNumber} successfully marked as PAID.`);
+
+      // Trigger Notifikasi Email 2: Pembayaran Diterima & Barang Siap Dikirim (Mitra)
+      sendPaymentReceivedMitraEmail({
+        orderNumber: order.orderNumber,
+        id: order.id,
+        institutionName: order.institution?.name || "Apotek Mitra",
+        recipientEmail: order.createdBy?.email || "mitra@growmexa.com",
+      }).catch((e) => console.error("Async sendPaymentReceivedMitraEmail err:", e));
     } else if (
       transaction_status === "deny" ||
       transaction_status === "cancel" ||

@@ -1,6 +1,7 @@
 "use client";
 
-import { CheckCircle2, ShieldCheck, FileCheck, AlertCircle, CreditCard, DollarSign } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, ShieldCheck, FileCheck, AlertCircle, CreditCard, DollarSign, X, Check, AlertTriangle } from "lucide-react";
 
 interface OrderItem {
   id: string;
@@ -84,11 +85,35 @@ export default function FinanceTab({
   handleVerifyPayment,
   handleMarkAsPaidManually,
 }: FinanceTabProps) {
+  const [confirmModalTarget, setConfirmModalTarget] = useState<{
+    order: Order;
+    type: "MANUAL_PAID" | "VERIFY_SUCCESS" | "VERIFY_REJECT";
+  } | null>(null);
+
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const pendingPayments = orders.filter((o) => o.paymentStatus === "PENDING_VERIFICATION");
   const unpaidPayments = orders.filter((o) => o.paymentStatus === "UNPAID");
 
+  const executeConfirmAction = async () => {
+    if (!confirmModalTarget) return;
+    setIsProcessing(true);
+    try {
+      if (confirmModalTarget.type === "MANUAL_PAID") {
+        await handleMarkAsPaidManually(confirmModalTarget.order.id);
+      } else if (confirmModalTarget.type === "VERIFY_SUCCESS") {
+        await handleVerifyPayment(confirmModalTarget.order.id, true);
+      } else if (confirmModalTarget.type === "VERIFY_REJECT") {
+        await handleVerifyPayment(confirmModalTarget.order.id, false);
+      }
+    } finally {
+      setIsProcessing(false);
+      setConfirmModalTarget(null);
+    }
+  };
+
   return (
-    <div className="space-y-6 animate-fadeIn font-sans pb-12">
+    <div className="space-y-6 animate-fadeIn font-sans pb-12 relative">
       
       {/* Slim Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 px-5 rounded-2xl border border-slate-200/80 shadow-2xs">
@@ -186,14 +211,14 @@ export default function FinanceTab({
                     <div className="flex gap-2 pt-2">
                       <button
                         type="button"
-                        onClick={() => handleVerifyPayment(o.id, false)}
+                        onClick={() => setConfirmModalTarget({ order: o, type: "VERIFY_REJECT" })}
                         className="flex-1 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-extrabold text-xs rounded-xl border border-rose-200 transition-all cursor-pointer shadow-2xs"
                       >
                         Tolak
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleVerifyPayment(o.id, true)}
+                        onClick={() => setConfirmModalTarget({ order: o, type: "VERIFY_SUCCESS" })}
                         className="flex-1 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs rounded-xl shadow-2xs transition-all cursor-pointer active:scale-95 border-none"
                       >
                         Verifikasi Lunas
@@ -264,7 +289,7 @@ export default function FinanceTab({
                         <td className="px-5 py-3 text-right">
                           <button
                             type="button"
-                            onClick={() => handleMarkAsPaidManually(o.id)}
+                            onClick={() => setConfirmModalTarget({ order: o, type: "MANUAL_PAID" })}
                             className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-[11px] font-bold transition-all cursor-pointer shadow-2xs border-none"
                           >
                             Tandai Lunas
@@ -279,6 +304,114 @@ export default function FinanceTab({
           </div>
         )}
       </section>
+
+      {/* MODAL POPUP KONFIRMASI (PELUNASAN & VERIFIKASI) */}
+      {confirmModalTarget && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 space-y-5 animate-scaleUp">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                  confirmModalTarget.type === "VERIFY_REJECT"
+                    ? "bg-rose-50 text-rose-600 border border-rose-200"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                }`}>
+                  <span className="material-symbols-outlined text-2xl">
+                    {confirmModalTarget.type === "VERIFY_REJECT" ? "cancel" : "verified"}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-heading font-extrabold text-base text-slate-900">
+                    {confirmModalTarget.type === "MANUAL_PAID"
+                      ? "Konfirmasi Pelunasan Manual"
+                      : confirmModalTarget.type === "VERIFY_SUCCESS"
+                      ? "Verifikasi Pembayaran Lunas"
+                      : "Tolak Bukti Pembayaran"}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {confirmModalTarget.order.orderNumber}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmModalTarget(null)}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors border-none bg-transparent cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Detail Info Box */}
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-2 text-xs">
+              <div className="flex justify-between items-center text-slate-600">
+                <span className="font-medium">Mitra Pemesan:</span>
+                <span className="font-bold text-slate-900">{confirmModalTarget.order.institution.name}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-600">
+                <span className="font-medium">Total Tagihan:</span>
+                <span className="font-mono font-extrabold text-slate-900 text-sm">
+                  Rp {calculateOrderTotals(confirmModalTarget.order).total.toLocaleString("id-ID")}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-slate-600">
+                <span className="font-medium">Metode Pembayaran:</span>
+                <span className="font-bold text-slate-800">
+                  {confirmModalTarget.order.paymentMethod === "TOP" ? "Tempo / TOP" : "Bank Transfer"}
+                </span>
+              </div>
+            </div>
+
+            {/* Notice Alert */}
+            <div className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 ${
+              confirmModalTarget.type === "VERIFY_REJECT"
+                ? "bg-rose-50 border-rose-200 text-rose-900"
+                : "bg-amber-50 border-amber-200 text-amber-900"
+            }`}>
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+              <p className="leading-relaxed">
+                {confirmModalTarget.type === "MANUAL_PAID"
+                  ? "Tindakan ini akan menandai invoice sebagai LUNAS secara resmi dan sisa limit kredit mitra akan otomatis bertambah."
+                  : confirmModalTarget.type === "VERIFY_SUCCESS"
+                  ? "Bukti pembayaran akan disetujui secara resmi dan status pesanan diperbarui menjadi LUNAS."
+                  : "Bukti pembayaran akan ditolak. Mitra perlu mengunggah bukti pembayaran baru."}
+              </p>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={() => setConfirmModalTarget(null)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border-none cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={executeConfirmAction}
+                className={`px-5 py-2.5 rounded-xl text-white text-xs font-extrabold shadow-md transition-all active:scale-95 cursor-pointer border-none flex items-center gap-2 ${
+                  confirmModalTarget.type === "VERIFY_REJECT"
+                    ? "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20"
+                    : "bg-emerald-700 hover:bg-emerald-800 shadow-emerald-700/20"
+                }`}
+              >
+                {isProcessing && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                <span>
+                  {confirmModalTarget.type === "MANUAL_PAID"
+                    ? "Ya, Tandai Lunas"
+                    : confirmModalTarget.type === "VERIFY_SUCCESS"
+                    ? "Ya, Verifikasi Lunas"
+                    : "Ya, Tolak Bukti"}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

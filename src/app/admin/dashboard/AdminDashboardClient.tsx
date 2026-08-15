@@ -27,6 +27,7 @@ import {
   deleteOrder,
   deleteBulkOrders,
   markOrderAsPaidManually,
+  markOrderAsDeliveredByAdmin,
 } from "@/app/actions/orders";
 import {
   searchKfaMedicines,
@@ -210,14 +211,26 @@ export default function AdminDashboardClient({
   useEffect(() => {
     setProducts(initialProducts);
   }, [initialProducts]);
+  const validTabs = ["overview", "kemitraan", "obat", "cdob", "logistik", "pembayaran", "riwayat", "pelaporan", "superadmin"];
   const [activeTab, setActiveTab] = useState<"overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin">("overview");
 
-  // Restore active tab on mount to prevent hydration mismatch while preserving state
+  const handleSetActiveTab = (tab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin") => {
+    const targetTab = validTabs.includes(tab) ? tab : "overview";
+    setActiveTab(targetTab as any);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("admin_active_tab", targetTab);
+    }
+  };
+
+  // Restore active tab on mount to prevent hydration mismatch while ensuring 'overview' fallback
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("admin_active_tab");
-      if (saved) {
+      if (saved && validTabs.includes(saved)) {
         setActiveTab(saved as any);
+      } else {
+        setActiveTab("overview");
+        localStorage.setItem("admin_active_tab", "overview");
       }
     }
   }, []);
@@ -608,14 +621,12 @@ export default function AdminDashboardClient({
   }
 
   async function handleApproveOrder(orderId: string) {
-    if (confirm("Apakah Anda sudah memeriksa dokumen SP dan memverifikasi lisensi SIPA apoteker pembeli aktif sesuai CDOB?")) {
-      const res = await approveOrderCDOB(orderId);
-      if (res.success) {
-        alert(res.message);
-        window.location.reload();
-      } else {
-        alert(res.error);
-      }
+    const res = await approveOrderCDOB(orderId);
+    if (res.success) {
+      alert(res.message);
+      window.location.reload();
+    } else {
+      alert(res.error);
     }
   }
 
@@ -714,29 +725,34 @@ export default function AdminDashboardClient({
     }
   }
 
+  async function handleMarkAsDelivered(orderId: string) {
+    const res = await markOrderAsDeliveredByAdmin(orderId);
+    if (res.success) {
+      alert(res.message);
+      window.location.reload();
+    } else {
+      alert(res.error || "Gagal memperbarui status pengiriman");
+    }
+  }
+
   // Payment Verification actions
   async function handleVerifyPayment(orderId: string, approve: boolean) {
-    const actionText = approve ? "menyetujui" : "menolak";
-    if (confirm(`Apakah Anda yakin ingin ${actionText} bukti pembayaran untuk invoice ini?`)) {
-      const res = await verifyPayment(orderId, approve);
-      if (res.success) {
-        alert(res.message);
-        window.location.reload();
-      } else {
-        alert(res.error);
-      }
+    const res = await verifyPayment(orderId, approve);
+    if (res.success) {
+      alert(res.message);
+      window.location.reload();
+    } else {
+      alert(res.error);
     }
   }
 
   async function handleMarkAsPaidManually(orderId: string) {
-    if (confirm("Apakah Anda yakin ingin menandai invoice ini sebagai LUNAS secara manual? Sisa limit mitra akan langsung bertambah.")) {
-      const res = await markOrderAsPaidManually(orderId);
-      if (res.success) {
-        alert(res.message);
-        window.location.reload();
-      } else {
-        alert(res.error);
-      }
+    const res = await markOrderAsPaidManually(orderId);
+    if (res.success) {
+      alert(res.message);
+      window.location.reload();
+    } else {
+      alert(res.error);
     }
   }
 
@@ -744,12 +760,12 @@ export default function AdminDashboardClient({
     <div className="bg-background text-on-surface font-body-md min-h-screen overflow-x-hidden relative">
       {/* Offline Mode Banner Indicator */}
       <OfflineStatusBanner />
-      {/* SideNavBar */}
+      {/* Sidebar Navigation */}
       <AdminSidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleSetActiveTab}
         pendingApprovalsCount={orders.filter((o) => o.status === "PENDING_APPROVAL").length}
-        pendingPaymentsCount={orders.filter((o) => o.paymentStatus === "PENDING_VERIFICATION").length}
+        pendingPaymentsCount={orders.filter((o) => o.paymentStatus !== "PAID" && o.status !== "REJECTED" && o.status !== "CANCELLED").length}
         pendingLogisticsCount={orders.filter((o) => o.status === "PENDING_SHIPPING").length}
         pendingPartnersCount={partners.filter((p) => !p.isActive).length}
         handleLogout={handleLogout}
@@ -762,7 +778,7 @@ export default function AdminDashboardClient({
         <AdminTopBar
           adminName={adminName}
           pendingPartnersCount={partners.filter((p) => !p.isActive).length}
-          setActiveTab={setActiveTab}
+          setActiveTab={handleSetActiveTab}
         />
 
         {/* Content Canvas */}
@@ -772,9 +788,9 @@ export default function AdminDashboardClient({
               partners={partners}
               products={products}
               orders={orders}
-              setActiveTab={setActiveTab}
+              setActiveTab={handleSetActiveTab}
               setViewingOrder={() => {
-                setActiveTab("cdob");
+                handleSetActiveTab("cdob");
               }}
             />
           )}
@@ -828,6 +844,7 @@ export default function AdminDashboardClient({
               startPacking={startPacking}
               onRejectOrder={handleRejectOrder}
               onDeleteOrder={handleDeleteOrder}
+              onMarkDelivered={handleMarkAsDelivered}
             />
           )}
 

@@ -126,6 +126,9 @@ export default function LoginForm({ logoUrl }: LoginFormProps) {
             <label htmlFor="password-input" className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
               Kata Sandi <span className="text-rose-500">*</span>
             </label>
+            <Link href="/forgot-password" className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline transition-colors no-underline">
+              Lupa Kata Sandi?
+            </Link>
           </div>
           <div className="relative flex items-center">
             <input
@@ -147,11 +150,6 @@ export default function LoginForm({ logoUrl }: LoginFormProps) {
                 {showPassword ? "visibility_off" : "visibility"}
               </span>
             </button>
-          </div>
-          <div className="flex justify-end pt-1">
-            <Link href="#" className="text-xs font-semibold text-emerald-600 hover:underline py-1">
-              Lupa Kata Sandi?
-            </Link>
           </div>
         </div>
 

@@ -376,12 +376,13 @@ export default function ProductCatalog({
 
   // Mobile Chip Filtering
   const chips = [
-    { label: "All Products", filter: () => true },
-    { label: "Ethical", filter: (p: Product) => getProductGolongan(p) === "KERAS" || getProductGolongan(p) === "PSIKOTROPIKA" },
-    { label: "OTC", filter: (p: Product) => getProductGolongan(p) === "BEBAS" },
-    { label: "Medical Devices", filter: (p: Product) => p.category.toLowerCase().includes("alat") || p.category.toLowerCase().includes("device") || p.manufacturer.toLowerCase().includes("healthtech") },
-    { label: "Cold Chain", filter: (p: Product) => p.name.toLowerCase().includes("amoxicillin") || p.name.toLowerCase().includes("vaccine") || p.code.toLowerCase().includes("amx") },
-    { label: "Vaccines", filter: (p: Product) => p.category.toLowerCase().includes("vaksin") || p.name.toLowerCase().includes("vaccine") },
+    { label: "Semua Obat", filter: () => true },
+    { label: "Obat Keras (G)", filter: (p: Product) => getProductGolongan(p) === "KERAS" || getProductGolongan(p) === "PSIKOTROPIKA" || p.category.toLowerCase().includes("keras") },
+    { label: "Cold Chain (2-8°C)", filter: (p: Product) => p.name.toLowerCase().includes("amoxicillin") || p.name.toLowerCase().includes("vaccine") || p.code.toLowerCase().includes("amx") || p.category.toLowerCase().includes("cold chain") },
+    { label: "Obat Bebas (OTC)", filter: (p: Product) => getProductGolongan(p) === "BEBAS" || p.category.toLowerCase().includes("otc") || p.category.toLowerCase().includes("bebas") },
+    { label: "Alkes & Steril", filter: (p: Product) => p.category.toLowerCase().includes("alat") || p.category.toLowerCase().includes("device") || p.category.toLowerCase().includes("infus") || p.name.toLowerCase().includes("infus") },
+    { label: "Generik BPOM", filter: (p: Product) => p.name.toLowerCase().includes("generik") || p.code.startsWith("G") },
+    { label: "Multivitamin", filter: (p: Product) => p.category.toLowerCase().includes("vitamin") || p.name.toLowerCase().includes("vitamin") },
   ];
 
   const currentChipObj = chips.find(c => c.label === activeChip) || chips[0];
@@ -1258,7 +1259,7 @@ export default function ProductCatalog({
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-slate-400">Exp Date:</span>
-                          <span className="font-mono text-slate-600 text-[9px]">{expRange}</span>
+                          <span className="font-mono text-emerald-800 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/80 text-[9px]">{expRange}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-slate-400">Stok:</span>
@@ -1277,9 +1278,15 @@ export default function ProductCatalog({
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
                       <div>
                         <span className="text-[9px] text-slate-400 block leading-none">Harga</span>
-                        <span className="text-xs font-extrabold text-slate-900 font-sans">
-                          Rp {p.price.toLocaleString("id-ID")}
-                        </span>
+                        {p.price > 0 ? (
+                          <span className="text-xs font-extrabold text-slate-900 font-sans">
+                            Rp {p.price.toLocaleString("id-ID")}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 block">
+                            Hubungi Sales
+                          </span>
+                        )}
                       </div>
 
                       {/* Counter & Cart Button */}
@@ -1481,20 +1488,39 @@ export default function ProductCatalog({
                       </div>
                     </div>
                     
-                    {/* Add to Cart Button */}
-                    <button 
-                      type="button"
-                      onClick={() => addToCartWithQty(p, 1)}
-                      disabled={isOutOfStock || hasCdobWarning}
-                      className={`w-full h-8 font-sans font-bold text-[10px] rounded-xl flex items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer border-none shadow-xs ${
-                        isOutOfStock || hasCdobWarning
-                          ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
-                          : "bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/10"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-sm">add_shopping_cart</span>
-                      <span>+ Tambah</span>
-                    </button>
+                    {/* Add to Cart Action Row */}
+                    <div className="flex items-center gap-1">
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          triggerHapticImpact();
+                          addToCartWithQty(p, 1);
+                        }}
+                        disabled={isOutOfStock || hasCdobWarning}
+                        className={`flex-1 h-8 font-sans font-extrabold text-[10px] rounded-xl flex items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer border-none shadow-xs ${
+                          isOutOfStock || hasCdobWarning
+                            ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
+                            : "bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-700/20"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-sm">add_shopping_cart</span>
+                        <span>+1 Box</span>
+                      </button>
+
+                      {!isOutOfStock && !hasCdobWarning && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerHapticImpact();
+                            addToCartWithQty(p, 10);
+                          }}
+                          className="px-2.5 h-8 font-mono font-extrabold text-[9.5px] rounded-xl bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer border-none shadow-xs shrink-0"
+                          title="Tambah 10 Box Grosir Langsung"
+                        >
+                          +10
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

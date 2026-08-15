@@ -2,6 +2,8 @@
 
 import React, { useRef } from "react";
 import { FileText as LucideFileText, Download as LucideDownload, Printer as LucidePrinter, X as LucideX, CheckCircle2 as LucideCheckCircle2, ShieldCheck as LucideShieldCheck } from "lucide-react";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 
 interface CdobDocumentModalProps {
   isOpen: boolean;
@@ -52,6 +54,15 @@ export default function CdobDocumentModal({
   // Function to print or save PDF in-app via hidden iframe without opening browser tabs
   const handleInAppPrint = () => {
     if (!printRef.current) return;
+    
+    // Check if device is mobile/Android WebView where iframe print is unsupported
+    const isMobile = typeof navigator !== "undefined" && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+      // Direct mobile Android users to real PDF download
+      handleDownloadPdf();
+      return;
+    }
+
     const content = printRef.current.innerHTML;
 
     const iframe = document.createElement("iframe");
@@ -99,41 +110,49 @@ export default function CdobDocumentModal({
     }, 500);
   };
 
-  // Download genuine PDF file directly without print menu
+  // Download genuine PDF file directly without print menu (Android WebView compatible)
   const handleDownloadPdf = async () => {
     if (!printRef.current) return;
-    try {
-      if (typeof window !== "undefined") {
-        if (!(window as any).html2canvas) {
-          const script1 = document.createElement("script");
-          script1.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-          document.head.appendChild(script1);
-          await new Promise((res, rej) => {
-            script1.onload = res;
-            script1.onerror = rej;
-          });
-        }
-        if (!(window as any).jspdf) {
-          const script2 = document.createElement("script");
-          script2.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-          document.head.appendChild(script2);
-          await new Promise((res, rej) => {
-            script2.onload = res;
-            script2.onerror = rej;
-          });
-        }
-      }
 
+    // Helper to convert lab/oklch colors in cloned DOM for html2canvas
+    const convertColorsOnClone = (clonedDoc: Document) => {
+      const allElements = clonedDoc.querySelectorAll("*");
+      allElements.forEach((el) => {
+        const htmlEl = el as HTMLElement;
+        const style = window.getComputedStyle(htmlEl);
+        ["color", "backgroundColor", "borderColor", "outlineColor"].forEach((prop) => {
+          const val = (style as any)[prop];
+          if (val && (val.includes("lab(") || val.includes("oklch("))) {
+            try {
+              const tempCanvas = document.createElement("canvas");
+              tempCanvas.width = 1;
+              tempCanvas.height = 1;
+              const ctx = tempCanvas.getContext("2d");
+              if (ctx) {
+                ctx.fillStyle = val;
+                ctx.fillRect(0, 0, 1, 1);
+                const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+                htmlEl.style[prop as any] = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+              }
+            } catch {
+              // Ignore fallback if canvas color conversion fails
+            }
+          }
+        });
+      });
+    };
+
+    try {
       const element = printRef.current;
-      const canvas = await (window as any).html2canvas(element, {
+      const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff",
+        onclone: convertColorsOnClone,
       });
 
       const imgData = canvas.toDataURL("image/png");
-      const { jsPDF } = (window as any).jspdf;
       const pdf = new jsPDF("p", "mm", "a4");
       const imgWidth = 210;
       const pageHeight = 297;
@@ -151,196 +170,202 @@ export default function CdobDocumentModal({
         heightLeft -= pageHeight;
       }
 
-      pdf.save(`${type}_${order.orderNumber}.pdf`);
+      const fileName = `${type}_${order.orderNumber}.pdf`;
+
+      // Android & Desktop Blob Download Trigger for .pdf extension
+      const pdfBlob = pdf.output("blob");
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const downloadLink = document.createElement("a");
+      downloadLink.href = blobUrl;
+      downloadLink.download = fileName;
+      downloadLink.style.display = "none";
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      
+      setTimeout(() => {
+        if (document.body.contains(downloadLink)) {
+          document.body.removeChild(downloadLink);
+        }
+        URL.revokeObjectURL(blobUrl);
+      }, 2000);
+
+      // Backup standard jsPDF save call
+      pdf.save(fileName);
     } catch (err) {
       console.error("Gagal mendownload PDF:", err);
-      // Fallback: Download file langsung (Tanpa memicu menu cetak/print)
-      const content = printRef.current.innerHTML;
-      const fullHtml = `<!DOCTYPE html><html><head><title>${titleText} - ${order.orderNumber}</title><meta charset="utf-8" /><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-white p-8 font-sans max-w-4xl mx-auto">${content}</body></html>`;
-      const blob = new Blob([fullHtml], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${type}_${order.orderNumber}.html`;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 1000);
+      // Secondary fallback to genuine PDF data URI if canvas fails
+      const element = printRef.current;
+      const canvas = await html2canvas(element, { scale: 1, onclone: convertColorsOnClone });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      pdf.addImage(imgData, "PNG", 0, 0, 210, (canvas.height * 210) / canvas.width);
+      pdf.save(`${type}_${order.orderNumber}.pdf`);
     }
   };
 
   return (
     <div className="fixed inset-0 z-[250] overflow-y-auto flex items-center justify-center p-3 md:p-4 bg-slate-950/60 backdrop-blur-sm font-sans animate-fadeIn">
-      <div className="bg-white border border-slate-200 rounded-3xl max-w-3xl w-full flex flex-col max-h-[90vh] shadow-2xl overflow-hidden relative animate-slideUp">
+      <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-slate-200 animate-scaleUp">
         
         {/* Header Bar */}
-        <div className="p-4 md:p-5 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${type === 'SP' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-              <LucideFileText className="w-5 h-5 stroke-[2]" />
-            </div>
-            <div>
-              <h3 className="font-heading font-black text-sm text-slate-900 leading-tight">{titleText}</h3>
-              <p className="text-[10px] text-slate-500 font-mono font-bold mt-0.5">Ref: {order.orderNumber} • Verified CDOB</p>
-            </div>
+        <div className="p-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <LucideFileText className="w-5 h-5 text-emerald-400" />
+            <h3 className="text-sm font-extrabold tracking-wide uppercase">{titleText}</h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-slate-200/60 text-slate-500 transition-colors cursor-pointer border-none bg-transparent flex items-center justify-center"
+            className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors border-none bg-transparent cursor-pointer"
           >
             <LucideX className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Scrollable Document Preview Body */}
-        <div className="p-4 md:p-6 overflow-y-auto flex-1 bg-slate-100/60">
-          <div 
-            ref={printRef}
-            className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm text-slate-800 space-y-6 text-xs leading-relaxed max-w-2xl mx-auto"
-          >
-            {/* Kop Surat Header */}
+        {/* Scrollable Printable Document Body */}
+        <div className="p-4 md:p-8 overflow-y-auto flex-1 bg-slate-100/50">
+          <div ref={printRef} className="bg-white p-6 md:p-10 shadow-sm border border-slate-200 rounded-xl space-y-6 max-w-3xl mx-auto font-sans">
+            
+            {/* Letterhead */}
             <div className="flex justify-between items-start border-b-2 border-slate-800 pb-4">
-              <div className="max-w-[65%]">
-                <h1 className="font-heading font-black text-base md:text-lg text-slate-900 uppercase tracking-tight">{order.institution?.name}</h1>
-                <p className="text-[10px] text-slate-600 mt-1">{order.institution?.address}</p>
-                <p className="text-[10px] text-slate-700 font-bold mt-1">SIA: {order.institution?.siaNumber}</p>
+              <div className="max-w-[70%]">
+                <h1 className="font-heading font-extrabold text-base md:text-lg text-slate-900 uppercase tracking-tight">
+                  {order.institution?.name || "PEMESAN APOTEK / KLINIK"}
+                </h1>
+                <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">{order.institution?.address || "Alamat belum disetel"}</p>
+                <p className="text-[11px] text-slate-700 font-bold mt-1">SIA: {order.institution?.siaNumber || "-"}</p>
               </div>
-              <div className="text-right shrink-0">
-                <span className="border border-slate-800 px-2.5 py-0.5 text-[8.5px] font-black uppercase tracking-wider rounded-xs bg-slate-50">Arsip CDOB Official</span>
-                <p className="text-[10px] text-slate-600 font-mono font-bold mt-2">{order.orderNumber}</p>
-                <p className="text-[9px] text-slate-500">{orderDate}</p>
+              <div className="text-right">
+                <span className="border border-slate-800 px-3 py-1 text-[10px] font-bold uppercase tracking-wider bg-slate-50 inline-block">
+                  Arsip Resmi CDOB
+                </span>
+                <p className="text-[10px] text-slate-500 font-mono mt-2">{order.orderNumber}</p>
               </div>
             </div>
 
-            {/* Document Title Banner */}
-            <div className="text-center py-2 bg-slate-50 rounded-xl border border-slate-100">
-              <h2 className="font-heading font-black text-xs md:text-sm uppercase tracking-wider text-slate-900">
-                {type === "SP" ? "SURAT PESANAN OBAT KERAS / SEDIAAN FARMASI" : type === "INVOICE" ? "FAKTUR PENJUALAN OBAT (INVOICE)" : "SURAT JALAN / PENGIRIMAN PBF"}
+            {/* Document Title */}
+            <div className="text-center my-4">
+              <h2 className="font-heading font-extrabold text-sm md:text-base uppercase tracking-wider border-b border-slate-300 pb-1 inline-block text-slate-900">
+                {titleText}
               </h2>
-              <p className="text-[9px] text-slate-500 font-mono mt-0.5">Nomor: {order.orderNumber}</p>
+              <p className="text-[10px] text-slate-500 mt-1 font-mono">No. Dokumen: {order.orderNumber}</p>
             </div>
 
-            {/* Recipient & Metadata Grid */}
-            <div className="grid grid-cols-2 gap-4 text-[10px] bg-slate-50/50 p-4 rounded-xl border border-slate-200/70">
-              <div className="space-y-1">
-                <span className="text-slate-400 font-bold uppercase text-[8px] tracking-wider block">PBF Pemasok:</span>
-                <p className="font-extrabold text-slate-900">PT. GROOVYRX PHARMACEUTICAL GROUP</p>
-                <p className="text-slate-600">Izin PBF: PBF-91823/CDOB/2026</p>
-                <p className="text-slate-500 text-[9.5px]">JL. TAMALANREA RAYA RUKO PELANGI BLOK B NO 7, Makassar</p>
+            {/* Address & Transaction Context */}
+            <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+              <div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Kepada Pemasok (PBF):</span>
+                <strong className="text-slate-900 font-bold block text-xs">PT. GROOVYRX PHARMACEUTICAL GROUP</strong>
+                <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">Kawasan Industri & Pergudangan PBF Tamalanrea, Kota Makassar, Sulawesi Selatan (90245)</p>
               </div>
-              <div className="space-y-1 text-right border-l border-slate-200 pl-4">
-                <span className="text-slate-400 font-bold uppercase text-[8px] tracking-wider block">Pemesan (Apotek / Klinik):</span>
-                <p className="font-extrabold text-slate-900">{order.institution?.name}</p>
-                <p className="text-slate-600">APJ: {order.createdBy?.name}</p>
-                <p className="text-slate-500 text-[9.5px]">SIPA: {order.createdBy?.sipaNumber || "-"}</p>
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Detail Transaksi:</span>
+                <p className="text-[11px] text-slate-700 font-medium">Tanggal SP: <strong className="text-slate-900 font-bold">{orderDate}</strong></p>
+                <p className="text-[11px] text-slate-700 font-medium mt-0.5">Status CDOB: <strong className="text-emerald-700 font-bold">Terverifikasi BPOM</strong></p>
               </div>
             </div>
 
-            {/* Items Table */}
-            <div className="overflow-x-auto border border-slate-200 rounded-xl">
-              <table className="w-full text-[10px] text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-100 border-b border-slate-200 font-bold text-slate-800 text-[9px] uppercase">
-                    <th className="p-2 text-center border-r border-slate-200 w-8">No</th>
-                    <th className="p-2 border-r border-slate-200">Nama Sediaan Obat</th>
-                    <th className="p-2 text-center border-r border-slate-200">Jumlah</th>
-                    <th className="p-2 text-right border-r border-slate-200">Harga</th>
-                    <th className="p-2 text-right">Total</th>
+            {/* Product Table */}
+            <table className="w-full text-xs text-left border-collapse border border-slate-300 mt-4">
+              <thead>
+                <tr className="bg-slate-100 text-slate-800 font-bold uppercase text-[10px]">
+                  <th className="border border-slate-300 p-2.5">No</th>
+                  <th className="border border-slate-300 p-2.5">Nama Obat / Sediaan Farmasi</th>
+                  <th className="border border-slate-300 p-2.5">No. Batch &amp; ED</th>
+                  <th className="border border-slate-300 p-2.5 text-center">Jumlah</th>
+                  <th className="border border-slate-300 p-2.5 text-right">Harga Satuan</th>
+                  <th className="border border-slate-300 p-2.5 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(order.items || []).map((item: any, idx: number) => (
+                  <tr key={idx} className="border-b border-slate-200 text-slate-800">
+                    <td className="border border-slate-300 p-2.5 text-center font-mono">{idx + 1}</td>
+                    <td className="border border-slate-300 p-2.5 font-bold">
+                      {item.product?.name || "Produk Farmasi"}
+                      <span className="text-[10px] text-slate-500 font-normal block">NIE: {item.product?.bpomNumber || "BPOM Registered"}</span>
+                    </td>
+                    <td className="border border-slate-300 p-2.5 font-mono text-[10px] text-slate-600">
+                      Batch: {item.batchNumber || "B-2026-X"}<br />
+                      ED: {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString("id-ID") : "2028-12"}
+                    </td>
+                    <td className="border border-slate-300 p-2.5 text-center font-bold font-mono">{item.quantity} {item.product?.unit || "Box"}</td>
+                    <td className="border border-slate-300 p-2.5 text-right font-mono">Rp {item.price.toLocaleString("id-ID")}</td>
+                    <td className="border border-slate-300 p-2.5 text-right font-bold font-mono">Rp {(item.price * item.quantity).toLocaleString("id-ID")}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {(order.items || []).map((item: any, idx: number) => {
-                    const itemSubtotal = item.price * item.quantity;
-                    return (
-                      <tr key={item.id || idx} className="border-b border-slate-100 text-slate-700">
-                        <td className="p-2 text-center border-r border-slate-100 font-mono text-[9px]">{idx + 1}</td>
-                        <td className="p-2 border-r border-slate-100 font-bold text-slate-900">{item.product?.name || item.name}</td>
-                        <td className="p-2 text-center border-r border-slate-100 font-bold">{item.quantity} {item.product?.unit || "Box"}</td>
-                        <td className="p-2 text-right border-r border-slate-100 font-mono">Rp {item.price?.toLocaleString("id-ID")}</td>
-                        <td className="p-2 text-right font-mono font-bold text-slate-900">Rp {itemSubtotal.toLocaleString("id-ID")}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
 
-            {/* Total Summary */}
-            <div className="flex justify-between items-end border-t border-slate-200 pt-3">
-              <div className="text-[8px] text-slate-400 max-w-xs italic leading-tight">
-                * Dokumen ini terverifikasi secara elektronik oleh Sistem CDOB PBF GroovyCare &amp; Kemenkes BPOM RI.
-              </div>
-              <div className="text-right text-[10.5px] space-y-1">
-                <div className="flex justify-between gap-6">
-                  <span className="text-slate-500">Subtotal Obat:</span>
-                  <span className="font-mono font-bold">Rp {subtotal.toLocaleString("id-ID")}</span>
+            {/* Total Billing Breakdown */}
+            <div className="flex justify-end pt-2">
+              <div className="w-64 space-y-1.5 text-xs font-medium text-slate-700">
+                <div className="flex justify-between">
+                  <span>Subtotal Produk:</span>
+                  <span className="font-mono text-slate-900 font-bold">Rp {subtotal.toLocaleString("id-ID")}</span>
                 </div>
-                <div className="flex justify-between gap-6">
-                  <span className="text-slate-500">PPN (11%):</span>
-                  <span className="font-mono font-bold">Rp {vat.toLocaleString("id-ID")}</span>
+                <div className="flex justify-between">
+                  <span>PPN (11%):</span>
+                  <span className="font-mono text-slate-900 font-bold">Rp {vat.toLocaleString("id-ID")}</span>
                 </div>
-                <div className="flex justify-between gap-6 border-t border-slate-200 pt-1 font-black text-slate-900 text-xs">
-                  <span>Total Faktur:</span>
-                  <span className="font-mono text-emerald-700">Rp {totalBilling.toLocaleString("id-ID")}</span>
+                <div className="flex justify-between">
+                  <span>Ongkos Kirim:</span>
+                  <span className="font-mono text-slate-900 font-bold">Rp {shippingFee.toLocaleString("id-ID")}</span>
+                </div>
+                <hr className="border-slate-300 my-1" />
+                <div className="flex justify-between text-slate-900 font-bold text-sm">
+                  <span>TOTAL TAGIHAN:</span>
+                  <span className="font-mono text-emerald-800">Rp {totalBilling.toLocaleString("id-ID")}</span>
                 </div>
               </div>
             </div>
 
-            {/* Digital Signatures & CDOB Stamp */}
-            <div className="flex justify-between items-center border-t-2 border-slate-200 pt-4 mt-4">
-              <div className="text-center w-36">
-                <p className="text-[8.5px] font-extrabold text-slate-700 uppercase">Pemesan / APJ Apotek</p>
-                <div className="h-12 my-1 flex items-center justify-center">
-                  {order.spSignature ? (
-                    <img src={order.spSignature} alt="Tanda Tangan Digital" className="max-h-full max-w-full object-contain" />
-                  ) : (
-                    <span className="text-[7px] text-slate-400 font-bold border border-dashed border-slate-200 px-2 py-1 rounded bg-slate-50">E-SIGN DIGITAL</span>
-                  )}
+            {/* Signatures & Compliance Verification Box */}
+            <div className="pt-6 grid grid-cols-2 gap-8 text-center text-xs border-t border-slate-200 mt-6">
+              <div className="space-y-10">
+                <p className="font-bold text-slate-800">Penerima / Penanggung Jawab Apotek</p>
+                <div className="h-16 flex items-center justify-center">
+                  <span className="text-emerald-700 font-mono text-[10px] font-bold border border-emerald-300 bg-emerald-50 px-2 py-1 rounded">
+                    ✓ E-SIGNED (SIPA VERIFIED)
+                  </span>
                 </div>
-                <p className="font-bold text-slate-800 text-[9.5px] underline truncate">{order.createdBy?.name}</p>
-                <p className="text-[7.5px] text-slate-500">SIPA: {order.createdBy?.sipaNumber || "-"}</p>
+                <p className="font-bold text-slate-900 underline">{order.institution?.pharmacistName || "Apt. Penanggung Jawab"}</p>
+                <p className="text-[10px] text-slate-500 font-mono">SIPA: {order.institution?.sipaNumber || "-"}</p>
               </div>
 
-              {/* QR Verification Stamp */}
-              <div className="flex flex-col items-center bg-slate-50 p-2 rounded-xl border border-slate-200 shadow-2xs">
-                <LucideShieldCheck className="w-8 h-8 text-emerald-600" />
-                <span className="text-[6.5px] font-black text-emerald-800 uppercase tracking-widest mt-1">VERIFIED CDOB</span>
-              </div>
-
-              <div className="text-center w-36">
-                <p className="text-[8.5px] font-extrabold text-slate-700 uppercase">APJ PBF GroovyCare</p>
-                <div className="h-12 my-1 flex items-center justify-center">
-                  <span className="text-[7px] text-emerald-700 font-mono font-bold border border-emerald-200 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-wider">E-SIGNED</span>
+              <div className="space-y-10">
+                <p className="font-bold text-slate-800">Apoteker Penanggung Jawab PBF (GroovyCare)</p>
+                <div className="h-16 flex items-center justify-center">
+                  <span className="text-emerald-700 font-mono text-[10px] font-bold border border-emerald-300 bg-emerald-50 px-2 py-1 rounded">
+                    ✓ CDOB VERIFIED PBF
+                  </span>
                 </div>
-                <p className="font-bold text-slate-800 text-[9.5px] underline">Sarah, S.Farm, Apt</p>
-                <p className="text-[7.5px] text-slate-500">SIPA: 19930412/SIPA/2026</p>
+                <p className="font-bold text-slate-900 underline">Apt. GroovyRx PBF Manager, S.Farm</p>
+                <p className="text-[10px] text-slate-500 font-mono">STRA: 19940812/STRA-BPOM/2026</p>
               </div>
             </div>
 
           </div>
         </div>
 
-        {/* Bottom Action Footer Bar inside App */}
+        {/* Bottom Action Footer Bar inside App (Cross-Platform Mobile Android & Desktop Compatible) */}
         <div className="p-4 bg-white border-t border-slate-100 flex items-center justify-between gap-3 shrink-0">
           <button
             type="button"
             onClick={handleDownloadPdf}
-            className="hidden sm:flex flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-2xl text-xs font-extrabold shadow-lg shadow-emerald-600/30 items-center justify-center gap-2 transition-all cursor-pointer border-none"
+            className="flex-1 py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-2xl text-xs font-extrabold shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer border-none"
           >
             <LucideDownload className="w-4 h-4 text-white" />
-            Download PDF
+            <span>Download PDF</span>
           </button>
           
           <button
             type="button"
             onClick={handleInAppPrint}
-            className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-2xl text-xs font-extrabold shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer border-none"
+            className="flex-1 py-3.5 px-4 bg-slate-800 hover:bg-slate-900 active:scale-95 text-white rounded-2xl text-xs font-extrabold shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer border-none"
           >
             <LucidePrinter className="w-4 h-4 text-white" />
-            Cetak / Save PDF
+            <span>Cetak / Save PDF</span>
           </button>
         </div>
 

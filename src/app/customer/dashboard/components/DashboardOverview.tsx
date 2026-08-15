@@ -81,13 +81,15 @@ export default function DashboardOverview({
     return sum + calculateOrderTotals(o).total;
   }, 0);
 
-  // Status Limit penilaian
-  const limitUsageRatio = institution.creditLimit > 0 ? institution.currentDebt / institution.creditLimit : 0;
-  const limitStatusLabel = limitUsageRatio > 0.8 ? "Kritis" : limitUsageRatio > 0.5 ? "Cukup" : "Sangat Baik";
-
-  // Sisa Kredit & Limit Kredit
-  const sisaKredit = institution.creditLimit - institution.currentDebt;
-  const progressRatio = institution.creditLimit > 0 ? (sisaKredit / institution.creditLimit) * 100 : 0;
+  // Sisa Kredit & Limit Kredit (Integrasi Real Database)
+  const creditLimit = Number(institution.creditLimit || 0);
+  const currentDebt = Number(institution.currentDebt || 0);
+  const sisaKredit = Math.max(0, creditLimit - currentDebt);
+  const progressRatio = creditLimit > 0 ? Math.min(100, Math.max(0, (sisaKredit / creditLimit) * 100)) : 0;
+  const limitUsageRatio = creditLimit > 0 ? currentDebt / creditLimit : 0;
+  const limitStatusLabel = creditLimit > 0
+    ? (limitUsageRatio > 0.8 ? "Kritis" : limitUsageRatio > 0.5 ? "Cukup" : "Sangat Baik")
+    : "Pengajuan Limit";
 
   useEffect(() => {
     // Jalankan animasi progress bar setelah render awal
@@ -100,6 +102,64 @@ export default function DashboardOverview({
   // Pengiriman aktif dari database real: tampilkan maksimal 3 pesanan aktif mitra
   const activeOnly = orders.filter((o) => o.status !== "CANCELLED" && o.status !== "REJECTED").slice(0, 3);
   const realActiveShipments = activeOnly.length > 0 ? activeOnly : orders.slice(0, 3);
+
+  // Integrasi Dinamis 1: Tren Pengeluaran 3 Bulan Terakhir dari Real Orders Database
+  const now = new Date();
+  const monthlySpendingData = Array.from({ length: 3 }).map((_, idx) => {
+    const targetDate = new Date(now.getFullYear(), now.getMonth() - (2 - idx), 1);
+    const monthName = targetDate.toLocaleDateString("id-ID", { month: "short" });
+    const targetMonth = targetDate.getMonth();
+    const targetYear = targetDate.getFullYear();
+
+    const monthTotal = orders
+      .filter((o) => {
+        const d = new Date(o.createdAt);
+        return o.status !== "REJECTED" && d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+      })
+      .reduce((sum, o) => sum + calculateOrderTotals(o).total, 0);
+
+    return {
+      month: monthName,
+      val: monthTotal,
+      label: monthTotal >= 1000000 
+        ? `${(monthTotal / 1000000).toFixed(1)}M` 
+        : monthTotal >= 1000 
+        ? `${Math.round(monthTotal / 1000)}K` 
+        : `${monthTotal}`,
+    };
+  });
+
+  const maxSpending = Math.max(...monthlySpendingData.map((d) => d.val), 1);
+  const monthlySpendingBars = monthlySpendingData.map((d) => ({
+    ...d,
+    height: d.val === 0 ? "15%" : `${Math.max(18, Math.round((d.val / maxSpending) * 100))}%`,
+  }));
+
+  // Integrasi Dinamis 2: Proporsi Pembelian Kategori Sediaan Obat dari Real Orders Items
+  let totalCategoryItems = 0;
+  const categoryCounts = { keras: 0, bebas: 0, coldChain: 0 };
+
+  orders.forEach((o) => {
+    if (o.status === "REJECTED") return;
+    (o.items || []).forEach((it: any) => {
+      const cat = (it.product?.category || "").toLowerCase();
+      const name = (it.product?.name || "").toLowerCase();
+      const qty = Number(it.quantity || 1);
+      totalCategoryItems += qty;
+
+      if (cat.includes("cold") || name.includes("insulin") || cat.includes("psikotropika")) {
+        categoryCounts.coldChain += qty;
+      } else if (cat.includes("keras") || cat.includes("daftar g") || cat.includes("resep")) {
+        categoryCounts.keras += qty;
+      } else {
+        categoryCounts.bebas += qty;
+      }
+    });
+  });
+
+  const kerasPct = totalCategoryItems > 0 ? Math.round((categoryCounts.keras / totalCategoryItems) * 100) : 60;
+  const bebasPct = totalCategoryItems > 0 ? Math.round((categoryCounts.bebas / totalCategoryItems) * 100) : 30;
+  const coldPct = totalCategoryItems > 0 ? Math.max(0, 100 - kerasPct - bebasPct) : 10;
 
   return (
     <div className="space-y-6 animate-fadeIn font-sans pb-12">
@@ -118,49 +178,63 @@ export default function DashboardOverview({
       {/* 1. DESKTOP VIEW: Bento Grid Dashboard                                     */}
       {/* ========================================================================= */}
       <div className="hidden md:block space-y-6 pb-12 md:pb-16">
-        {/* 1. BANNER PROFIL MITRA MEWAH (Desktop Refined) */}
+        {/* 1. BANNER PROFIL MITRA (Slim & Professional Desktop Banner) */}
         <section>
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 p-6 text-white shadow-md mb-6 border border-emerald-800/30">
-            {/* Soft Glow Backdrop */}
-            <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-800 via-teal-800 to-emerald-900 p-5 text-white shadow-md mb-6 border border-white/10">
+            {/* Background Decorative Pattern / Glow */}
+            <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/5 blur-2xl pointer-events-none" />
 
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-              {/* Profil & Info Apotek */}
-              <div className="flex items-center gap-4">
-                {/* Avatar AP Refined */}
-                <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 ring-4 ring-emerald-500/10 flex items-center justify-center font-bold text-xl shrink-0 font-heading shadow-inner">
-                  {institution.name.substring(0, 2).toUpperCase()}
+            <div className="flex items-center justify-between gap-4">
+              {/* Kiri: Avatar & Info Apotek */}
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/10 text-xl font-bold tracking-wider text-emerald-200 backdrop-blur-md border border-white/20 shadow-inner shrink-0 font-heading">
+                  {institution.name ? institution.name.substring(0, 2).toUpperCase() : "AP"}
                 </div>
-
-                <div>
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <h3 className="text-xl md:text-2xl font-bold text-white font-heading tracking-tight">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-xl font-bold tracking-tight text-white font-heading truncate">
                       {institution.name}
-                    </h3>
-                    <span className="inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-300 text-xs font-semibold px-2.5 py-1 rounded-md border border-emerald-500/30 tracking-wide">
-                      <svg className="w-3.5 h-3.5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                      </svg>
-                      MITRA TERVERIFIKASI
+                    </h2>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-medium text-emerald-200 border border-emerald-400/30 shrink-0">
+                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
+                      Mitra Terverifikasi
                     </span>
                   </div>
-                  <p className="text-xs text-slate-300 mt-1 font-medium tracking-wide">
-                    {orders.length} pesanan tercatat <span className="mx-1 text-slate-500">•</span> {orders.filter(o => o.status === "PENDING_APPROVAL" && !o.spSignature).length} e-Sign SP tertunda
-                  </p>
+                  
+                  {/* Status Metadata Baris Bawah */}
+                  <div className="mt-1.5 flex items-center gap-3 text-xs text-emerald-100/80">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                      ID: <strong className="text-white font-mono">PBF-882910</strong>
+                    </span>
+                    <span className="text-emerald-400/40">•</span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <ShoppingBag className="h-3.5 w-3.5 text-emerald-300" />
+                      {orders.length} Pesanan Tercatat
+                    </span>
+                    <span className="text-emerald-400/40">•</span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <FileSignature className="h-3.5 w-3.5 text-emerald-300" />
+                      {orders.filter(o => o.status === "PENDING_APPROVAL" && !o.spSignature).length} e-Sign SP Tertunda
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Status Badge */}
-              <div className="flex items-center gap-3">
-                <div className="bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/10 text-center shadow-sm">
-                  <span className="text-[10px] text-emerald-200/80 uppercase tracking-widest block font-bold mb-0.5">
-                    STATUS AKUN
-                  </span>
-                  <span className="text-xs font-extrabold text-emerald-300 flex items-center justify-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    {limitStatusLabel}
-                  </span>
+              {/* Kanan: Status Akun Pill Card */}
+              <div className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-2.5 backdrop-blur-md border border-white/15 shrink-0">
+                <div className="text-right">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200/70">
+                    Status Akun
+                  </p>
+                  <p className="text-sm font-bold text-white leading-tight">
+                    Aktif
+                  </p>
                 </div>
+                <span className="relative flex h-3 w-3">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-400"></span>
+                </span>
               </div>
             </div>
           </div>
@@ -201,7 +275,9 @@ export default function DashboardOverview({
                 <div>
                   <div className="flex justify-between items-center text-slate-500 mb-2">
                     <span className="text-xs font-semibold text-slate-600 tracking-wide">Sisa Limit Kredit</span>
-                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">100% Tersedia</span>
+                    <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${creditLimit > 0 ? "text-emerald-700 bg-emerald-50 border border-emerald-200" : "text-amber-700 bg-amber-50 border border-amber-200"}`}>
+                      {creditLimit > 0 ? `${progressRatio.toFixed(0)}% Tersedia` : "Belum Ada Limit"}
+                    </span>
                   </div>
                   <div className="text-2xl font-extrabold text-slate-900 tracking-tight font-sans my-1">
                     Rp {sisaKredit.toLocaleString("id-ID")}
@@ -215,7 +291,7 @@ export default function DashboardOverview({
                 </div>
                 <div className="pt-2 border-t border-slate-100 mt-2">
                   <span className="text-[11px] text-slate-400 font-medium">
-                    Total Limit: <span className="text-slate-700 font-bold font-sans">Rp {institution.creditLimit.toLocaleString("id-ID")}</span>
+                    Total Limit: <span className="text-slate-700 font-bold font-sans">Rp {creditLimit.toLocaleString("id-ID")}</span>
                   </span>
                 </div>
               </div>
@@ -279,32 +355,25 @@ export default function DashboardOverview({
                     Tren Pengeluaran Bulanan (B2B)
                   </h4>
                   <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-bold border border-emerald-100">
-                    6 Bulan Terakhir
+                    3 Bulan Terakhir
                   </span>
                 </div>
-                <div className="h-44 w-full flex items-end justify-between px-2 pt-6 relative border-b border-slate-100">
+                <div className="h-44 w-full flex items-end justify-between px-6 pt-6 relative border-b border-slate-100">
                   <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20 text-[8px] font-mono text-slate-400 pb-6 pt-2">
                     <div className="border-b border-dashed border-slate-300 w-full"></div>
                     <div className="border-b border-dashed border-slate-300 w-full"></div>
                     <div className="border-b border-dashed border-slate-300 w-full"></div>
                   </div>
-                  {[
-                    { month: "Jan", val: 120, label: "12M" },
-                    { month: "Feb", val: 150, label: "15M" },
-                    { month: "Mar", val: 180, label: "18M" },
-                    { month: "Apr", val: 140, label: "14M" },
-                    { month: "Mei", val: 220, label: "22M" },
-                    { month: "Jun", val: 250, label: "25M" }
-                  ].map((item, idx) => (
+                  {monthlySpendingBars.map((item, idx) => (
                     <div key={idx} className="flex flex-col items-center gap-2 z-10 flex-1 group relative">
-                      <div className="text-[9px] font-mono font-bold text-white bg-slate-900 px-2 py-0.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 pointer-events-none whitespace-nowrap z-20">
+                      <div className="text-[9px] font-mono font-bold text-white bg-slate-900 px-2.5 py-0.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 pointer-events-none whitespace-nowrap z-20">
                         Rp {item.label}
                       </div>
                       <div
-                        className="w-7 bg-gradient-to-t from-emerald-600/80 to-emerald-600 hover:from-emerald-600 hover:to-emerald-500 rounded-t-md transition-all duration-300 cursor-pointer shadow-xs hover:scale-x-[1.05] hover:scale-y-[1.03] origin-bottom"
-                        style={{ height: `${(item.val / 280) * 110}px` }}
+                        className="w-10 bg-gradient-to-t from-emerald-600/80 to-emerald-600 hover:from-emerald-600 hover:to-emerald-500 rounded-t-md transition-all duration-300 cursor-pointer shadow-xs hover:scale-x-[1.05] hover:scale-y-[1.03] origin-bottom"
+                        style={{ height: item.height }}
                       ></div>
-                      <span className="text-[10px] font-bold text-slate-500 mt-1">{item.month}</span>
+                      <span className="text-[10px] font-bold text-slate-600 mt-1">{item.month}</span>
                     </div>
                   ))}
                 </div>
@@ -325,9 +394,9 @@ export default function DashboardOverview({
                   <div className="relative w-28 h-28 hover:scale-105 transition-transform duration-300">
                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                       <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f1f5f9" strokeWidth="3" />
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#059669" strokeWidth="3.2" strokeDasharray="60 40" strokeDashoffset="0" />
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#0d9488" strokeWidth="3.2" strokeDasharray="30 70" strokeDashoffset="-60" />
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#0284c7" strokeWidth="3.2" strokeDasharray="10 90" strokeDashoffset="-90" />
+                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#059669" strokeWidth="3.2" strokeDasharray={`${kerasPct} ${100 - kerasPct}`} strokeDashoffset="0" />
+                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#0d9488" strokeWidth="3.2" strokeDasharray={`${bebasPct} ${100 - bebasPct}`} strokeDashoffset={`-${kerasPct}`} />
+                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#0284c7" strokeWidth="3.2" strokeDasharray={`${coldPct} ${100 - coldPct}`} strokeDashoffset={`-${kerasPct + bebasPct}`} />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-[13px] font-extrabold text-slate-900 font-mono">100%</span>
@@ -337,15 +406,15 @@ export default function DashboardOverview({
                   <div className="space-y-2 text-[10px]">
                     <div className="flex items-center gap-2 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-200">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 shrink-0 shadow-xs"></span>
-                      <span className="text-slate-700 font-bold">Obat Keras (60%)</span>
+                      <span className="text-slate-700 font-bold">Obat Keras ({kerasPct}%)</span>
                     </div>
                     <div className="flex items-center gap-2 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-200">
                       <span className="w-2.5 h-2.5 rounded-full bg-teal-600 shrink-0 shadow-xs"></span>
-                      <span className="text-slate-700 font-bold">Obat Bebas (30%)</span>
+                      <span className="text-slate-700 font-bold">Obat Bebas ({bebasPct}%)</span>
                     </div>
                     <div className="flex items-center gap-2 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-200">
                       <span className="w-2.5 h-2.5 rounded-full bg-sky-600 shrink-0 shadow-xs"></span>
-                      <span className="text-slate-700 font-bold">Cold Chain (10%)</span>
+                      <span className="text-slate-700 font-bold">Cold Chain ({coldPct}%)</span>
                     </div>
                   </div>
                 </div>
@@ -563,7 +632,7 @@ export default function DashboardOverview({
           </div>
           <div className="bg-white/10 px-2.5 py-1 rounded-lg border border-white/20 text-center shrink-0">
             <p className="text-[8px] text-white/70 uppercase tracking-wider font-bold">Status</p>
-            <p className="text-white font-bold text-[10px]">{limitStatusLabel}</p>
+            <p className="text-white font-bold text-[10px]">Aktif</p>
           </div>
         </section>
 

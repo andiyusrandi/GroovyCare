@@ -279,6 +279,12 @@ export default function CheckoutView({
   const totalWeight = Math.max(1000, cart.reduce((acc, item) => acc + item.quantity * 50, 0));
 
   useEffect(() => {
+    if (!cart || cart.length === 0) {
+      setBiteshipRates([]);
+      setIsLoadingRates(false);
+      return;
+    }
+
     setIsLoadingRates(true);
     setRatesError(null);
 
@@ -339,7 +345,7 @@ export default function CheckoutView({
       .finally(() => {
         setIsLoadingRates(false);
       });
-  }, [shippingProvince, shippingRegency, shippingDistrict, selectedAddress, totalWeight, isColdChain]);
+  }, [shippingProvince, shippingRegency, shippingDistrict, selectedAddress, totalWeight, isColdChain, cart]);
 
   const rawAddressText = selectedAddress
     ? selectedAddress.fullAddress
@@ -418,7 +424,28 @@ export default function CheckoutView({
   }, [selectedAddress, selectedRate, shippingFee, totalBilling, consolidatedAddress, shippingDistrict, shippingRegency, shippingProvince, shippingVillage, shippingPostalCode, rawAddressText, isAddressIncomplete, cartTotal, vatAmount, institution.name, phoneNumber]);
 
   return (
-    <div className="space-y-6 animate-fadeIn font-sans text-xs">
+    <div className="min-h-screen bg-slate-50 font-sans pb-36 md:pb-8 pt-2 space-y-4 md:space-y-6 animate-fadeIn">
+      {/* 1. Top App Bar (Native Android Material 3) */}
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 h-14 flex items-center justify-between shadow-2xs md:hidden">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsCheckoutOpen(false)}
+            className="p-2 -ml-2 rounded-full hover:bg-slate-100 active:scale-95 text-slate-700 transition-colors border-none bg-transparent cursor-pointer flex items-center justify-center"
+          >
+            <span className="material-symbols-outlined text-xl">arrow_back</span>
+          </button>
+          <div>
+            <h1 className="text-sm font-extrabold text-slate-900 leading-tight">Checkout Pesanan</h1>
+            <p className="text-[10px] text-slate-500 font-medium">{cart.length} Item Obat / Produk</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+            {institution.name || "Apotik Demo"}
+          </span>
+        </div>
+      </header>
       
       {/* 1. TOP STEPPER PROGRESS BAR */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs">
@@ -708,11 +735,13 @@ export default function CheckoutView({
             {!isLoadingRates && biteshipRates.length > 0 && (
               <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                 {biteshipRates.map((rate, i) => {
-                  const isSelected = selectedRate?.courier_code === rate.courier_code && selectedRate?.courier_service_code === rate.courier_service_code;
+                  const isAvailable = typeof rate.price === "number" && rate.price > 0 && rate.is_available !== false;
+                  const isSelected = isAvailable && selectedRate?.courier_code === rate.courier_code && selectedRate?.courier_service_code === rate.courier_service_code;
                   return (
                     <label
                       key={i}
                       onClick={() => {
+                        if (!isAvailable) return;
                         console.log("=========================================");
                         console.log("[DEBUG MITRA COURIER SELECTION CHANGED]");
                         console.log("Selected Courier:", {
@@ -727,31 +756,38 @@ export default function CheckoutView({
                         setSelectedRate(rate);
                         setShippingFee(typeof rate.price === "number" ? rate.price : 0);
                       }}
-                      className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                        isSelected
-                          ? "border-emerald-600 bg-emerald-50/40"
-                          : "border-slate-200 hover:border-slate-300 bg-white"
+                      className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
+                        !isAvailable
+                          ? "border-slate-200 bg-slate-100/60 opacity-60 cursor-not-allowed pointer-events-none"
+                          : isSelected
+                          ? "border-emerald-600 bg-emerald-50/40 cursor-pointer"
+                          : "border-slate-200 hover:border-slate-300 bg-white cursor-pointer"
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
                         <CourierLogoBadge courierCode={rate.courier_code} courierName={rate.courier_name} />
                         <div>
-                          <p className="text-xs font-bold text-slate-900">
-                            {rate.courier_name.toUpperCase()} - {rate.courier_service_name}
+                          <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                            <span>{rate.courier_name.toUpperCase()} - {rate.courier_service_name}</span>
+                            {!isAvailable && (
+                              <span className="text-[9px] font-extrabold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded uppercase">
+                                Offline
+                              </span>
+                            )}
                           </p>
                           <p className="text-[10px] text-slate-500">
-                            Estimasi {rate.duration || `${rate.shipment_duration} hari`}
+                            {isAvailable ? `Estimasi ${rate.duration || `${rate.shipment_duration} hari`}` : "Layanan tidak aktif di Biteship"}
                           </p>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        {typeof rate.price === "number" ? (
+                        {isAvailable ? (
                           <span className="text-xs font-extrabold text-emerald-700 font-sans block">
                             Rp {rate.price.toLocaleString("id-ID")}
                           </span>
                         ) : (
-                          <span className="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-1 rounded-lg block">
-                            Gagal Memuat Tarif
+                          <span className="text-[10px] font-extrabold text-slate-400 bg-slate-200/80 px-2 py-1 rounded-lg block uppercase">
+                            Offline
                           </span>
                         )}
                       </div>
@@ -905,6 +941,32 @@ export default function CheckoutView({
         institutionId={institution?.id}
         onSaveSuccess={fetchAddresses}
       />
+
+      {/* Sticky Native Bottom Bar (Mobile Only) */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200/90 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden">
+        <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] uppercase font-extrabold text-slate-400 block tracking-tight">Total Pembayaran</span>
+            <span className="text-sm sm:text-base font-black text-slate-900 font-mono truncate block leading-tight">
+              Rp {totalBilling.toLocaleString("id-ID")}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleConfirmClick}
+            disabled={isSubmittingOrder || !hasSigned || isAddressIncomplete}
+            className={`shrink-0 max-w-[210px] py-3.5 px-4 rounded-2xl shadow-md font-bold text-xs flex items-center justify-center gap-1.5 transition-all border-none cursor-pointer ${
+              !hasSigned || isSubmittingOrder || isAddressIncomplete
+                ? "bg-slate-200 text-slate-500 cursor-not-allowed shadow-none"
+                : "bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-800/25 active:scale-[0.98]"
+            }`}
+          >
+            <span className="material-symbols-outlined text-base">draw</span>
+            <span className="whitespace-nowrap">{isSubmittingOrder ? "Memproses..." : "e-Sign & Checkout"}</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -108,6 +108,7 @@ export default function OrderApprovalsTab({
   const [isRejectMode, setIsRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
 
   // Filter queue by search
   const filteredPendingOrders = pendingOrders.filter((o) => {
@@ -261,7 +262,7 @@ export default function OrderApprovalsTab({
                     <th className="px-4 py-3">Mitra Apotek</th>
                     <th className="px-3 py-3">Pembayaran</th>
                     <th className="px-4 py-3 text-right">Total Tagihan</th>
-                    <th className="px-3 py-3 text-center">Status CDOB</th>
+                    <th className="px-3 py-3 text-center">Status Pembayaran</th>
                     <th className="px-2 py-3 w-6"></th>
                   </tr>
                 </thead>
@@ -269,9 +270,6 @@ export default function OrderApprovalsTab({
                   {filteredPendingOrders.map((order) => {
                     const { total: orderVal } = calculateOrderTotals(order);
                     const isSelected = activeOrder?.id === order.id;
-
-                    const isSiaExpired = new Date(order.institution.siaExpiry) <= today && new Date(order.institution.siaExpiry).getFullYear() < 2090;
-                    const isSipaExpired = order.createdBy.sipaExpiry ? new Date(order.createdBy.sipaExpiry) <= today : false;
 
                     return (
                       <tr
@@ -305,10 +303,12 @@ export default function OrderApprovalsTab({
                           Rp {orderVal.toLocaleString("id-ID")}
                         </td>
                         <td className="px-3 py-3 text-center">
-                          {isSiaExpired || isSipaExpired ? (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-rose-50 text-rose-800 border border-rose-200">🔴 Expired</span>
+                          {order.paymentStatus === "PAID" ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200">🟢 Lunas</span>
+                          ) : order.paymentStatus === "PENDING_VERIFICATION" ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">🟡 Verifikasi</span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200">🟢 Valid CDOB</span>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-rose-50 text-rose-800 border border-rose-200">🔴 Belum Bayar</span>
                           )}
                         </td>
                         <td className="px-2 py-3 text-center text-slate-400">
@@ -388,7 +388,7 @@ export default function OrderApprovalsTab({
                   </button>
                   <button
                     type="button"
-                    onClick={handleApprove}
+                    onClick={() => setIsApproveModalOpen(true)}
                     disabled={isSubmitting}
                     className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50 border-none flex items-center justify-center gap-1"
                   >
@@ -409,7 +409,7 @@ export default function OrderApprovalsTab({
                     <button
                       type="button"
                       onClick={() => setIsRejectMode(false)}
-                      className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl"
+                      className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl cursor-pointer"
                     >
                       Batal
                     </button>
@@ -417,7 +417,7 @@ export default function OrderApprovalsTab({
                       type="button"
                       onClick={handleReject}
                       disabled={isSubmitting}
-                      className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-2xs border-none"
+                      className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-2xs border-none cursor-pointer"
                     >
                       {isSubmitting ? "Mengirim..." : "Kirim Penolakan"}
                     </button>
@@ -426,6 +426,95 @@ export default function OrderApprovalsTab({
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* MODAL POPUP KONFIRMASI PERSETUJUAN SP & FEFO */}
+      {isApproveModalOpen && activeOrder && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 space-y-5 animate-scaleUp">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-extrabold text-base text-slate-900">
+                    Persetujuan SP &amp; Alokasi FEFO
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {activeOrder.orderNumber}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsApproveModalOpen(false)}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors border-none bg-transparent cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Details Box */}
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-2 text-xs">
+              <div className="flex justify-between items-center text-slate-600">
+                <span className="font-medium">Mitra Apotek:</span>
+                <span className="font-bold text-slate-900">{activeOrder.institution.name}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-600">
+                <span className="font-medium">No. SIA:</span>
+                <span className="font-mono font-bold text-slate-800">{activeOrder.institution.siaNumber}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-600">
+                <span className="font-medium">Total Pesanan:</span>
+                <span className="font-mono font-extrabold text-slate-900 text-sm">
+                  Rp {calculateOrderTotals(activeOrder).total.toLocaleString("id-ID")}
+                </span>
+              </div>
+            </div>
+
+            {/* Verification Items Checklist */}
+            <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3.5 space-y-2 text-xs text-emerald-900">
+              <div className="flex items-center gap-2 font-bold">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Lisensi SIA &amp; SIPA APJ Terverifikasi Aktif</span>
+              </div>
+              <div className="flex items-center gap-2 font-bold">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Pemeriksaan e-Sign Surat Pesanan Digital Sesuai CDOB</span>
+              </div>
+              <div className="flex items-center gap-2 font-bold">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Alokasi Batch Obat Otomatis Sistem FEFO</span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => setIsApproveModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border-none cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={async () => {
+                  await handleApprove();
+                  setIsApproveModalOpen(false);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold shadow-md shadow-emerald-700/20 transition-all active:scale-95 cursor-pointer border-none flex items-center gap-2"
+              >
+                {isSubmitting && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                <span>Setujui &amp; Alokasikan FEFO</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

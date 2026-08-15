@@ -81,7 +81,7 @@ export default function PartnershipTab({
 }: PartnershipTabProps) {
   const router = useRouter();
   const [filter, setFilter] = useState<"all" | "pending" | "active">("all");
-  
+
   // Default View Mode set to "table" (Compact List Table)
   const [viewMode, setViewMode] = useState<"grid" | "table">("table");
   const [searchPartners, setSearchPartners] = useState<string>("");
@@ -374,25 +374,22 @@ export default function PartnershipTab({
           <div className="inline-flex items-center gap-1 bg-slate-200/60 p-1 rounded-xl border border-slate-200/80">
             <button
               onClick={() => setFilter("all")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${
-                filter === "all" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600 hover:text-slate-900 bg-transparent"
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${filter === "all" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600 hover:text-slate-900 bg-transparent"
+                }`}
             >
               Semua Mitra ({partners.length})
             </button>
             <button
               onClick={() => setFilter("pending")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${
-                filter === "pending" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600 hover:text-slate-900 bg-transparent"
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${filter === "pending" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600 hover:text-slate-900 bg-transparent"
+                }`}
             >
               Menunggu ({pendingCount})
             </button>
             <button
               onClick={() => setFilter("active")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${
-                filter === "active" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600 hover:text-slate-900 bg-transparent"
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${filter === "active" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600 hover:text-slate-900 bg-transparent"
+                }`}
             >
               Aktif ({activeCount})
             </button>
@@ -416,9 +413,8 @@ export default function PartnershipTab({
               <button
                 type="button"
                 onClick={() => setViewMode("table")}
-                className={`p-1.5 rounded-lg transition-all cursor-pointer border-none ${
-                  viewMode === "table" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600 hover:text-slate-900 bg-transparent"
-                }`}
+                className={`p-1.5 rounded-lg transition-all cursor-pointer border-none ${viewMode === "table" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600 hover:text-slate-900 bg-transparent"
+                  }`}
                 title="Tampilan Tabel Data (Default Operasional)"
               >
                 <List className="w-4 h-4" />
@@ -426,9 +422,8 @@ export default function PartnershipTab({
               <button
                 type="button"
                 onClick={() => setViewMode("grid")}
-                className={`p-1.5 rounded-lg transition-all cursor-pointer border-none ${
-                  viewMode === "grid" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600 hover:text-slate-900 bg-transparent"
-                }`}
+                className={`p-1.5 rounded-lg transition-all cursor-pointer border-none ${viewMode === "grid" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600 hover:text-slate-900 bg-transparent"
+                  }`}
                 title="Tampilan Kartu Grid"
               >
                 <LayoutGrid className="w-4 h-4" />
@@ -529,13 +524,12 @@ export default function PartnershipTab({
                         <button
                           type="button"
                           onClick={() => handleOpenDetail(partner)}
-                          className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer shadow-2xs border-none ${
-                            !partner.isActive
+                          className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all cursor-pointer shadow-2xs border-none ${!partner.isActive
                               ? "bg-primary text-white hover:brightness-110"
                               : "bg-slate-900 text-white hover:bg-slate-800"
-                          }`}
+                            }`}
                         >
-                          {!partner.isActive ? "Verifikasi" : "Detail & Limit"}
+                          {!partner.isActive ? "Verifikasi" : "Detail"}
                         </button>
                       </td>
                     </tr>
@@ -653,8 +647,8 @@ export default function PartnershipTab({
                       type="button"
                       onClick={() => handleOpenDetail(partner)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-2xs ${!partner.isActive
-                          ? "bg-primary text-white hover:brightness-110"
-                          : "bg-slate-900 text-white hover:bg-slate-800"
+                        ? "bg-primary text-white hover:brightness-110"
+                        : "bg-slate-900 text-white hover:bg-slate-800"
                         }`}
                     >
                       {!partner.isActive ? "Verifikasi" : "Detail & Limit"}

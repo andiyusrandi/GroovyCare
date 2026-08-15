@@ -1,6 +1,15 @@
 "use client";
 
-import { Calendar, ChevronDown, MoreHorizontal, TrendingUp, ArrowRight, ShieldCheck, AlertCircle, CheckCircle2 } from "lucide-react";
+import {
+  Calendar,
+  ChevronDown,
+  TrendingUp,
+  Receipt,
+  Clock,
+  Users,
+  CreditCard,
+  ChevronRight,
+} from "lucide-react";
 
 interface Batch {
   id: string;
@@ -13,12 +22,12 @@ interface Product {
   id: string;
   name: string;
   code: string;
-  activeIngredient: string;
+  activeIngredient?: string;
   price: number;
   category: string;
   description: string | null;
   unit: string;
-  manufacturer: string;
+  manufacturer?: string;
   batches: Batch[];
   totalStock: number;
 }
@@ -53,6 +62,7 @@ interface OrderItem {
   product: {
     name: string;
     unit: string;
+    description?: string | null;
   };
 }
 
@@ -139,10 +149,9 @@ export default function OverviewTab({
     const d = new Date(currentDate.getFullYear(), currentDate.getMonth() - (5 - idx), 1);
     const monthName = d.toLocaleDateString("id-ID", { month: "short" }).toUpperCase();
     const isCurrent = idx === 5;
-    
-    // Sample proportional height simulation based on omset
-    let valStr = "Rp 0";
-    let heightPercent = "10%";
+
+    let valStr = "Rp 0.0M";
+    let heightPercent = "15%";
     if (totalOmset > 0) {
       const multipliers = [0.4, 0.55, 0.7, 0.6, 0.85, 1.0];
       const monthVal = totalOmset * multipliers[idx];
@@ -159,219 +168,181 @@ export default function OverviewTab({
   });
 
   return (
-    <div className="space-y-8 animate-fadeIn">
-      {/* Dashboard Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div className="space-y-6 animate-fadeIn">
+      {/* ================= 1. HEADER SECTION ================= */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100">
         <div>
-          <h2 className="font-heading font-extrabold text-2xl text-on-surface">Ringkasan Operasional</h2>
-          <p className="text-xs text-outline font-medium mt-1">Pantau performa distribusi dan inventori secara real-time.</p>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <h2 className="font-bold text-xl text-slate-900 tracking-tight">Ringkasan Operasional</h2>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">Monitoring distribusi obat, piutang TOP, dan kepatuhan CDOB PBF.</p>
         </div>
 
-        {/* Dynamic Date Filter Badge */}
-        <div className="inline-flex items-center gap-2.5 bg-surface-container-low px-4 py-2 rounded-xl border border-outline-variant/30 text-xs shadow-2xs hover:bg-surface-container-high/60 transition-colors cursor-pointer">
-          <span className="material-symbols-outlined text-primary text-[18px]">calendar_today</span>
-          <span className="font-mono font-bold uppercase tracking-wider text-on-surface-variant">
-            {currentMonthYearStr}
-          </span>
-          <ChevronDown className="w-4 h-4 text-outline" />
+        {/* Filter Periode Bulan */}
+        <div className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-2xs hover:bg-slate-50 transition cursor-pointer self-start sm:self-auto font-medium">
+          <Calendar className="w-4 h-4 text-emerald-600" />
+          <span className="font-mono font-bold text-slate-700">{currentMonthYearStr}</span>
+          <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
         </div>
       </div>
 
-      {/* KPI Cards Bento Grid (Equal Heights) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
-        {/* 1. Total Omset PBF */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/10 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full group">
+      {/* ================= 2. GRID 4 KPI CARDS ================= */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* KPI 1: Omset PBF */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-emerald-300 transition-all flex flex-col justify-between group">
           <div>
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-11 h-11 rounded-xl bg-primary-container/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors duration-300">
-                <span className="material-symbols-outlined text-[20px]">payments</span>
+            <div className="flex items-start justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Omset PBF</span>
+              <div className="p-2 rounded-lg bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                <CreditCard className="w-4 h-4" />
               </div>
-              {totalOmset > 0 ? (
-                <div className="flex items-center gap-1 text-emerald-600 font-bold bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full text-[10px]">
-                  <TrendingUp className="w-3 h-3" />
-                  +12.4%
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 text-slate-500 font-bold bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full text-[10px]">
-                  +0% bln ini
-                </div>
-              )}
             </div>
-            <p className="text-[10px] text-outline mb-1 uppercase font-bold tracking-wider">Total Omset PBF</p>
-            <h3 className="font-heading font-extrabold text-xl text-on-surface font-mono">
-              Rp {totalOmset.toLocaleString("id-ID")}
-            </h3>
-          </div>
-
-          {/* Sparkline / Empty State */}
-          <div className="mt-4 pt-3 border-t border-slate-100">
-            {totalOmset > 0 ? (
-              <div className="h-9 w-full flex items-end gap-1">
-                <div className="flex-1 bg-primary/20 rounded-t h-[40%] group-hover:bg-primary transition-all"></div>
-                <div className="flex-1 bg-primary/20 rounded-t h-[60%] group-hover:bg-primary transition-all"></div>
-                <div className="flex-1 bg-primary/20 rounded-t h-[45%] group-hover:bg-primary transition-all"></div>
-                <div className="flex-1 bg-primary/20 rounded-t h-[70%] group-hover:bg-primary transition-all"></div>
-                <div className="flex-1 bg-primary/20 rounded-t h-[90%] group-hover:bg-primary transition-all"></div>
-                <div className="flex-1 bg-primary/20 rounded-t h-[85%] group-hover:bg-primary transition-all"></div>
-              </div>
-            ) : (
-              <div className="h-9 w-full flex flex-col justify-center items-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                <p className="text-[10px] text-slate-400 font-medium">Belum ada transaksi bulan ini</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 2. Piutang Berjalan */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/10 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full group">
-          <div>
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-11 h-11 rounded-xl bg-error-container/10 flex items-center justify-center text-error group-hover:bg-error group-hover:text-on-error transition-colors duration-300">
-                <span className="material-symbols-outlined text-[20px]">receipt_long</span>
-              </div>
-              {totalDebt > 0 ? (
-                <div className="bg-error-container text-on-error-container border border-red-200 px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>
-                  Kritis
-                </div>
-              ) : (
-                <div className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  Aman
-                </div>
-              )}
+            <div className="mt-2">
+              <h3 className="text-2xl font-black text-slate-900 font-mono tracking-tight">
+                Rp {totalOmset.toLocaleString("id-ID")}
+              </h3>
             </div>
-            <p className="text-[10px] text-outline mb-1 uppercase font-bold tracking-wider">Piutang Berjalan</p>
-            <h3 className="font-heading font-extrabold text-xl text-on-surface font-mono">
-              Rp {totalDebt.toLocaleString("id-ID")}
-            </h3>
           </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="text-[10px] text-slate-500">Jatuh tempo TOP</span>
+          <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span className="inline-flex items-center gap-1 font-bold text-[11px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+              <TrendingUp className="w-3 h-3" />
+              +12.4% bln lalu
+            </span>
             <button
-              onClick={() => setActiveTab("pembayaran")}
-              className="text-[10px] text-primary hover:underline font-bold inline-flex items-center gap-0.5 cursor-pointer"
+              onClick={() => setActiveTab("logistik")}
+              className="text-[11px] text-slate-400 font-medium group-hover:text-emerald-700 transition border-none bg-transparent cursor-pointer"
             >
-              <span>Detail Tagihan</span>
-              <ArrowRight className="w-3 h-3" />
+              Rekap &rarr;
             </button>
           </div>
         </div>
 
-        {/* 3. Pesanan Tertunda */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/10 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full group">
+        {/* KPI 2: Piutang Berjalan */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-rose-300 transition-all flex flex-col justify-between group">
           <div>
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-11 h-11 rounded-xl bg-tertiary-container/10 flex items-center justify-center text-tertiary group-hover:bg-tertiary group-hover:text-on-tertiary transition-colors duration-300">
-                <span className="material-symbols-outlined text-[20px]">pending_actions</span>
+            <div className="flex items-start justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Piutang Berjalan</span>
+              <div className="p-2 rounded-lg bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white transition-colors">
+                <Receipt className="w-4 h-4" />
               </div>
-              {pendingOrders.length > 0 ? (
-                <div className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full text-[9px] font-bold">
-                  Perlu Aksi
-                </div>
-              ) : (
-                <div className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full text-[9px] font-bold">
-                  Lancar
-                </div>
-              )}
             </div>
-            <p className="text-[10px] text-outline mb-1 uppercase font-bold tracking-wider">Pesanan Tertunda</p>
-            <h3 className="font-heading font-extrabold text-xl text-on-surface font-mono">
-              {pendingOrders.length} SP
-            </h3>
+            <div className="mt-2">
+              <h3 className="text-2xl font-black text-slate-900 font-mono tracking-tight">
+                Rp {totalDebt.toLocaleString("id-ID")}
+              </h3>
+            </div>
           </div>
+          <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600">
+              <span className={`w-1.5 h-1.5 rounded-full ${totalDebt > 0 ? "bg-amber-500" : "bg-emerald-500"}`}></span>
+              {totalDebt > 0 ? "Piutang Aktif" : "Kredit TOP Lancar"}
+            </span>
+            <button
+              onClick={() => setActiveTab("pembayaran")}
+              className="text-[11px] font-bold text-rose-600 hover:underline border-none bg-transparent cursor-pointer"
+            >
+              Detail &rarr;
+            </button>
+          </div>
+        </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-            <div className="flex flex-wrap gap-1">
-              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200/60">APJ</span>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200/60">SIA</span>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200/60">FEFO</span>
+        {/* KPI 3: Pesanan Tertunda */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-amber-300 transition-all flex flex-col justify-between group">
+          <div>
+            <div className="flex items-start justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Pesanan Tertunda</span>
+              <div className="p-2 rounded-lg bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                <Clock className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <h3 className="text-2xl font-black text-slate-900 font-mono tracking-tight">{pendingOrders.length}</h3>
+              <span className="text-xs font-bold text-slate-400">Surat Pesanan</span>
+            </div>
+          </div>
+          <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1 text-[9px] font-bold text-slate-500">
+              <span className="px-1.5 py-0.5 rounded bg-slate-100">APJ</span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-100">FEFO</span>
             </div>
             <button
               onClick={() => setActiveTab("cdob")}
-              className="text-[10px] text-primary hover:underline font-bold inline-flex items-center gap-0.5 cursor-pointer shrink-0"
+              className="text-[11px] font-bold text-amber-600 hover:underline border-none bg-transparent cursor-pointer"
             >
-              <span>Proses SP</span>
-              <ArrowRight className="w-3 h-3" />
+              Proses SP &rarr;
             </button>
           </div>
         </div>
 
-        {/* 4. Pendaftar Kemitraan */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/10 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between h-full group">
+        {/* KPI 4: Kemitraan Baru */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-sky-300 transition-all flex flex-col justify-between group">
           <div>
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-11 h-11 rounded-xl bg-secondary-container/20 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-on-secondary transition-colors duration-300">
-                <span className="material-symbols-outlined text-[20px]">group_add</span>
+            <div className="flex items-start justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Pendaftar Mitra</span>
+              <div className="p-2 rounded-lg bg-sky-50 text-sky-600 group-hover:bg-sky-600 group-hover:text-white transition-colors">
+                <Users className="w-4 h-4" />
               </div>
-              {pendingPartners.length > 0 ? (
-                <div className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full text-[9px] font-bold">
-                  Verifikasi
-                </div>
-              ) : (
-                <div className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full text-[9px] font-bold">
-                  Lengkap
-                </div>
-              )}
             </div>
-            <p className="text-[10px] text-outline mb-1 uppercase font-bold tracking-wider">Pendaftar Kemitraan</p>
-            <h3 className="font-heading font-extrabold text-xl text-on-surface font-mono">
-              {pendingPartners.length} Mitra
-            </h3>
+            <div className="mt-2 flex items-baseline gap-2">
+              <h3 className="text-2xl font-black text-slate-900 font-mono tracking-tight">{pendingPartners.length}</h3>
+              <span className="text-xs font-bold text-slate-400">Sarana Farmasi</span>
+            </div>
           </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-            <span className="text-[10px] text-slate-500 font-medium truncate">Cek dokumen SIA</span>
+          <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span className="text-[11px] font-medium text-amber-600 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              Cek SIA / SIPA
+            </span>
             <button
               onClick={() => setActiveTab("kemitraan")}
-              className="text-[10px] text-secondary hover:underline font-bold inline-flex items-center gap-0.5 cursor-pointer shrink-0"
+              className="text-[11px] font-bold text-sky-600 hover:underline border-none bg-transparent cursor-pointer"
             >
-              <span>Lihat Detail</span>
-              <ArrowRight className="w-3 h-3" />
+              Verifikasi &rarr;
             </button>
           </div>
         </div>
       </div>
 
-      {/* Charts Section */}
+      {/* ================= 3. GRAFIK & KATEGORI SECTION ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Tren Penjualan (Line Chart Area) */}
-        <div className="lg:col-span-2 bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant/10 shadow-sm space-y-6">
+        {/* Kolom Kiri: Tren Penjualan */}
+        <div className="lg:col-span-2 bg-white p-5 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="font-heading font-bold text-sm text-on-surface">Tren Penjualan Bulanan</h4>
-              <p className="text-xs text-outline">Visualisasi omset transaksi 6 bulan terakhir</p>
+              <h4 className="font-bold text-sm text-slate-900">Tren Penjualan Bulanan</h4>
+              <p className="text-xs text-slate-400">Volume omset transaksi 6 bulan terakhir</p>
             </div>
-            <select className="bg-surface-container-low border-none text-xs rounded-lg px-2.5 py-1.5 focus:ring-1 focus:ring-primary font-bold text-on-surface-variant outline-none">
+            <select className="bg-slate-50 border border-slate-200 text-xs rounded-lg px-2.5 py-1.5 font-bold text-slate-700 outline-none focus:ring-1 focus:ring-emerald-500">
               <option>Tahun {currentDate.getFullYear()}</option>
               <option>Tahun {currentDate.getFullYear() - 1}</option>
             </select>
           </div>
-          {/* Custom SVG Bar/Line Chart */}
-          <div className="relative h-[240px] w-full flex items-end gap-4 overflow-hidden pt-10 px-2 border-b border-outline-variant/20">
-            {/* Grid lines */}
-            <div className="absolute inset-0 flex flex-col justify-between opacity-5 pointer-events-none pb-6">
-              <div className="border-t border-on-surface w-full"></div>
-              <div className="border-t border-on-surface w-full"></div>
-              <div className="border-t border-on-surface w-full"></div>
-              <div className="border-t border-on-surface w-full"></div>
+
+          {/* Bar Chart */}
+          <div className="relative h-44 w-full flex items-end gap-3 sm:gap-6 pt-6 px-2 border-b border-slate-100">
+            {/* Grid horizontal lines */}
+            <div className="absolute inset-0 flex flex-col justify-between opacity-40 pointer-events-none pb-5">
+              <div className="border-t border-dashed border-slate-200 w-full"></div>
+              <div className="border-t border-dashed border-slate-200 w-full"></div>
+              <div className="border-t border-dashed border-slate-200 w-full"></div>
             </div>
 
+            {/* Bars */}
             {last6Months.map((item, idx) => (
               <div key={idx} className="relative flex-1 flex flex-col justify-end items-center group cursor-pointer z-10">
-                <div className="absolute -top-7 bg-on-surface text-surface text-[9px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md font-mono font-bold z-20">
+                <div className="absolute -top-7 bg-slate-900 text-white text-[9px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap shadow font-mono">
                   {item.val}
                 </div>
                 <div
-                  className={`w-full max-w-[45px] rounded-t-lg transition-all duration-300 ${
+                  className={`w-full max-w-[36px] rounded-t transition-all ${
                     item.active
-                      ? "bg-primary shadow-sm shadow-primary/20"
-                      : "bg-primary-container/20 group-hover:bg-primary-container/60"
+                      ? "bg-emerald-600 shadow-xs"
+                      : "bg-slate-100 group-hover:bg-emerald-200"
                   }`}
                   style={{ height: item.height }}
                 ></div>
-                <span className={`text-[10px] text-center mt-2 font-bold ${item.active ? "text-primary font-black" : "text-outline"}`}>
+                <span className={`text-[10px] mt-2 font-semibold ${item.active ? "font-bold text-emerald-700" : "text-slate-400"}`}>
                   {item.month}
                 </span>
               </div>
@@ -379,140 +350,173 @@ export default function OverviewTab({
           </div>
         </div>
 
-        {/* Kategori Obat Terlaris */}
-        <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant/10 shadow-sm flex flex-col justify-between">
+        {/* Kolom Kanan: Kategori Terlaris */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
           <div>
-            <h4 className="font-heading font-bold text-sm text-on-surface">Kategori Obat Terlaris</h4>
-            <p className="text-xs text-outline mt-0.5">Proporsi berdasarkan volume transaksi</p>
+            <h4 className="font-bold text-sm text-slate-900">Kategori Obat Terlaris</h4>
+            <p className="text-xs text-slate-400 mt-0.5">Proporsi volume transaksi</p>
           </div>
 
-          <div className="relative w-36 h-36 mx-auto my-6">
+          {/* Donut Chart */}
+          <div className="relative w-32 h-32 mx-auto my-4">
             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-              <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#e1e3e4" strokeWidth="4"></circle>
-              {/* Obat Bebas (60%) */}
-              <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#006c49" strokeDasharray="60 40" strokeDashoffset="0" strokeWidth="4"></circle>
-              {/* Obat Keras (25%) */}
-              <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#005ac2" strokeDasharray="25 75" strokeDashoffset="-60" strokeWidth="4"></circle>
-              {/* Psikotropika (15%) */}
-              <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#ba1a1a" strokeDasharray="15 85" strokeDashoffset="-85" strokeWidth="4"></circle>
+              <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#f1f5f9" strokeWidth="4.5"></circle>
+              <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#059669" strokeDasharray="60 40" strokeDashoffset="0" strokeWidth="4.5"></circle>
+              <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#0284c7" strokeDasharray="25 75" strokeDashoffset="-60" strokeWidth="4.5"></circle>
+              <circle cx="18" cy="18" fill="transparent" r="15.915" stroke="#e11d48" strokeDasharray="15 85" strokeDashoffset="-85" strokeWidth="4.5"></circle>
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xl font-bold text-on-surface leading-none font-mono">82%</span>
-              <span className="text-[8px] text-outline uppercase font-bold tracking-wider mt-1">Utilized</span>
+              <span className="text-lg font-black text-slate-900 font-mono">82%</span>
+              <span className="text-[8px] text-slate-400 uppercase font-bold tracking-wider">Terpenuhi</span>
             </div>
           </div>
 
-          <div className="space-y-2 text-xs">
-            <div className="flex items-center justify-between">
+          {/* Legend */}
+          <div className="space-y-1.5 text-xs">
+            <div className="flex items-center justify-between text-slate-600">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0"></span>
-                <span className="text-on-surface-variant font-medium">Obat Bebas</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+                <span className="font-medium">Obat Bebas (OTC)</span>
               </div>
-              <span className="font-bold">60%</span>
+              <span className="font-mono font-bold text-slate-900">60%</span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between text-slate-600">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-tertiary shrink-0"></span>
-                <span className="text-on-surface-variant font-medium">Obat Keras (G)</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-sky-600"></span>
+                <span className="font-medium">Obat Keras (Daftar G)</span>
               </div>
-              <span className="font-bold">25%</span>
+              <span className="font-mono font-bold text-slate-900">25%</span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between text-slate-600">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-error shrink-0"></span>
-                <span className="text-on-surface-variant font-medium">Psikotropika</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-600"></span>
+                <span className="font-medium">Psikotropika</span>
               </div>
-              <span className="font-bold">15%</span>
+              <span className="font-mono font-bold text-slate-900">15%</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Recent Activity Table */}
-      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/10 shadow-sm overflow-hidden flex flex-col">
-        <div className="px-6 py-5 border-b border-outline-variant/10 flex items-center justify-between">
-          <h4 className="font-heading font-bold text-sm text-on-surface">Pesanan Terbaru</h4>
+      {/* ================= 4. TABEL PESANAN TERBARU ================= */}
+      <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h4 className="font-bold text-sm text-slate-900">Pesanan Terbaru Masuk</h4>
+            <p className="text-xs text-slate-400">Daftar transaksi distribusi obat yang sedang diproses</p>
+          </div>
           <button
             onClick={() => setActiveTab("cdob")}
-            className="text-primary font-bold text-xs hover:underline cursor-pointer"
+            className="text-emerald-700 font-bold text-xs hover:underline inline-flex items-center gap-1 cursor-pointer border-none bg-transparent"
           >
-            Lihat Semua SP
+            <span>Lihat Semua SP</span>
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-surface-container-low/40 text-[10px] text-outline uppercase tracking-wider font-bold">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50/80 text-[10px] text-slate-400 uppercase tracking-wider font-bold border-b border-slate-100">
               <tr>
-                <th className="px-6 py-4 font-bold">ID Pesanan</th>
-                <th className="px-6 py-4 font-bold">Mitra / Apotek</th>
-                <th className="px-6 py-4 font-bold">Zat Aktif / Item</th>
-                <th className="px-6 py-4 font-bold">Total Nilai</th>
-                <th className="px-6 py-4 font-bold">Status</th>
-                <th className="px-6 py-4 font-bold text-center">Aksi</th>
+                <th className="px-5 py-3">No. Surat Pesanan</th>
+                <th className="px-5 py-3">Mitra / Sarana</th>
+                <th className="px-5 py-3">Item &amp; Kandungan Zat</th>
+                <th className="px-5 py-3">Nilai Faktur</th>
+                <th className="px-5 py-3 text-center">Status</th>
+                <th className="px-5 py-3 text-right">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant/10 text-on-surface">
-              {recentOrders.map((o) => {
-                const subtotal = o.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-                const vat = Math.round(subtotal * 0.11);
-                let shippingFee = (o as any).shippingFee || 0;
-                if (!shippingFee && (o as any).shippingAddress) {
-                  const feeMatch = (o as any).shippingAddress.match(/-\s*Rp\s*([0-9.,]+)/);
-                  if (feeMatch && feeMatch[1]) {
-                    shippingFee = parseInt(feeMatch[1].replace(/[.,]/g, ""), 10) || 0;
-                  } else {
+            <tbody className="divide-y divide-slate-100 text-slate-700">
+              {recentOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-8 text-center text-slate-400 font-semibold">
+                    Belum ada transaksi pesanan masuk.
+                  </td>
+                </tr>
+              ) : (
+                recentOrders.map((o) => {
+                  const subtotal = o.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                  const vat = Math.round(subtotal * 0.11);
+                  let shippingFee = (o as any).shippingFee || 0;
+                  if (!shippingFee && (o as any).shippingAddress) {
+                    const feeMatch = (o as any).shippingAddress.match(/-\s*Rp\s*([0-9.,]+)/);
+                    if (feeMatch && feeMatch[1]) {
+                      shippingFee = parseInt(feeMatch[1].replace(/[.,]/g, ""), 10) || 0;
+                    } else {
+                      shippingFee = 50000;
+                    }
+                  } else if (!shippingFee) {
                     shippingFee = 50000;
                   }
-                } else if (!shippingFee) {
-                  shippingFee = 50000;
-                }
-                const total = subtotal + vat + shippingFee;
-                const desc = o.items.map((it) => `${it.product.name} (x${it.quantity})`).join(", ");
+                  const total = subtotal + vat + shippingFee;
 
-                return (
-                  <tr key={o.id} className="hover:bg-surface-container-low/30 transition-colors h-14">
-                    <td className="px-6 py-4 font-bold font-mono text-foreground">{o.orderNumber}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded bg-secondary-container/20 flex items-center justify-center text-secondary shrink-0">
-                          <span className="material-symbols-outlined text-[16px]">local_pharmacy</span>
-                        </div>
-                        <span className="font-bold">{o.institution.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-on-surface-variant max-w-[200px] truncate">{desc || "-"}</td>
-                    <td className="px-6 py-4 font-bold font-mono text-foreground">Rp {total.toLocaleString("id-ID")}</td>
-                    <td className="px-6 py-4">
-                      {o.status === "PENDING_APPROVAL" && (
-                        <span className="bg-amber-100 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-bold text-[9px] uppercase animate-pulse">Pending Approval</span>
-                      )}
-                      {o.status === "PENDING_SHIPPING" && (
-                        <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-bold text-[9px] uppercase">Ready to Pack</span>
-                      )}
-                      {o.status === "SHIPPED" && (
-                        <span className="bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full text-[9px] uppercase">In Shipping</span>
-                      )}
-                      {o.status === "DELIVERED" && (
-                        <span className="bg-emerald-50 text-primary border border-emerald-200 px-2 py-0.5 rounded-full font-bold text-[9px] uppercase">Delivered</span>
-                      )}
-                      {o.status === "REJECTED" && (
-                        <span className="bg-red-50 text-error border border-red-200 px-2 py-0.5 rounded-full font-bold text-[9px] uppercase">Rejected</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => {
-                          setViewingOrder(o);
-                          setActiveTab("cdob");
-                        }}
-                        className="text-on-surface-variant hover:text-primary cursor-pointer inline-flex items-center justify-center w-7 h-7 hover:bg-surface-container-high rounded-full transition-colors"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+                  const firstItem = o.items[0];
+                  const itemName = firstItem ? `${firstItem.product.name} (x${firstItem.quantity})` : "Item Obat";
+                  const itemDesc = firstItem?.product.description || "Komposisi Generik Kemenkes / KFA";
+
+                  return (
+                    <tr key={o.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-5 py-3.5 font-mono font-bold text-slate-900 whitespace-nowrap">
+                        {o.orderNumber}
+                      </td>
+                      <td className="px-5 py-3.5 whitespace-nowrap">
+                        <div className="font-bold text-slate-900">{o.institution.name}</div>
+                        <span className="text-[10px] text-slate-400 font-mono">ID: {o.id.substring(0, 8)}...</span>
+                      </td>
+                      <td className="px-5 py-3.5 max-w-[280px]">
+                        <p className="font-medium text-slate-900 truncate">{itemName}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{itemDesc}</p>
+                      </td>
+                      <td className="px-5 py-3.5 font-mono font-bold text-slate-900 whitespace-nowrap">
+                        Rp {total.toLocaleString("id-ID")}
+                      </td>
+                      <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                        {o.status === "PENDING_APPROVAL" && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/60">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            Pending SP
+                          </span>
+                        )}
+                        {o.status === "PENDING_SHIPPING" && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                            Siap Packing
+                          </span>
+                        )}
+                        {o.status === "SHIPPED" && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200/60">
+                            <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                            Dalam Pengiriman
+                          </span>
+                        )}
+                        {o.status === "DELIVERED" && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            Selesai (Diterima)
+                          </span>
+                        )}
+                        {o.status === "REJECTED" && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/60">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                            Ditolak
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => {
+                            setViewingOrder(o);
+                            setActiveTab("cdob");
+                          }}
+                          className="px-2.5 py-1 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg text-xs font-semibold border border-slate-200 hover:border-emerald-200 transition cursor-pointer bg-white"
+                        >
+                          Detail
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

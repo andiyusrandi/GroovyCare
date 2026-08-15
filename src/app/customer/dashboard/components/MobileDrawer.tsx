@@ -59,7 +59,7 @@ export default function MobileDrawer({
   const [isDokumenOpen, setIsDokumenOpen] = useState(false);
   const [isLegalitasOpen, setIsLegalitasOpen] = useState(false);
 
-  const [logoUrl, setLogoUrl] = useState("https://res.cloudinary.com/rumahhostcom/image/upload/v1785256133/IMG_20260725_184829_670_odzsui.png");
+  const [logoUrl, setLogoUrl] = useState("https://res.cloudinary.com/rumahhostcom/image/upload/v1785321525/logo_care_fcfgwq.png");
 
   useEffect(() => {
     fetch("/api/settings")

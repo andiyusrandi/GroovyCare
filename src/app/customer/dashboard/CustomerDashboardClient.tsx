@@ -189,7 +189,7 @@ export default function CustomerDashboardClient({
   const isMobileBrowser = useMobileBrowser();
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [orders, setOrders] = useState<Order[]>(initialOrders);
-  
+
   // Aktifkan silent real-time sync untuk status logistik pesanan mitra
   useRealtimeLogisticsSync(orders, 10000);
   const [activeTab, setActiveTab] = useState<"dashboard" | "belanja" | "status" | "riwayat" | "tagihan" | "dokumen" | "legalitas" | "pengaturan" | "keranjang" | "alamat">("dashboard");
@@ -482,8 +482,15 @@ export default function CustomerDashboardClient({
       .catch((err) => console.error("Gagal mencocokkan kode pos:", err));
   }, [shippingVillage, shippingDistrict, shippingRegency]);
 
-  // Fetch Biteship rates in Customer Dashboard
+  // Fetch Biteship rates in Customer Dashboard (HANYA saat ada barang di keranjang & sedang di alur checkout/keranjang)
   useEffect(() => {
+    // Hentikan pemanggilan API Biteship jika keranjang kosong ATAU mitra tidak sedang di keranjang/checkout
+    if (!cart || cart.length === 0 || (!isCheckoutOpen && activeTab !== "keranjang")) {
+      setBiteshipRates([]);
+      setIsLoadingRates(false);
+      return;
+    }
+
     const isColdChain = cart.some(it =>
       it.product?.name?.toLowerCase().includes("insulin") ||
       it.product?.code?.toLowerCase().includes("amx") ||
@@ -524,18 +531,8 @@ export default function CustomerDashboardClient({
           setShippingFeeMobile(typeof firstValidRate?.price === "number" ? firstValidRate.price : 0);
           setRatesError(null);
         } else {
-          // Fallback kurir lokal jika API pengiriman offline / bernilai kosong
+          // Fallback kurir standar jika API pengiriman offline / bernilai kosong
           const fallbackPricing = [
-            {
-              courier_name: "Logistik Groovyrx",
-              courier_code: "groovyrx",
-              courier_service_name: "Same Day",
-              courier_service_code: "same_day",
-              description: "Pengiriman Same Day Kurir Internal PBF (Makassar Area)",
-              duration: "Same Day (1-2 Jam)",
-              price: isColdChain ? 85000 : 35000,
-              type: "same_day"
-            },
             {
               courier_name: "JNE",
               courier_code: "jne",
@@ -557,16 +554,6 @@ export default function CustomerDashboardClient({
         console.warn("Rates fetch fallback handled:", err);
         const fallbackPricing = [
           {
-            courier_name: "Logistik Groovyrx",
-            courier_code: "groovyrx",
-            courier_service_name: "Same Day",
-            courier_service_code: "same_day",
-            description: "Pengiriman Same Day Kurir Internal PBF (Makassar Area)",
-            duration: "Same Day (1-2 Jam)",
-            price: isColdChain ? 85000 : 35000,
-            type: "same_day"
-          },
-          {
             courier_name: "JNE",
             courier_code: "jne",
             courier_service_name: "Reguler (REG)",
@@ -585,7 +572,7 @@ export default function CustomerDashboardClient({
       .finally(() => {
         setIsLoadingRates(false);
       });
-  }, [shippingProvince, shippingRegency, shippingDistrict, selectedMainAddress, cart]);
+  }, [shippingProvince, shippingRegency, shippingDistrict, selectedMainAddress, cart, activeTab, isCheckoutOpen]);
 
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1329,6 +1316,8 @@ export default function CustomerDashboardClient({
         esignPendingCount={orders.filter(o => o.status === "PENDING_APPROVAL" && !o.spSignature).length}
         legalSubTab={legalSubTab}
         setLegalSubTab={setLegalSubTab}
+        creditLimit={institution.creditLimit}
+        currentDebt={institution.currentDebt}
       />
 
       {/* Main Content Area */}
@@ -2420,11 +2409,11 @@ export default function CustomerDashboardClient({
                             </p>
                           </div>
 
-                          {/* Sticky Bottom Action Bar Tokopedia Class */}
-                          <div className="fixed bottom-[74px] left-3 right-3 z-40 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl p-3.5 shadow-xl flex items-center justify-between gap-3 font-sans">
-                            <div className="flex flex-col">
-                              <span className="text-slate-400 text-[10px] font-extrabold uppercase tracking-wider">Total Pembayaran</span>
-                              <span className="font-black text-base text-emerald-900 font-mono">
+                          {/* Sticky Bottom Action Bar Tokopedia Class (Floats safely above MobileBottomNav) */}
+                          <div className="fixed bottom-[98px] md:bottom-6 left-3 right-3 z-[90] bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl p-3.5 shadow-[0_12px_36px_rgba(0,0,0,0.18)] flex items-center justify-between gap-3 font-sans">
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-slate-400 text-[10px] font-extrabold uppercase tracking-wider truncate">Total Pembayaran</span>
+                              <span className="font-black text-base text-emerald-900 font-mono truncate">
                                 Rp {(cartTotal + Math.round(cartTotal * 0.11) + shippingFeeMobile).toLocaleString("id-ID")}
                               </span>
                             </div>
@@ -2444,8 +2433,9 @@ export default function CustomerDashboardClient({
                                   setIsAddressManagerOpenMobile(true);
                                   return;
                                 }
+
+                                // Open e-Sign modal directly if SP is not signed yet
                                 if (!hasSigned) {
-                                  alert("Silakan bubuhkan tanda tangan Surat Pesanan (SP) terlebih dahulu di kolom e-Sign SP di atas.");
                                   setIsDrawingModalOpen(true);
                                   return;
                                 }
@@ -2466,11 +2456,19 @@ export default function CustomerDashboardClient({
                                 executeCheckout(finalAddress);
                               }}
                               disabled={isSubmittingOrder || cart.length === 0}
-                              className={`bg-primary text-white font-heading font-black text-sm px-8 py-3.5 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center gap-1.5 border-none cursor-pointer ${cart.length === 0 ? "opacity-50 cursor-not-allowed shadow-none" : ""
+                              className={`bg-primary text-white font-heading font-black text-xs sm:text-sm px-5 sm:px-8 py-3.5 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center justify-center gap-1.5 border-none cursor-pointer shrink-0 ${cart.length === 0 ? "opacity-50 cursor-not-allowed shadow-none" : ""
                                 }`}
                             >
-                              <span>{isSubmittingOrder ? "Memproses..." : "Checkout & Kirim SP"}</span>
-                              <span className="material-symbols-outlined text-base">arrow_forward</span>
+                              <span>
+                                {isSubmittingOrder
+                                  ? "Memproses..."
+                                  : !hasSigned
+                                    ? "Tanda Tangani SP & Checkout"
+                                    : "Checkout"}
+                              </span>
+                              <span className="material-symbols-outlined text-base">
+                                {!hasSigned ? "draw" : "arrow_forward"}
+                              </span>
                             </button>
                           </div>
                         </>
@@ -3333,40 +3331,49 @@ export default function CustomerDashboardClient({
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Kurir Tersedia untuk Wilayah Anda:</p>
 
               {biteshipRates.map((rate, i) => {
-                const isSelected = selectedRate?.courier_code === rate.courier_code && selectedRate?.courier_service_code === rate.courier_service_code;
+                const isAvailable = typeof rate.price === "number" && rate.price > 0 && rate.is_available !== false;
+                const isSelected = isAvailable && selectedRate?.courier_code === rate.courier_code && selectedRate?.courier_service_code === rate.courier_service_code;
                 const courierMeta = getCourierMeta(rate.courier_code, rate.courier_name);
                 return (
                   <div
                     key={i}
                     onClick={() => {
+                      if (!isAvailable) return;
                       setSelectedRate(rate);
                       setShippingFeeMobile(typeof rate.price === "number" ? rate.price : 0);
                       setIsCourierSelectorOpenMobile(false);
                     }}
-                    className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${isSelected
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-slate-100 bg-white hover:bg-slate-50 text-slate-700"
+                    className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${!isAvailable
+                      ? "border-slate-100 bg-slate-100/60 opacity-60 cursor-not-allowed pointer-events-none text-slate-400"
+                      : isSelected
+                        ? "border-primary bg-primary/5 text-primary cursor-pointer"
+                        : "border-slate-100 bg-white hover:bg-slate-50 text-slate-700 cursor-pointer"
                       }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <CourierLogoBadge courierCode={rate.courier_code} courierName={rate.courier_name} />
                       <div className="text-left min-w-0">
-                        <span className="text-xs font-bold block truncate">
-                          {rate.courier_name.toUpperCase()} - {rate.courier_service_name}
+                        <span className="text-xs font-bold block truncate flex items-center gap-1.5">
+                          <span>{rate.courier_name.toUpperCase()} - {rate.courier_service_name}</span>
+                          {!isAvailable && (
+                            <span className="text-[8px] font-extrabold text-slate-500 bg-slate-200 px-1 py-0.5 rounded uppercase">
+                              Offline
+                            </span>
+                          )}
                         </span>
                         <span className="text-[10px] text-slate-400 font-semibold block mt-0.5">
-                          Estimasi tiba: {rate.duration || `${rate.shipment_duration} hari`}
+                          {isAvailable ? `Estimasi tiba: ${rate.duration || `${rate.shipment_duration} hari`}` : "Layanan belum diaktifkan di Biteship"}
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {typeof rate.price === "number" ? (
+                      {isAvailable ? (
                         <span className="text-xs font-black font-mono">
                           Rp {rate.price.toLocaleString("id-ID")}
                         </span>
                       ) : (
-                        <span className="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-1 rounded-lg block">
-                          Gagal Memuat Tarif
+                        <span className="text-[9px] font-extrabold text-slate-400 bg-slate-200/80 px-2 py-1 rounded-lg block uppercase">
+                          Offline
                         </span>
                       )}
                       {isSelected && (
@@ -3384,16 +3391,18 @@ export default function CustomerDashboardClient({
       )}
 
       {/* Floating WhatsApp Support Button on Mobile Android */}
-      <a
-        href="https://wa.me/6285151005960?text=Halo%20CS%20GroovyCare,%20saya%20butuh%20bantuan%20mengenai%20pesanan%20saya"
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => triggerHapticImpact()}
-        className="fixed bottom-24 right-4 z-40 w-11 h-11 bg-emerald-600 hover:bg-emerald-500 active:scale-90 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-600/30 transition-transform md:hidden border border-emerald-400/40"
-        title="Hubungi CS WhatsApp PBF"
-      >
-        <span className="material-symbols-outlined text-xl">chat</span>
-      </a>
+      {!isCheckoutOpen && (
+        <a
+          href="https://wa.me/6285151005960?text=Halo%20CS%20GroovyCare,%20saya%20butuh%20bantuan%20mengenai%20pesanan%20saya"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => triggerHapticImpact()}
+          className="fixed bottom-24 right-4 z-30 w-11 h-11 bg-emerald-600 hover:bg-emerald-500 active:scale-90 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-600/30 transition-transform md:hidden border border-emerald-400/40"
+          title="Hubungi CS WhatsApp PBF"
+        >
+          <span className="material-symbols-outlined text-xl">chat</span>
+        </a>
+      )}
 
       {/* Address Book Manager Modal (Mobile Cart & Dashboard) */}
       <AddressManagerModal
@@ -3475,6 +3484,8 @@ export default function CustomerDashboardClient({
               setLegalSubTab={setLegalSubTab}
               onCloseMobile={() => setIsMobileSidebarOpen(false)}
               isMobileDrawer={true}
+              creditLimit={institution.creditLimit}
+              currentDebt={institution.currentDebt}
             />
           </div>
           {/* Backdrop Click Area */}

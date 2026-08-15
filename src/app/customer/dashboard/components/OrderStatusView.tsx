@@ -6,7 +6,7 @@ import { Clock, Truck, CheckCircle, AlertTriangle, PenTool, Search } from "lucid
 import { printCDOBDocument } from "@/lib/pdf-generator";
 import { syncBiteshipOrderStatus } from "@/app/actions/orders";
 import BiteshipTrackingModal from "@/app/components/BiteshipTrackingModal";
-import { getBiteshipStatusMeta } from "@/lib/biteship-status";
+import { getBiteshipStatusMeta, formatWaybillNumber } from "@/lib/biteship-status";
 
 interface Batch {
   id: string;
@@ -55,30 +55,92 @@ export default function OrderStatusView({
   const router = useRouter();
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [trackingModalOrderId, setTrackingModalOrderId] = useState<string | null>(null);
+  const [filterTab, setFilterTab] = useState<"all" | "active" | "completed" | "cancelled">("all");
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId(prev => prev === orderId ? null : orderId);
   };
 
   // Active orders vs Past completed orders
-  const activeOrders = orders.filter(o => o.status !== "DELIVERED" && o.status !== "REJECTED");
-  const pastOrders = orders.filter(o => o.status === "DELIVERED" || o.status === "REJECTED");
+  const activeOrders = orders.filter(o => o.status !== "DELIVERED" && o.status !== "REJECTED" && o.status !== "CANCELLED");
+  const completedOrders = orders.filter(o => o.status === "DELIVERED");
+  const cancelledOrders = orders.filter(o => o.status === "REJECTED" || o.status === "CANCELLED");
+  const pastOrders = orders.filter(o => o.status === "DELIVERED" || o.status === "REJECTED" || o.status === "CANCELLED");
+
+  const filteredMobileOrders = filterTab === "active"
+    ? activeOrders
+    : filterTab === "completed"
+    ? completedOrders
+    : filterTab === "cancelled"
+    ? cancelledOrders
+    : orders;
 
   return (
-    <div className="space-y-8 animate-fadeIn">
-      {/* Title */}
-      <div>
-        <h2 className="text-xl font-heading font-extrabold text-foreground">Status Pelacakan Pesanan</h2>
-        <p className="text-xs text-on-surface-variant mt-0.5">Pantau real-time proses CDOB, gudang, dan logistik rantai dingin (cold chain).</p>
+    <div className="space-y-4 px-4 pt-2 pb-32 font-sans bg-slate-50/40 min-h-screen md:min-h-0 md:bg-transparent md:p-0 md:space-y-8 animate-fadeIn">
+      {/* 1. Header Ringkas Native (Title + Filter Pill Tabs) */}
+      <div className="space-y-2.5">
+        <div>
+          <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight font-heading">
+            Status Pelacakan
+          </h1>
+          <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+            Pantau rantai dingin &amp; pengiriman CDOB real-time
+          </p>
+        </div>
+
+        {/* Segmented Tab Filter Khas Android Material 3 */}
+        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar py-1">
+          <button
+            type="button"
+            onClick={() => setFilterTab("all")}
+            className={`px-3.5 py-1.5 rounded-full font-bold text-xs shrink-0 transition-all border-none cursor-pointer ${
+              filterTab === "all" ? "bg-emerald-700 text-white shadow-xs" : "bg-slate-100 text-slate-600 active:bg-slate-200"
+            }`}
+          >
+            Semua ({orders.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterTab("active")}
+            className={`px-3.5 py-1.5 rounded-full font-bold text-xs shrink-0 transition-all border-none cursor-pointer ${
+              filterTab === "active" ? "bg-emerald-700 text-white shadow-xs" : "bg-slate-100 text-slate-600 active:bg-slate-200"
+            }`}
+          >
+            Berjalan ({activeOrders.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterTab("completed")}
+            className={`px-3.5 py-1.5 rounded-full font-bold text-xs shrink-0 transition-all border-none cursor-pointer ${
+              filterTab === "completed" ? "bg-emerald-700 text-white shadow-xs" : "bg-slate-100 text-slate-600 active:bg-slate-200"
+            }`}
+          >
+            Selesai ({completedOrders.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterTab("cancelled")}
+            className={`px-3.5 py-1.5 rounded-full font-bold text-xs shrink-0 transition-all border-none cursor-pointer ${
+              filterTab === "cancelled" ? "bg-emerald-700 text-white shadow-xs" : "bg-slate-100 text-slate-600 active:bg-slate-200"
+            }`}
+          >
+            Dibatalkan / Ditolak ({cancelledOrders.length})
+          </button>
+        </div>
       </div>
 
       {/* Ongoing Orders Section */}
-      <section className="space-y-4">
-        <h3 className="text-[10px] sm:text-xs uppercase font-extrabold tracking-wider sm:tracking-widest text-primary px-1">Pesanan Berjalan ({activeOrders.length})</h3>
-        
+      <section className="space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Pesanan Berjalan</span>
+          <span className="text-[10px] font-bold text-slate-400">{activeOrders.length} Aktif</span>
+        </div>
+
+        {/* Empty State Kompak */}
         {activeOrders.length === 0 ? (
-          <div className="text-center py-12 bg-white border border-outline-variant/20 rounded-3xl text-on-surface-variant text-xs shadow-sm">
-            Tidak ada pesanan aktif yang sedang diproses.
+          <div className="bg-slate-50/80 border border-dashed border-slate-200 rounded-2xl p-4 flex items-center justify-center gap-3 text-slate-400">
+            <span className="material-symbols-outlined text-xl">local_shipping</span>
+            <span className="text-xs font-semibold">Tidak ada pengiriman yang sedang berjalan</span>
           </div>
         ) : (
           <div className="space-y-4">
@@ -272,7 +334,7 @@ export default function OrderStatusView({
                         <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
                           <div className="flex items-center gap-2">
                             <Truck className="w-4 h-4 text-primary shrink-0" />
-                            <span className="text-[11px] font-bold text-slate-800">Resi Expedisi: {order.trackingNumber || order.biteshipOrderId}</span>
+                            <span className="text-[11px] font-bold text-slate-800">Resi Expedisi: {formatWaybillNumber(order.trackingNumber, order.biteshipOrderId, order.id)}</span>
                           </div>
                           {order.biteshipOrderId ? (
                             <div className="flex items-center gap-1.5">
@@ -397,13 +459,13 @@ export default function OrderStatusView({
         )}
       </section>
 
-      {/* Delivered Orders History */}
-      <section className="space-y-4 pt-4">
-        <h3 className="text-[10px] sm:text-xs uppercase font-extrabold tracking-wider sm:tracking-widest text-on-surface-variant/75 px-1">Pesanan Selesai / Riwayat Baru</h3>
+      {/* Desktop Table View */}
+      <section className="hidden md:block space-y-4 pt-4">
+        <h3 className="text-xs uppercase font-extrabold tracking-widest text-on-surface-variant/75 px-1">
+          Pesanan Selesai / Riwayat Baru
+        </h3>
         <div className="bg-white rounded-3xl border border-outline-variant/20 overflow-hidden shadow-sm">
-          
-          {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-auto text-xs">
+          <div className="overflow-x-auto text-xs">
             <table className="w-full text-left">
               <thead className="bg-surface-container-low border-b border-outline-variant/20 text-on-surface-variant font-bold">
                 <tr>
@@ -461,62 +523,74 @@ export default function OrderStatusView({
               </tbody>
             </table>
           </div>
+        </div>
+      </section>
 
-          {/* Mobile Card View */}
-          <div className="block md:hidden divide-y divide-outline-variant/15 text-xs">
-            {pastOrders.length === 0 ? (
-              <div className="px-5 py-8 text-center text-on-surface-variant/50 italic">
-                Belum ada riwayat pesanan selesai.
-              </div>
-            ) : (
-              pastOrders.slice(0, 5).map((order) => (
-                <div key={order.id} className="p-4 space-y-3 hover:bg-surface-container-low/10 transition-colors">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-foreground text-xs font-mono">{order.orderNumber}</span>
-                    <div>
-                      {order.status === "DELIVERED" ? (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full uppercase">
-                          ✓ Diterima
-                        </span>
-                      ) : order.status === "SHIPPED" ? (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full uppercase animate-pulse">
-                          Sedang Dikirim
-                        </span>
-                      ) : order.status === "PENDING_APPROVAL" ? (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full uppercase animate-pulse">
-                          Dalam Verifikasi
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-red-800 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full uppercase">
-                          Ditolak
-                        </span>
-                      )}
+      {/* Mobile Card View (Native Android List Cards) */}
+      <section className="block md:hidden space-y-3 pt-2">
+        <div className="px-1">
+          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 block">
+            Riwayat Pesanan Terbaru
+          </span>
+        </div>
+
+        <div className="space-y-3">
+          {filteredMobileOrders.length === 0 ? (
+            <div className="bg-white border border-dashed border-slate-300/80 rounded-2xl p-5 text-center text-slate-400 text-xs font-semibold shadow-2xs">
+              Belum ada data pesanan untuk kategori ini.
+            </div>
+          ) : (
+            filteredMobileOrders.map((order) => {
+              const isDelivered = order.status === "DELIVERED";
+              const isRejected = order.status === "REJECTED" || order.status === "CANCELLED";
+
+              return (
+                <div
+                  key={order.id}
+                  onClick={() => setViewingDetailOrder(order)}
+                  className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs active:scale-[0.99] active:bg-slate-50 transition-all cursor-pointer space-y-3"
+                >
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${isDelivered ? "bg-emerald-500" : isRejected ? "bg-rose-500" : "bg-amber-500"}`}></span>
+                      <span className="font-mono font-bold text-xs text-slate-900 tracking-tight">{order.orderNumber}</span>
                     </div>
+                    {isDelivered ? (
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-black text-[10px] uppercase tracking-wide">
+                        ✓ Diterima
+                      </span>
+                    ) : isRejected ? (
+                      <span className="px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200/60 font-black text-[10px] uppercase tracking-wide">
+                        Ditolak
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/60 font-black text-[10px] uppercase tracking-wide animate-pulse">
+                        Proses CDOB
+                      </span>
+                    )}
                   </div>
 
-                  <div className="flex justify-between items-center text-on-surface-variant/70 text-[10px]">
-                    <div className="flex flex-col gap-1">
-                      <span className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[12px] opacity-75">calendar_today</span>
+                  <div className="flex items-center justify-between pt-0.5">
+                    <div className="flex items-center gap-3 text-slate-500 text-xs font-medium">
+                      <span className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-sm text-slate-400">calendar_today</span>
                         {new Date(order.createdAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}
                       </span>
-                      <span className="flex items-center gap-1 font-medium text-on-surface-variant/90">
-                        <span className="material-symbols-outlined text-[12px] opacity-75">package_2</span>
-                        {order.items.length} SKU
+                      <span className="text-slate-300">•</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-sm text-slate-400">package_2</span>
+                        {order.items?.length || 1} SKU
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setViewingDetailOrder(order)}
-                      className="px-3.5 py-1.5 bg-surface-container-high hover:bg-surface-variant text-on-surface-variant font-bold rounded-lg transition-colors text-[10px] active:scale-95 duration-100 shrink-0"
-                    >
-                      Detail
-                    </button>
+                    <div className="flex items-center text-emerald-700 text-xs font-bold gap-0.5">
+                      <span>Detail</span>
+                      <span className="material-symbols-outlined text-sm">chevron_right</span>
+                    </div>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              );
+            })
+          )}
         </div>
       </section>
 

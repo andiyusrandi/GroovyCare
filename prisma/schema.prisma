@@ -202,3 +202,28 @@ model SystemSetting {
   key   String @id
   value String
 }
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+model SecurityAuditLog {
+  id          String   @id @default(uuid())
+  eventType   String   // "AUTH_PASSWORD_RESET_REQUESTED" | "AUTH_PASSWORD_RESET_SUCCESS" | "SECURITY_ALERT"
+  email       String
+  institution String?
+  ipAddress   String?
+  userAgent   String?
+  status      String   // "SUCCESS" | "FAILED" | "BLOCKED"
+  details     String?
+  createdAt   DateTime @default(now())
+
+  @@index([email])
+  @@index([eventType])
+}

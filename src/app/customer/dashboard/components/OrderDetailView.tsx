@@ -20,7 +20,7 @@ import {
   Receipt
 } from "lucide-react";
 import { triggerHapticImpact } from "@/lib/mobile-haptics";
-import { getBiteshipStatusMeta } from "@/lib/biteship-status";
+import { getBiteshipStatusMeta, formatWaybillNumber } from "@/lib/biteship-status";
 
 interface OrderDetailViewProps {
   order: any;
@@ -44,6 +44,31 @@ function getSelectedCourierName(addr?: string): string {
     return "Logistik Groovyrx";
   }
   return "-";
+}
+
+export function canOpenEFaktur(order: any): boolean {
+  if (!order) return false;
+  if (order.status === "CANCELLED" || order.status === "REJECTED") return false;
+
+  // 1. Status Pembayaran Lunas (PAID)
+  const isPaid =
+    order.paymentStatus === "PAID" ||
+    order.status === "PAID" ||
+    order.status === "PROCESSING" ||
+    order.status === "PACKING" ||
+    order.status === "SHIPPED" ||
+    order.status === "DELIVERED";
+
+  // 2. Metode Pembayaran Limit Kredit (Tempo / TOP)
+  const methodUpper = String(order.paymentMethod || "").toUpperCase();
+  const isCreditLimit =
+    methodUpper.includes("CREDIT") ||
+    methodUpper.includes("LIMIT") ||
+    methodUpper.includes("TEMPO") ||
+    methodUpper.includes("TOP") ||
+    order.paymentMethod === "CREDIT_LIMIT";
+
+  return isPaid || isCreditLimit;
 }
 
 export default function OrderDetailView({
@@ -118,13 +143,6 @@ export default function OrderDetailView({
                 Lacak In-App Live
               </button>
             )}
-            <button
-              onClick={() => setDocModalType("INVOICE")}
-              className="flex items-center gap-1.5 px-4 py-2 border border-outline-variant/40 hover:bg-surface-container-low text-on-surface rounded-xl transition-colors text-xs font-bold shadow-sm cursor-pointer bg-white"
-            >
-              <span className="material-symbols-outlined text-[16px]">print</span>
-              Cetak Invoice CDOB (PDF)
-            </button>
             <button
               onClick={() => alert("Silakan hubungi tim IT PBF Online untuk bantuan sistem.")}
               className="flex items-center gap-1.5 px-4 py-2 border border-outline-variant/40 hover:bg-surface-container-low text-on-surface rounded-xl transition-colors text-xs font-bold shadow-sm cursor-pointer bg-white"
@@ -303,15 +321,23 @@ export default function OrderDetailView({
               </div>
               <div>
                 <p className="text-[10px] uppercase font-bold text-on-surface-variant mb-1">Metode Pembayaran</p>
-                <p className="font-heading font-bold text-sm text-on-surface">
-                  {order.paymentMethod === "VA"
-                    ? "Bank Transfer (VA)"
-                    : order.paymentMethod === "TOP"
-                      ? "Limit Kredit / TOP"
-                      : order.paymentMethod === "COD"
-                        ? "Cash on Delivery (COD)"
-                        : "COD"}
-                </p>
+                <div className="flex flex-col gap-1">
+                  <p className="font-heading font-bold text-sm text-on-surface">
+                    {order.paymentMethod === "VA"
+                      ? "Bank Transfer (VA)"
+                      : order.paymentMethod === "TOP"
+                        ? "Limit Kredit / TOP (Tempo 30 Hari)"
+                        : order.paymentMethod === "COD"
+                          ? "Cash on Delivery (COD)"
+                          : "COD"}
+                  </p>
+                  {order.paymentMethod === "TOP" && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 w-fit">
+                      <Clock className="w-3 h-3" />
+                      <span>Jatuh Tempo: 30 Hari Kerja</span>
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="col-span-2 md:col-span-1">
                 <p className="text-[10px] uppercase font-bold text-on-surface-variant mb-1">Total Pembayaran</p>
@@ -418,7 +444,7 @@ export default function OrderDetailView({
                     </div>
                     <p className="font-bold text-foreground">Dalam Perjalanan</p>
                     <p className="text-[10px] text-on-surface-variant mt-0.5">
-                      Pesanan sedang dikirim kurir. Resi: <strong className="font-mono text-primary">{order.trackingNumber || order.biteshipOrderId || "-"}</strong>
+                      Pesanan sedang dikirim kurir. Resi: <strong className="font-mono text-primary">{formatWaybillNumber(order.trackingNumber, order.biteshipOrderId, order.id)}</strong>
                     </p>
                   </div>
                 )}
@@ -518,7 +544,7 @@ export default function OrderDetailView({
                       <p className="text-[9px] text-on-surface-variant">INV-{order.orderNumber}</p>
                     </div>
                   </div>
-                  {!isPendingApproval && !isRejected ? (
+                  {!isPendingApproval && !isRejected && canOpenEFaktur(order) ? (
                     <button
                       type="button"
                       onClick={() => setDocModalType("INVOICE")}
@@ -528,7 +554,9 @@ export default function OrderDetailView({
                       <span className="material-symbols-outlined text-primary text-[18px]">download</span>
                     </button>
                   ) : (
-                    <span className="text-[9px] text-on-surface-variant/40 italic font-medium">Belum terbit</span>
+                    <span className="text-[9px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-bold border border-amber-200 inline-flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[10px]">lock</span> Terkunci (Belum Lunas)
+                    </span>
                   )}
                 </div>
 
@@ -687,7 +715,7 @@ export default function OrderDetailView({
             <div>
               <span className="text-[9.5px] text-slate-400 font-bold uppercase tracking-wider block">No. Resi / Airwaybill</span>
               <span className="font-mono text-xs font-black text-slate-900 mt-0.5 block">
-                {order.trackingNumber || order.biteshipOrderId || "-"}
+                {formatWaybillNumber(order.trackingNumber, order.biteshipOrderId, order.id)}
               </span>
             </div>
             {(order.trackingNumber || order.biteshipOrderId) && (
@@ -695,7 +723,7 @@ export default function OrderDetailView({
                 type="button"
                 onClick={() => {
                   triggerHapticImpact();
-                  navigator.clipboard.writeText(order.trackingNumber || order.biteshipOrderId);
+                  navigator.clipboard.writeText(formatWaybillNumber(order.trackingNumber, order.biteshipOrderId, order.id));
                   alert("No. Resi disalin ke clipboard!");
                 }}
                 className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-xl text-slate-700 font-bold text-[10px] flex items-center gap-1 border-none cursor-pointer"
@@ -784,32 +812,72 @@ export default function OrderDetailView({
             </button>
 
             {/* 2. Invoice / e-Faktur */}
-            <button
-              type="button"
-              onClick={() => {
-                triggerHapticImpact();
-                setDocModalType("INVOICE");
-              }}
-              className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 active:scale-95 border border-slate-200 flex flex-col gap-1 items-start cursor-pointer transition-all"
-            >
-              <Receipt className="w-4 h-4 text-blue-700" />
-              <span className="text-[10px] font-black text-slate-800 leading-tight">e-Faktur</span>
-              <span className="text-[8px] text-blue-600 font-extrabold">Invoice</span>
-            </button>
+            {canOpenEFaktur(order) ? (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHapticImpact();
+                  setDocModalType("INVOICE");
+                }}
+                className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 active:scale-95 border border-slate-200 flex flex-col gap-1 items-start cursor-pointer transition-all"
+              >
+                <Receipt className="w-4 h-4 text-blue-700" />
+                <span className="text-[10px] font-black text-slate-800 leading-tight">e-Faktur</span>
+                <span className="text-[8px] text-blue-600 font-extrabold">Invoice</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHapticImpact();
+                  alert("e-Faktur / Invoice terkunci. Dokumen e-Faktur hanya dapat diakses setelah pembayaran terverifikasi Lunas, atau jika transaksi menggunakan metode Limit Kredit (Tempo).");
+                }}
+                className="p-2.5 rounded-2xl bg-slate-100/90 border border-slate-200 flex flex-col gap-1 items-start cursor-pointer transition-all opacity-60 relative group"
+                title="e-Faktur Terkunci: Pembayaran Belum Lunas (Kecuali Limit Kredit)"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <Receipt className="w-4 h-4 text-slate-400" />
+                  <span className="material-symbols-outlined text-xs text-amber-600">lock</span>
+                </div>
+                <span className="text-[10px] font-black text-slate-500 leading-tight">e-Faktur</span>
+                <span className="text-[8px] text-slate-400 font-extrabold">Terkunci 🔒</span>
+              </button>
+            )}
 
             {/* 3. Surat Jalan PBF (SJ) */}
-            <button
-              type="button"
-              onClick={() => {
-                triggerHapticImpact();
-                setDocModalType("SURAT_JALAN");
-              }}
-              className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 active:scale-95 border border-slate-200 flex flex-col gap-1 items-start cursor-pointer transition-all"
-            >
-              <Truck className="w-4 h-4 text-amber-700" />
-              <span className="text-[10px] font-black text-slate-800 leading-tight">Surat Jalan</span>
-              <span className="text-[8px] text-amber-600 font-extrabold">SJ-PBF</span>
-            </button>
+            {order.status === "PENDING_APPROVAL" || order.status === "REJECTED" || order.status === "CANCELLED" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHapticImpact();
+                  alert("Surat Jalan (SJ-PBF) terkunci. Dokumen ini hanya terbit setelah pesanan disetujui dan dikirim oleh Admin PBF.");
+                }}
+                className="p-2.5 rounded-2xl bg-slate-100/90 border border-slate-200 flex flex-col gap-1 items-start cursor-pointer transition-all opacity-75 relative group"
+                title="Surat Jalan Terkunci: Belum disetujui / dikirim Admin PBF"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <Truck className="w-4 h-4 text-slate-400" />
+                  <span className="material-symbols-outlined text-xs text-amber-600">lock</span>
+                </div>
+                <span className="text-[10px] font-black text-slate-500 leading-tight">Surat Jalan</span>
+                <span className="text-[8px] text-amber-600 font-extrabold flex items-center gap-0.5">
+                  🔒 Terkunci
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHapticImpact();
+                  setDocModalType("SURAT_JALAN");
+                }}
+                className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 active:scale-95 border border-slate-200 flex flex-col gap-1 items-start cursor-pointer transition-all"
+              >
+                <Truck className="w-4 h-4 text-amber-700" />
+                <span className="text-[10px] font-black text-slate-800 leading-tight">Surat Jalan</span>
+                <span className="text-[8px] text-amber-600 font-extrabold">SJ-PBF</span>
+              </button>
+            )}
           </div>
         </section>
 

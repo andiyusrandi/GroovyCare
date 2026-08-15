@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth-session";
 import { revalidatePath } from "next/cache";
+import { sendAccountApprovedMitraEmail } from "@/lib/email-service";
 
 async function verifyAdmin() {
   const session = await getSession();
@@ -59,7 +60,23 @@ export async function activatePartner(id: string, creditLimit: number, topDays: 
         creditLimit: parseFloat(creditLimit.toString()),
         topDays: parseInt(topDays.toString(), 10),
       },
+      include: {
+        users: {
+          take: 1,
+        },
+      },
     });
+
+    // Trigger Email Mitra #9: Akun Apotek Telah Disetujui (Approved)
+    const primaryUser = updated.users && updated.users[0];
+    sendAccountApprovedMitraEmail({
+      institutionName: updated.name,
+      email: primaryUser?.email || "mitra@growmexa.com",
+      apjName: primaryUser?.name || updated.name,
+      creditLimit: updated.creditLimit,
+      topDays: updated.topDays,
+    }).catch((e) => console.error("Async sendAccountApprovedMitraEmail err:", e));
+
     revalidatePath("/admin/dashboard");
     return { success: true, message: `Apotek ${updated.name} berhasil diaktifkan.` };
   } catch (error: any) {

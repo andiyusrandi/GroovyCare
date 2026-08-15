@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import Script from "next/script";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import OfflineDetector from "@/components/OfflineDetector";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -16,6 +18,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Growmexa | PT. GROOVYRX PHARMACEUTICAL GROUP",
   description: "Portal B2B Distribusi Obat & PBF Terpadu dengan Kepatuhan CDOB BPOM",
+  manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {
@@ -24,6 +27,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
+  themeColor: "#064e3b",
 };
 
 export default function RootLayout({
@@ -43,12 +47,15 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link rel="manifest" href="/manifest.json" />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
         />
       </head>
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground" suppressHydrationWarning>
+        <ServiceWorkerRegister />
+        <OfflineDetector />
         {children}
         <Script
           src={snapScriptUrl}

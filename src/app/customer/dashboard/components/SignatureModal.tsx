@@ -38,7 +38,6 @@ export default function SignatureModal({
   const [orderId, setOrderId] = useState("");
 
   useEffect(() => {
-    // Generate deterministic SP number and Order ID once on mount / open
     if (isDrawingModalOpen) {
       const year = new Date().getFullYear();
       const monthRoman = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"][new Date().getMonth()];
@@ -51,7 +50,6 @@ export default function SignatureModal({
 
   if (!isDrawingModalOpen) return null;
 
-  // Helper untuk mendapatkan canvas yang sedang aktif/terlihat di layar (Desktop/Mobile)
   const getActiveCanvas = (): HTMLCanvasElement | null => {
     if (canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
@@ -65,30 +63,25 @@ export default function SignatureModal({
     return canvasRef.current;
   };
 
-  // Simulate loading saved signature
   const loadSavedSignature = () => {
     const canvas = getActiveCanvas();
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Clear first
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw a nice signature path
     ctx.beginPath();
     ctx.strokeStyle = "#00422b";
     ctx.lineWidth = 3;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
-    // Smooth signature simulation path
     ctx.moveTo(50, 120);
     ctx.bezierCurveTo(80, 90, 120, 20, 180, 80);
     ctx.bezierCurveTo(220, 120, 280, 100, 330, 60);
     ctx.stroke();
 
-    // Draw initials / loops
     ctx.beginPath();
     ctx.lineWidth = 2;
     ctx.moveTo(110, 85);
@@ -113,7 +106,7 @@ export default function SignatureModal({
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="fixed inset-0 z-70 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-0 md:p-4 overflow-y-auto font-sans">
+    <div className="fixed inset-0 z-[200] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-0 md:p-4 overflow-y-auto font-sans">
       <style dangerouslySetInnerHTML={{ __html: `
         .signature-pad-grid {
           background-image: radial-gradient(#e5e7eb 1.5px, transparent 1.5px);
@@ -186,9 +179,9 @@ export default function SignatureModal({
       {/* ========================================================================= */}
       {/* 2. MOBILE VIEW: Regulatory Approval Document Screen                       */}
       {/* ========================================================================= */}
-      <div className="block md:hidden w-full min-h-screen bg-slate-50 flex flex-col relative pb-32">
-        {/* TopAppBar */}
-        <header className="fixed top-0 left-0 right-0 w-full z-50 bg-white/95 backdrop-blur-md shadow-sm h-16 flex items-center justify-between px-4">
+      <div className="block md:hidden w-full min-h-screen bg-slate-50 flex flex-col relative pb-36">
+        {/* TopAppBar (Elevated z-index z-[210]) */}
+        <header className="fixed top-0 left-0 right-0 w-full z-[210] bg-white/95 backdrop-blur-md shadow-sm h-16 flex items-center justify-between px-4">
           <div className="flex items-center gap-4">
             <button 
               type="button"
@@ -222,7 +215,6 @@ export default function SignatureModal({
 
           {/* Document Preview Sheet */}
           <section className="document-shadow bg-white rounded-2xl border border-outline-variant/30 p-5 space-y-4">
-            {/* Document Header */}
             <div className="flex justify-between items-start border-b border-surface-variant/40 pb-3">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>medical_services</span>
@@ -230,7 +222,7 @@ export default function SignatureModal({
               </div>
               <div className="text-[8px] text-right text-on-surface-variant leading-tight">
                 <p className="font-bold">PT. GROOVYRX PHARMACEUTICAL GROUP</p>
-                <p>Brand: Growmexa • Distribusi Obat</p>
+                <p>Brand: Growmexa &bull; Distribusi Obat</p>
               </div>
             </div>
 
@@ -343,8 +335,8 @@ export default function SignatureModal({
           </label>
         </main>
 
-        {/* Action Bar (Fixed Bottom) */}
-        <footer className="fixed bottom-0 left-0 right-0 w-full bg-white/95 backdrop-blur-md border-t border-outline-variant/20 shadow-[0_-1px_10px_rgba(0,0,0,0.05)] h-24 px-4 flex items-center justify-center pb-safe z-50">
+        {/* Action Bar (Fixed Bottom - Elevated z-index to z-[210] so it's NEVER covered) */}
+        <footer className="fixed bottom-0 left-0 right-0 w-full bg-white/95 backdrop-blur-md border-t border-outline-variant/20 shadow-[0_-4px_16px_rgba(0,0,0,0.12)] h-24 px-4 flex items-center justify-center pb-6 z-[210]">
           <button 
             type="button"
             onClick={handleSaveSignature}
@@ -352,7 +344,7 @@ export default function SignatureModal({
             className={`w-full h-12 text-white font-heading font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all duration-200 border-none cursor-pointer ${
               !hasSigned || !isDeclared
                 ? "bg-surface-container-high text-on-surface-variant/40 cursor-not-allowed shadow-none"
-                : "bg-primary text-white active:scale-95 active:bg-primary/90"
+                : "bg-primary text-white active:scale-95 active:bg-primary/90 shadow-primary/25"
             }`}
           >
             <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>lock</span>

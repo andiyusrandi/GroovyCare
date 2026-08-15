@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { Download, UploadCloud, CheckCircle, AlertTriangle, Clock, Search, Filter, FileSpreadsheet } from "lucide-react";
+import { Download, UploadCloud, CheckCircle, AlertTriangle, Clock, Search, Filter, FileSpreadsheet, FileText } from "lucide-react";
+import { canOpenEFaktur } from "./OrderDetailView";
 
 interface Batch {
   id: string;
@@ -67,6 +68,14 @@ export default function PurchaseHistoryView({
   const [selectedMonth, setSelectedMonth] = useState<string>("ALL");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+
+  // Unpaid Orders count for quick badge
+  const unpaidCount = useMemo(() => {
+    return orders.filter(
+      (o) => o.paymentStatus !== "PAID" && o.status !== "REJECTED" && o.status !== "CANCELLED"
+    ).length;
+  }, [orders]);
 
   // Generasi opsi bulan unik dari daftar transaksi
   const availableMonths = useMemo(() => {
@@ -92,9 +101,10 @@ export default function PurchaseHistoryView({
 
       // Filter Metode / Status
       if (methodFilter !== "ALL") {
-        if (methodFilter === "TOP" && o.paymentMethod !== "TOP") return false;
+        if (methodFilter === "TOP" && o.paymentMethod !== "TOP" && o.paymentMethod !== "CREDIT_LIMIT") return false;
         if (methodFilter === "INVOICE" && o.paymentMethod !== "INVOICE") return false;
         if (methodFilter === "VA" && o.paymentMethod !== "VA") return false;
+        if (methodFilter === "UNPAID" && (o.paymentStatus === "PAID" || o.status === "REJECTED" || o.status === "CANCELLED")) return false;
         if (methodFilter === "PAID" && o.paymentStatus !== "PAID") return false;
         if (methodFilter === "CANCELLED" && (o.status !== "REJECTED" && o.status !== "CANCELLED")) return false;
       }
@@ -135,7 +145,7 @@ export default function PurchaseHistoryView({
     });
   }, [orders]);
 
-  // CSV Export function (Mengekspor HANYA data yang sesuai dengan Filter Bulan/Tanggal)
+  // CSV Export function
   function exportToCSV() {
     if (filteredOrders.length === 0) {
       alert("Tidak ada data transaksi yang sesuai filter untuk diekspor.");
@@ -147,6 +157,7 @@ export default function PurchaseHistoryView({
       const dateStr = new Date(o.createdAt).toLocaleDateString("id-ID");
       const invNo = `INV/${o.orderNumber.replace("SP-", "")}`;
       const shipStr = o.shippingDate ? new Date(o.shippingDate).toLocaleDateString("id-ID") : "Belum Dikirim";
+
       return [
         `"${dateStr}"`,
         `"${invNo}"`,
@@ -181,149 +192,164 @@ export default function PurchaseHistoryView({
   }
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Title & Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6 animate-fadeIn pb-24 sm:pb-32 font-sans select-none">
+      {/* Title & Compact CSV Export Header */}
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-heading font-extrabold text-foreground">Transaksi Pembelian</h2>
-          <p className="text-xs text-on-surface-variant mt-0.5">Histori tagihan, limit kredit, invoice, dan status pembayaran tempo apotek.</p>
+          <h2 className="text-lg sm:text-xl font-heading font-extrabold text-foreground tracking-tight">Transaksi Pembelian</h2>
+          <p className="text-xs text-on-surface-variant mt-0.5 hidden sm:block">Histori tagihan, limit kredit, invoice, dan status pembayaran tempo apotek.</p>
         </div>
 
-        {/* Action Button: CSV Export */}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={exportToCSV}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer border-none"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>Ekspor CSV ({filteredOrders.length})</span>
-          </button>
-        </div>
+        {/* Action Button: CSV Export (Ringkas & Ikon di Mobile) */}
+        <button
+          type="button"
+          onClick={exportToCSV}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer border-none shrink-0"
+          title="Ekspor Rekap CSV"
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span className="hidden sm:inline">Ekspor CSV ({filteredOrders.length})</span>
+          <span className="inline sm:hidden">CSV ({filteredOrders.length})</span>
+        </button>
       </div>
 
       {/* Due Date Warning Alert Banner */}
       {dueAlertOrders.length > 0 && (
-        <div className="p-4 bg-amber-50 border border-amber-300/80 rounded-2xl flex items-start gap-3 text-xs text-amber-900 shadow-sm animate-pulse">
+        <div className="p-3.5 sm:p-4 bg-amber-50 border border-amber-300/80 rounded-2xl flex items-start gap-3 text-xs text-amber-900 shadow-2xs animate-pulse">
           <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <h4 className="font-bold text-amber-950">Peringatan Tagihan Mendekati / Melewati Jatuh Tempo</h4>
-            <p className="text-amber-800 leading-relaxed">
+            <p className="text-amber-800 leading-relaxed text-[11px] sm:text-xs">
               Terdapat <strong>{dueAlertOrders.length} pesanan</strong> dengan metode TOP/Invoice yang mendekati (H-3) atau telah melewati tanggal jatuh tempo. Mohon lakukan pelunasan untuk menjaga sisa Pagu Kredit Anda.
             </p>
           </div>
         </div>
       )}
 
-      {/* Filter & Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-outline-variant/20 space-y-3 shadow-sm">
-        {/* Row 1: Search & Main Filters */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-          {/* Search Input */}
-          <div className="relative w-full md:w-80">
+      {/* Filter & Search Bar Ergonomis Mobile */}
+      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-outline-variant/20 space-y-3 shadow-2xs">
+        {/* Search & Period Filter Drawer Button */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
             <Search className="w-4 h-4 text-outline absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Cari No Invoice / Order ID..."
+              placeholder="Cari Invoice / Order ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs font-sans text-foreground placeholder:text-outline-variant/60 focus:outline-none focus:border-primary transition-colors"
+              className="w-full pl-10 pr-3 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs font-sans text-foreground placeholder:text-outline-variant/60 focus:outline-none focus:border-primary transition-colors"
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            {/* Filter Bulan */}
-            <div className="flex items-center gap-1.5 flex-1 md:flex-none">
-              <span className="text-[11px] font-bold text-on-surface-variant shrink-0">Bulan:</span>
-              <select
-                value={selectedMonth}
-                onChange={(e) => {
-                  setSelectedMonth(e.target.value);
-                  if (e.target.value !== "ALL") {
+          <button
+            type="button"
+            onClick={() => setShowFilterDrawer(!showFilterDrawer)}
+            className={`px-3 py-2 border rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
+              showFilterDrawer || selectedMonth !== "ALL" || startDate || endDate
+                ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+                : "bg-surface-container-low border-outline-variant/30 text-on-surface-variant hover:text-foreground"
+            }`}
+          >
+            <Filter className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Periode</span>
+            {(selectedMonth !== "ALL" || startDate || endDate) && (
+              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+            )}
+          </button>
+        </div>
+
+        {/* Horizontal Chips Filter Status (Geser Kiri/Kanan) */}
+        <div className="flex overflow-x-auto hide-scrollbar whitespace-nowrap gap-1.5 -mx-1 px-1 pt-1 border-t border-slate-100">
+          {[
+            { id: "ALL", label: "Semua" },
+            { id: "UNPAID", label: `Belum Lunas ${unpaidCount > 0 ? `(${unpaidCount})` : ""}` },
+            { id: "PAID", label: "✓ Lunas" },
+            { id: "TOP", label: "Limit Kredit / TOP" },
+            { id: "CANCELLED", label: "Dibatalkan" },
+          ].map((chip) => (
+            <button
+              key={chip.id}
+              type="button"
+              onClick={() => setMethodFilter(chip.id)}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer shrink-0 border ${
+                methodFilter === chip.id
+                  ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                  : "bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100"
+              }`}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Expandable Filter Drawer (Bulan & Tanggal) */}
+        {showFilterDrawer && (
+          <div className="pt-3 border-t border-outline-variant/15 space-y-2.5 text-xs animate-fadeIn bg-slate-50/60 p-3 rounded-xl">
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-slate-700 shrink-0">Bulan:</span>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    setSelectedMonth(e.target.value);
+                    if (e.target.value !== "ALL") {
+                      setStartDate("");
+                      setEndDate("");
+                    }
+                  }}
+                  className="w-full sm:w-44 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-foreground cursor-pointer"
+                >
+                  <option value="ALL">Semua Bulan</option>
+                  {availableMonths.map((ym) => (
+                    <option key={ym} value={ym}>
+                      {formatMonthLabel(ym)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-bold text-slate-700 shrink-0">Tanggal:</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    if (e.target.value) setSelectedMonth("ALL");
+                  }}
+                  className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-mono text-foreground"
+                />
+                <span className="text-slate-400 text-xs">s/d</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    if (e.target.value) setSelectedMonth("ALL");
+                  }}
+                  className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-mono text-foreground"
+                />
+              </div>
+            </div>
+
+            {(startDate || endDate || selectedMonth !== "ALL" || searchQuery) && (
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSelectedMonth("ALL");
                     setStartDate("");
                     setEndDate("");
-                  }
-                }}
-                className="w-full md:w-44 px-3 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs font-bold text-foreground cursor-pointer focus:outline-none focus:border-primary"
-              >
-                <option value="ALL">Semua Bulan</option>
-                {availableMonths.map((ym) => (
-                  <option key={ym} value={ym}>
-                    {formatMonthLabel(ym)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Filter Metode / Status */}
-            <div className="flex items-center gap-1.5 flex-1 md:flex-none">
-              <Filter className="w-3.5 h-3.5 text-on-surface-variant shrink-0" />
-              <select
-                value={methodFilter}
-                onChange={(e) => setMethodFilter(e.target.value)}
-                className="w-full md:w-48 px-3 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs font-bold text-foreground cursor-pointer focus:outline-none focus:border-primary"
-              >
-                <option value="ALL">Semua Status</option>
-                <option value="TOP">Limit Kredit / TOP</option>
-                <option value="INVOICE">Invoice Billing</option>
-                <option value="VA">Instant VA / QRIS</option>
-                <option value="PAID">✓ Lunas</option>
-                <option value="CANCELLED">✗ Dibatalkan</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Row 2: Rentang Hari / Tanggal (Date Range Filter) */}
-        <div className="pt-2 border-t border-outline-variant/15 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[11px] font-bold text-on-surface-variant">Filter Hari/Tanggal:</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-outline font-medium">Dari:</span>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  if (e.target.value) setSelectedMonth("ALL");
-                }}
-                className="px-2.5 py-1.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-xs font-mono text-foreground focus:outline-none focus:border-primary"
-              />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-outline font-medium">S/d:</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  if (e.target.value) setSelectedMonth("ALL");
-                }}
-                className="px-2.5 py-1.5 bg-surface-container-low border border-outline-variant/30 rounded-lg text-xs font-mono text-foreground focus:outline-none focus:border-primary"
-              />
-            </div>
-
-            {(startDate || endDate || selectedMonth !== "ALL" || methodFilter !== "ALL" || searchQuery) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  setMethodFilter("ALL");
-                  setSelectedMonth("ALL");
-                  setStartDate("");
-                  setEndDate("");
-                }}
-                className="text-[11px] text-red-600 hover:text-red-700 font-bold underline cursor-pointer ml-1"
-              >
-                Reset Filter
-              </button>
+                  }}
+                  className="text-[11px] text-red-600 hover:text-red-700 font-bold underline cursor-pointer"
+                >
+                  Reset Filter Tanggal
+                </button>
+              </div>
             )}
           </div>
-
-          <div className="text-[11px] text-outline font-medium">
-            Menampilkan <strong className="text-foreground">{filteredOrders.length}</strong> dari {orders.length} Transaksi
-          </div>
-        </div>
+        )}
       </div>
 
       {/* DESKTOP VIEW: Ledger Table */}
@@ -349,12 +375,12 @@ export default function PurchaseHistoryView({
                   </td>
                 </tr>
               ) : (
-                orders.map((order) => {
+                filteredOrders.map((order) => {
                   const { total: orderTotal } = calculateOrderTotals(order);
                   const isPaid = order.paymentStatus === "PAID";
                   const isRejected = order.status === "REJECTED" || order.status === "CANCELLED";
 
-                  const isTopCredit = order.paymentMethod === "TOP";
+                  const isTopCredit = order.paymentMethod === "TOP" || order.paymentMethod === "CREDIT_LIMIT";
                   const isInvoiceBilling = order.paymentMethod === "INVOICE";
 
                   const topDays = order.institution?.topDays || 30;
@@ -379,7 +405,6 @@ export default function PurchaseHistoryView({
 
                   return (
                     <tr key={order.id} className="hover:bg-surface-container-low/20 transition-colors h-14">
-
                       {/* Tanggal */}
                       <td className="px-5 py-4 font-mono text-on-surface-variant">
                         {new Date(order.createdAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -421,7 +446,7 @@ export default function PurchaseHistoryView({
                         )}
                       </td>
 
-                      {/* Konfirmasi Bayar / Informasi Kredit / Action */}
+                      {/* Konfirmasi Bayar */}
                       <td className="px-5 py-4 text-center">
                         {isPaid ? (
                           <span className="text-[10px] text-emerald-600 font-bold flex items-center justify-center gap-0.5">
@@ -430,7 +455,6 @@ export default function PurchaseHistoryView({
                         ) : isRejected ? (
                           <span className="text-[10px] text-on-surface-variant/40 italic">-</span>
                         ) : isTopCredit ? (
-                          /* 1. CREDIT LIMIT / TOP: Memotong limit. Begitu dikirim/jalan, mitra boleh langsung pelunasan via payment gateway agar limit pulih */
                           isShippedOrDelivered ? (
                             <div className="flex flex-col items-center gap-1">
                               <div className="text-[9px] text-blue-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg font-mono font-semibold">
@@ -450,7 +474,6 @@ export default function PurchaseHistoryView({
                             </div>
                           )
                         ) : isInvoiceBilling ? (
-                          /* 2. INVOICE BILLING: Masa durasi per tempo. Tombol bayar baru MUNCUL jika sudah waktu jatuh tempo */
                           isOverdue || (shipDate && diffDays <= 0) ? (
                             <div className="flex flex-col items-center gap-1">
                               <span className="text-[9px] font-bold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full uppercase">
@@ -459,7 +482,7 @@ export default function PurchaseHistoryView({
                               <button
                                 type="button"
                                 onClick={() => handleMidtransPay?.(order)}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary hover:bg-primary/95 text-white rounded-xl text-[10px] font-bold shadow-md cursor-pointer border-none animate-pulse"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary hover:bg-primary/95 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer border-none animate-pulse"
                               >
                                 <span className="material-symbols-outlined text-[12px] text-white">payments</span> Bayar Sekarang (VA/QRIS)
                               </button>
@@ -497,17 +520,33 @@ export default function PurchaseHistoryView({
 
                       {/* Dokumen */}
                       <td className="px-5 py-4 text-center">
-                        {order.status === "DELIVERED" || order.status === "SHIPPED" ? (
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          {canOpenEFaktur(order) ? (
+                            <button
+                              type="button"
+                              onClick={() => setViewingFaktur(order)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold rounded-lg text-[10px] shadow-2xs cursor-pointer transition-all"
+                            >
+                              <Download className="w-3 h-3 text-emerald-600" /> e-Faktur
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => alert("e-Faktur terkunci. Dokumen e-Faktur hanya dapat dibuka jika pembayaran sudah LUNAS atau transaksi menggunakan metode Limit Kredit (Tempo).")}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-400 border border-slate-200 font-semibold rounded-lg text-[10px] opacity-75 cursor-pointer"
+                              title="e-Faktur Terkunci: Menunggu Pelunasan Pembayaran"
+                            >
+                              <span className="material-symbols-outlined text-[11px] text-amber-600">lock</span> e-Faktur
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => setViewingFaktur(order)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-surface-container-low border border-outline-variant/30 text-on-surface-variant hover:text-foreground font-bold rounded-lg text-[10px] shadow-sm cursor-pointer"
+                            onClick={() => setViewingDetailOrder(order)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-lg text-[10px] shadow-2xs cursor-pointer transition-all"
                           >
-                            <Download className="w-3 h-3 text-primary" /> e-Faktur
+                            <FileText className="w-3 h-3 text-slate-500" /> e-SP PDF
                           </button>
-                        ) : (
-                          <span className="text-[10px] text-on-surface-variant/40 italic">-</span>
-                        )}
+                        </div>
                       </td>
 
                       {/* Aksi */}
@@ -520,7 +559,6 @@ export default function PurchaseHistoryView({
                           Detail
                         </button>
                       </td>
-
                     </tr>
                   );
                 })
@@ -530,19 +568,19 @@ export default function PurchaseHistoryView({
         </div>
       </div>
 
-      {/* MOBILE VIEW: Cards */}
-      <div className="block md:hidden space-y-4">
-        {orders.length === 0 ? (
-          <div className="text-center py-12 bg-white border border-outline-variant/20 rounded-3xl text-on-surface-variant text-xs shadow-sm">
+      {/* MOBILE VIEW: Compact Ergonomic Cards */}
+      <div className="block md:hidden space-y-3">
+        {filteredOrders.length === 0 ? (
+          <div className="text-center py-10 bg-white border border-slate-200 rounded-2xl text-slate-500 text-xs shadow-2xs">
             Belum ada riwayat transaksi pembelian.
           </div>
         ) : (
-          orders.map((order) => {
+          filteredOrders.map((order) => {
             const { total: orderTotal } = calculateOrderTotals(order);
             const isPaid = order.paymentStatus === "PAID";
             const isRejected = order.status === "REJECTED" || order.status === "CANCELLED";
 
-            const isTopCredit = order.paymentMethod === "TOP";
+            const isTopCredit = order.paymentMethod === "TOP" || order.paymentMethod === "CREDIT_LIMIT";
             const isInvoiceBilling = order.paymentMethod === "INVOICE";
             const isShippedOrDelivered = order.status === "PENDING_SHIPPING" || order.status === "SHIPPED" || order.status === "DELIVERED";
 
@@ -550,7 +588,7 @@ export default function PurchaseHistoryView({
             const shipDate = order.shippingDate ? new Date(order.shippingDate) : null;
             let diffDays = topDays;
             let isOverdue = false;
-            let topTenorText = `Tenor ${topDays} Hari (Terhitung saat barang dikirim)`;
+            let topTenorText = `Sisa ${topDays} Hr`;
 
             if (shipDate) {
               const dueDate = new Date(shipDate.getTime() + topDays * 24 * 60 * 60 * 1000);
@@ -558,134 +596,154 @@ export default function PurchaseHistoryView({
               diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
               if (diffDays < 0) {
                 isOverdue = true;
-                topTenorText = `Jatuh Tempo! Overdue ${Math.abs(diffDays)} Hari`;
+                topTenorText = `Overdue ${Math.abs(diffDays)} Hr`;
               } else {
-                topTenorText = `Sisa ${diffDays} Hari Tempo (s/d ${dueDate.toLocaleDateString("id-ID", { day: 'numeric', month: 'short' })})`;
+                topTenorText = `Sisa ${diffDays} Hr`;
               }
             }
 
             return (
-              <div key={order.id} className="bg-white border border-outline-variant/30 rounded-2xl p-4 shadow-sm space-y-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-heading font-black text-sm text-foreground">INV/{order.orderNumber.replace("SP-", "")}</h4>
-                    <span className="text-[10px] text-outline font-mono block mt-0.5">
-                      {new Date(order.createdAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </span>
-                  </div>
+              <div key={order.id} className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-2xs space-y-2.5">
+                {/* Baris 1: No. Invoice (Kiri) & Badge Status (Kanan) */}
+                <div className="flex justify-between items-center gap-2">
+                  <h4 className="font-heading font-black text-xs sm:text-sm text-slate-900 tracking-tight">
+                    INV/{order.orderNumber.replace("SP-", "")}
+                  </h4>
                   <div>
                     {isPaid ? (
-                      <span className="inline-flex items-center text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full uppercase">
+                      <span className="inline-flex items-center text-[9px] font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full uppercase">
                         Lunas
                       </span>
                     ) : isRejected ? (
-                      <span className="inline-flex items-center text-[9px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full uppercase">
+                      <span className="inline-flex items-center text-[9px] font-extrabold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full uppercase">
                         Dibatalkan
                       </span>
                     ) : isTopCredit ? (
-                      <span className="inline-flex items-center text-[9px] font-bold text-blue-900 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full uppercase">
-                        Pagu Kredit / TOP
+                      <span className="inline-flex items-center text-[9px] font-extrabold text-blue-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full uppercase">
+                        Limit Kredit ({topTenorText})
                       </span>
                     ) : isInvoiceBilling ? (
-                      <span className="inline-flex items-center text-[9px] font-bold text-purple-900 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full uppercase">
-                        Invoice Billing
+                      <span className="inline-flex items-center text-[9px] font-extrabold text-purple-900 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full uppercase">
+                        Invoice ({topTenorText})
                       </span>
                     ) : (
-                      <span className="inline-flex items-center text-[9px] font-bold text-red-800 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full uppercase animate-pulse">
+                      <span className="inline-flex items-center text-[9px] font-extrabold text-red-800 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full uppercase animate-pulse">
                         {order.paymentMethod === "COD" ? "COD" : "VA"} / Belum Lunas
                       </span>
                     )}
                   </div>
                 </div>
 
-                {/* Info: Total Billing */}
-                <div className="flex justify-between items-center py-2.5 border-y border-outline-variant/10 text-xs">
-                  <span className="text-on-surface-variant font-bold">Total Tagihan:</span>
-                  <span className="text-primary font-black font-mono">Rp {orderTotal.toLocaleString("id-ID")}</span>
+                {/* Baris 2: Tanggal Transaksi & Total Tagihan (Kontras & Tebal) */}
+                <div className="flex justify-between items-center text-xs py-1.5 border-y border-slate-100">
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {new Date(order.createdAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 font-medium mr-1">Total:</span>
+                    <span className="text-slate-900 font-extrabold font-mono text-xs sm:text-sm">
+                      Rp {orderTotal.toLocaleString("id-ID")}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Actions: Payments & Documents */}
-                <div className="flex flex-col gap-2 pt-1">
-                  {!isPaid && !isRejected && (
-                    <div>
-                      {isTopCredit ? (
-                        isShippedOrDelivered ? (
-                          <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-2xl space-y-2">
-                            <div className="flex justify-between items-center text-[10px] font-bold text-blue-900">
-                              <span>Potong Pagu Kredit (TOP)</span>
-                              <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-[9px]">{topTenorText}</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleMidtransPay?.(order)}
-                              className="w-full py-2 bg-primary hover:bg-primary/95 text-white rounded-xl text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 cursor-pointer border-none"
-                            >
-                              <span className="material-symbols-outlined text-[16px] text-white">payments</span>
-                              <span>Lunasi TOP (VA/QRIS)</span>
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="p-2.5 bg-blue-50/80 border border-blue-200 rounded-xl text-[10px] text-blue-900 font-bold text-center">
-                            Potong Limit Kredit (Menunggu Barang Dikirim)
-                          </div>
-                        )
-                      ) : isInvoiceBilling ? (
-                        isOverdue || (shipDate && diffDays <= 0) ? (
-                          <div className="p-3 bg-red-50/80 border border-red-200 rounded-2xl space-y-2">
-                            <div className="flex justify-between items-center text-[10px] font-bold text-red-900">
-                              <span>Invoice Billing (Jatuh Tempo!)</span>
-                              <span className="bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-[9px]">Terlambat {Math.abs(diffDays)} Hari</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleMidtransPay?.(order)}
-                              className="w-full py-2.5 bg-primary hover:bg-primary/95 text-white rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-1.5 cursor-pointer border-none animate-pulse"
-                            >
-                              <span className="material-symbols-outlined text-[16px] text-white">payments</span>
-                              <span>Bayar Sekarang (VA/QRIS)</span>
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="p-2.5 bg-purple-50/80 border border-purple-200 rounded-xl text-[10px] text-purple-900 font-bold text-center">
-                            Invoice Billing ({topTenorText})
-                          </div>
-                        )
-                      ) : order.paymentProofUrl ? (
-                        <div className="flex items-center justify-center gap-1.5 py-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-bold w-full">
-                          <Clock className="w-3.5 h-3.5 animate-spin" />
-                          <span>Menunggu Review Keuangan</span>
-                        </div>
-                      ) : order.paymentMethod === "VA" ? (
-                        <button
-                          type="button"
-                          onClick={() => handleMidtransPay?.(order)}
-                          className="w-full py-2.5 bg-primary hover:bg-primary/95 text-white rounded-xl text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 cursor-pointer border-none"
-                        >
-                          <span className="material-symbols-outlined text-[16px] text-white">payments</span>
-                          <span>Bayar via VA / QRIS</span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedOrderForPayment(order)}
-                          className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 cursor-pointer border-none"
-                        >
-                          <UploadCloud className="w-3.5 h-3.5" />
-                          <span>Upload Bukti Bayar</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
+                {/* Baris 3: Tombol Aksi Sejajar (Grid 2 Kolom Kompak) */}
+                <div className="grid grid-cols-2 gap-2 pt-0.5">
+                  {/* Tombol Kiri: Detail Pesanan */}
+                  <button
+                    type="button"
+                    onClick={() => setViewingDetailOrder(order)}
+                    className="w-full py-2 bg-slate-50 hover:bg-slate-100 active:scale-95 text-slate-800 rounded-xl font-bold transition-all text-xs border border-slate-200 flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Detail</span>
+                  </button>
 
-                  <div className="flex gap-2">
+                  {/* Tombol Kanan: Bayar VA / QRIS / Lunasi / e-Faktur */}
+                  {isPaid ? (
+                    canOpenEFaktur(order) ? (
+                      <button
+                        type="button"
+                        onClick={() => setViewingFaktur(order)}
+                        className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-800 rounded-xl font-bold transition-all text-xs border border-emerald-200 flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>e-Faktur</span>
+                      </button>
+                    ) : (
+                      <div className="w-full py-2 bg-emerald-50 text-emerald-800 rounded-xl font-bold text-xs flex items-center justify-center gap-1 border border-emerald-200">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Lunas</span>
+                      </div>
+                    )
+                  ) : isRejected ? (
+                    <div className="w-full py-2 bg-slate-100 text-slate-500 rounded-xl font-bold text-xs flex items-center justify-center border border-slate-200">
+                      <span>Dibatalkan</span>
+                    </div>
+                  ) : isTopCredit ? (
+                    isShippedOrDelivered ? (
+                      <button
+                        type="button"
+                        onClick={() => handleMidtransPay?.(order)}
+                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer border-none shadow-2xs"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">payments</span>
+                        <span>Lunasi TOP</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setViewingFaktur(order)}
+                        className="w-full py-2 bg-blue-50 hover:bg-blue-100 active:scale-95 text-blue-900 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border border-blue-200 cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5 text-blue-700" />
+                        <span>e-Faktur</span>
+                      </button>
+                    )
+                  ) : isInvoiceBilling ? (
+                    isOverdue || (shipDate && diffDays <= 0) ? (
+                      <button
+                        type="button"
+                        onClick={() => handleMidtransPay?.(order)}
+                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer border-none shadow-2xs animate-pulse"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">payments</span>
+                        <span>Bayar VA</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setViewingFaktur(order)}
+                        className="w-full py-2 bg-purple-50 hover:bg-purple-100 active:scale-95 text-purple-900 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border border-purple-200 cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5 text-purple-700" />
+                        <span>e-Faktur</span>
+                      </button>
+                    )
+                  ) : order.paymentProofUrl ? (
+                    <div className="w-full py-2 bg-amber-50 text-amber-800 rounded-xl font-bold text-[11px] flex items-center justify-center gap-1 border border-amber-200">
+                      <Clock className="w-3.5 h-3.5 animate-spin text-amber-600" />
+                      <span>Review CS</span>
+                    </div>
+                  ) : order.paymentMethod === "VA" ? (
                     <button
                       type="button"
-                      onClick={() => setViewingDetailOrder(order)}
-                      className="w-full py-2.5 bg-surface-container-high hover:bg-surface-variant text-on-surface rounded-xl font-bold transition-all text-xs border-none cursor-pointer"
+                      onClick={() => handleMidtransPay?.(order)}
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer border-none shadow-2xs"
                     >
-                      Detail Pesanan
+                      <span className="material-symbols-outlined text-[14px]">payments</span>
+                      <span>Bayar VA/QRIS</span>
                     </button>
-                  </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedOrderForPayment(order)}
+                      className="w-full py-2 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer border-none shadow-2xs"
+                    >
+                      <UploadCloud className="w-3.5 h-3.5" />
+                      <span>Upload Bukti</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );

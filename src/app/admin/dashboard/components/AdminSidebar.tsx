@@ -163,7 +163,8 @@ export default function AdminSidebar({
               <span className="truncate">Keuangan</span>
             </div>
             {pendingPaymentsCount > 0 && (
-              <span className="bg-primary text-white font-extrabold px-2 py-0.5 rounded-full text-[9px] shrink-0 ml-2">
+              <span className="bg-amber-500 text-white font-extrabold px-2 py-0.5 rounded-full text-[9px] shrink-0 ml-2 animate-pulse shadow-2xs flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
                 {pendingPaymentsCount}
               </span>
             )}

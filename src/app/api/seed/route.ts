@@ -32,7 +32,7 @@ export async function GET() {
       data: [
         {
           key: "logo_url",
-          value: "https://res.cloudinary.com/rumahhostcom/image/upload/v1785256133/IMG_20260725_184829_670_odzsui.png",
+          value: "https://res.cloudinary.com/rumahhostcom/image/upload/v1785321525/logo_care_fcfgwq.png",
         },
         {
           key: "app_name",

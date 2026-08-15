@@ -194,13 +194,14 @@ export default function PartnerDetailClient({
 
   // Sidebar Counts
   const pendingApprovalsCount = allOrders.filter((o: any) => o.status === "PENDING_APPROVAL").length;
-  const pendingPaymentsCount = allOrders.filter((o: any) => o.paymentStatus === "PENDING_VERIFICATION").length;
+  const pendingPaymentsCount = allOrders.filter((o: any) => o.paymentStatus !== "PAID" && o.status !== "REJECTED" && o.status !== "CANCELLED").length;
   const pendingLogisticsCount = allOrders.filter((o: any) => o.status === "PENDING_SHIPPING").length;
   const pendingPartnersCount = allPartners.filter((p: any) => !p.isActive).length;
 
   const handleSetActiveTab = (tab: string) => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("admin_active_tab", tab);
+      const validAdminTab = ["overview", "kemitraan", "obat", "cdob", "logistik", "pembayaran", "riwayat", "pelaporan", "superadmin"].includes(tab) ? tab : "kemitraan";
+      localStorage.setItem("admin_active_tab", validAdminTab);
     }
     router.push("/admin/dashboard");
   };

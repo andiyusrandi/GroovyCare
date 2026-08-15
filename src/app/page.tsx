@@ -43,7 +43,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
   const logoSetting = await prisma.systemSetting.findUnique({
     where: { key: "logo_url" },
   });
-  const logoUrl = logoSetting?.value || "https://res.cloudinary.com/rumahhostcom/image/upload/v1785256133/IMG_20260725_184829_670_odzsui.png";
+  const logoUrl = logoSetting?.value || "https://res.cloudinary.com/rumahhostcom/image/upload/v1785321525/logo_care_fcfgwq.png";
 
   const showHeroCardsSetting = await prisma.systemSetting.findUnique({
     where: { key: "show_hero_cards" },
@@ -151,21 +151,36 @@ export default async function LandingPage({ searchParams }: PageProps) {
         </div>
       </nav>
 
-      {/* Mobile Navigation Header */}
-      <header className="sticky top-0 w-full z-50 bg-white/80 backdrop-blur-md shadow-sm h-16 flex md:hidden justify-between items-center px-4 border-b border-outline-variant/15">
+      {/* Mobile Navigation Header (Native Android M3 Top App Bar) */}
+      <header className="sticky top-0 z-40 w-full bg-white/90 backdrop-blur-xl border-b border-slate-100/80 shadow-2xs h-14 flex md:hidden items-center justify-between px-4 transition-all">
+        {/* Sisi Kiri: Logo & Badge CDOB */}
+        <Link className="flex items-center gap-2 active:scale-95 transition-transform no-underline" href="/">
+          <img
+            alt="Logo PBF Online GroovyCare"
+            className="h-7 w-auto object-contain"
+            src={logoUrl}
+          />
+          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-200/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            CDOB
+          </span>
+        </Link>
+
+        {/* Sisi Kanan: Action Buttons */}
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary font-bold">medical_services</span>
-          <span className="font-heading font-extrabold text-sm text-primary">PBF Online</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href="/login" className="px-3.5 py-1.5 bg-primary text-white text-[10px] font-bold rounded-lg shadow-sm shadow-primary/10">
-            Masuk
+          {/* Tombol Masuk bergaya Pill Native Android */}
+          <Link
+            className="px-4 py-1.5 bg-emerald-800 hover:bg-emerald-900 active:scale-95 text-white text-xs font-bold rounded-full shadow-xs transition-all no-underline flex items-center gap-1.5"
+            href="/login"
+          >
+            <span className="material-symbols-outlined text-[15px]">login</span>
+            <span>Masuk</span>
           </Link>
         </div>
       </header>
 
       {/* Main Content */}
-      <main id="main-content" className="flex-1">
+      <main id="main-content" className="flex-1 pb-28 sm:pb-32 font-sans">
         <section
           className="hidden md:block relative overflow-hidden bg-cover bg-center pt-24 pb-20 lg:pt-36 lg:pb-28"
           style={{
@@ -785,21 +800,38 @@ export default async function LandingPage({ searchParams }: PageProps) {
           </div>
         </section>
 
-        {/* Mobile CTA Section */}
-        <section className="block md:hidden px-6 py-16 text-center bg-slate-50/50">
-          <h2 className="font-heading font-extrabold text-2xl mb-4 text-slate-800">Siap Mengakselerasi Bisnis Farmasi Anda?</h2>
-          <p className="text-xs text-on-surface-variant mb-8 max-w-sm mx-auto leading-relaxed">Gabung dengan ribuan apotek dan klinik yang telah mendigitalisasi pengadaannya secara otomatis.</p>
-          <Link
-            href="/register"
-            className="block w-full bg-primary text-white py-4 rounded-2xl text-xs font-bold shadow-md shadow-primary/10 active:scale-95 transition-all text-center"
-          >
-            Daftar Sekarang
-          </Link>
-          <p className="mt-4 text-[10px] text-on-surface-variant font-medium">Tanpa biaya pendaftaran. Mulai dalam 5 menit.</p>
+        {/* Mobile CTA Section (Modern Native Card) */}
+        <section className="block md:hidden px-4 py-8 max-w-4xl mx-auto">
+          <div className="bg-gradient-to-br from-emerald-900 to-slate-900 rounded-3xl p-6 text-white text-center space-y-4 shadow-lg relative overflow-hidden">
+            {/* Glow Effect Khas Mobile Modern */}
+            <div className="absolute -right-8 -top-8 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none"></div>
+
+            <div className="relative z-10 space-y-2">
+              <h2 className="text-lg sm:text-xl font-extrabold tracking-tight font-heading leading-snug">
+                Siap Mengakselerasi Bisnis Farmasi Anda?
+              </h2>
+              <p className="text-xs text-slate-300 font-medium leading-relaxed max-w-sm mx-auto">
+                Gabung dengan ribuan apotek dan klinik yang telah mendigitalisasi pengadaan obat secara otomatis.
+              </p>
+            </div>
+
+            <div className="relative z-10 space-y-2 pt-1">
+              <Link
+                href="/register"
+                className="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-slate-950 font-extrabold text-xs py-3.5 px-4 rounded-2xl flex items-center justify-center gap-2 transition-all text-decoration-none shadow-md shadow-emerald-950/40"
+              >
+                <span className="material-symbols-outlined text-base">how_to_reg</span>
+                <span>Daftar Sarana Sekarang</span>
+              </Link>
+              <p className="text-[10px] text-slate-400 font-medium">
+                Tanpa biaya pendaftaran • Mulai dalam 5 menit
+              </p>
+            </div>
+          </div>
         </section>
       </main>
 
-      {/* Footer */}
+      {/* Footer Desktop */}
       <footer id="about" className="hidden md:block w-full bg-surface-container-low border-t border-outline-variant/30">
         <div className="flex flex-col md:flex-row justify-between items-start px-8 py-16 max-w-7xl mx-auto gap-8">
           <div className="mb-8 md:mb-0 max-w-sm space-y-4">
@@ -833,42 +865,47 @@ export default async function LandingPage({ searchParams }: PageProps) {
               <h4 className="font-heading font-bold text-xs uppercase tracking-widest text-primary">Company</h4>
               <ul className="space-y-2.5 text-xs text-on-surface-variant font-medium">
                 <li>
-                  <Link className="hover:text-primary transition-colors" href="#">
+                  <Link className="hover:text-primary transition-colors" href="/about">
                     About Us
                   </Link>
                 </li>
                 <li>
-                  <Link className="hover:text-primary transition-colors" href="#">
+                  <Link className="hover:text-primary transition-colors" href="/contact">
                     Contact Support
                   </Link>
                 </li>
                 <li>
-                  <Link className="hover:text-primary transition-colors" href="#">
+                  <Link className="hover:text-primary transition-colors" href="/career">
                     Career
+                  </Link>
+                </li>
+                <li>
+                  <Link className="hover:text-primary transition-colors" href="/legal">
+                    Legal
                   </Link>
                 </li>
               </ul>
             </div>
             <div className="space-y-4">
-              <h4 className="font-heading font-bold text-xs uppercase tracking-widest text-primary">Legal</h4>
+              <h4 className="font-heading font-bold text-xs uppercase tracking-widest text-primary">Legal &amp; Compliance</h4>
               <ul className="space-y-2.5 text-xs text-on-surface-variant font-medium">
                 <li>
-                  <Link className="hover:text-primary transition-colors" href="#">
+                  <Link className="hover:text-primary transition-colors" href="/terms">
                     Terms of Service
                   </Link>
                 </li>
                 <li>
-                  <Link className="hover:text-primary transition-colors" href="#">
+                  <Link className="hover:text-primary transition-colors" href="/privacy">
                     Privacy Policy
                   </Link>
                 </li>
                 <li>
-                  <Link className="hover:text-primary transition-colors" href="#">
+                  <Link className="hover:text-primary transition-colors" href="/certificates">
                     Compliance Certificates
                   </Link>
                 </li>
                 <li>
-                  <Link className="hover:text-primary transition-colors" href="#">
+                  <Link className="hover:text-primary transition-colors" href="/quality-assurance">
                     Quality Assurance
                   </Link>
                 </li>
@@ -887,28 +924,85 @@ export default async function LandingPage({ searchParams }: PageProps) {
         </div>
       </footer>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 w-full flex md:hidden justify-around items-center px-4 py-3 pb-safe bg-white/80 backdrop-blur-md border-t border-outline-variant/15 z-50 shadow-lg">
+      {/* Footer Mobile (Clean Tonal Light Surface) */}
+      <footer className="block md:hidden bg-slate-50 border-t border-slate-200/80 pt-6 pb-28 px-4 font-sans text-center">
+        <div className="max-w-md mx-auto space-y-4">
+          {/* Brand & Badge CDOB */}
+          <div className="flex items-center justify-center gap-2">
+            <span className="font-extrabold text-slate-800 text-sm tracking-tight font-heading">GroovyCare PBF System</span>
+            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200 uppercase tracking-wider">
+              CDOB
+            </span>
+          </div>
+
+          {/* Izin Resmi & Keterangan Singkat */}
+          <div className="space-y-0.5">
+            <p className="text-[11px] font-bold font-mono text-slate-600">
+              Izin Resmi: 123/PBF/KEMENKES/2023
+            </p>
+            <p className="text-[10px] text-slate-500 font-medium leading-relaxed max-w-xs mx-auto">
+              Distributor Resmi Kefarmasian &amp; Sediaan Obat Terakreditasi BPOM
+            </p>
+          </div>
+
+          {/* Divider Halus */}
+          <div className="w-16 h-0.5 bg-slate-200 mx-auto rounded-full"></div>
+
+          {/* Navigasi Link Ringkas & Touch-Friendly */}
+          <div className="flex flex-wrap justify-center items-center gap-x-3 gap-y-1.5 text-xs font-semibold text-slate-600">
+            <Link className="hover:text-emerald-700 active:text-emerald-800 transition-colors py-1 text-decoration-none" href="/about">
+              Tentang Kami
+            </Link>
+            <span className="text-slate-300">•</span>
+            <Link className="hover:text-emerald-700 active:text-emerald-800 transition-colors py-1 text-decoration-none" href="/terms">
+              Syarat &amp; Ketentuan
+            </Link>
+            <span className="text-slate-300">•</span>
+            <Link className="hover:text-emerald-700 active:text-emerald-800 transition-colors py-1 text-decoration-none" href="/privacy">
+              Privasi
+            </Link>
+            <span className="text-slate-300">•</span>
+            <Link className="hover:text-emerald-700 active:text-emerald-800 transition-colors py-1 text-decoration-none" href="/contact">
+              Bantuan APJ
+            </Link>
+          </div>
+
+          {/* Copyright */}
+          <p className="text-[10px] font-medium text-slate-500 pt-1">
+            &copy; {new Date().getFullYear()} PT GroovyRx Pharmaceutical Group.
+          </p>
+        </div>
+      </footer>
+
+      {/* Mobile Bottom Navigation (Native M3 4-Tab Bar) */}
+      <nav className="fixed bottom-0 left-0 w-full flex md:hidden items-center justify-around px-2 py-2 pb-safe bg-white/95 backdrop-blur-md border-t border-slate-200/80 z-50 shadow-lg font-sans">
         <Link
-          className="flex flex-col items-center justify-center text-primary font-bold bg-primary/10 rounded-full px-5 py-1.5 active:scale-95 transition-all text-xs"
+          className="flex flex-col items-center justify-center text-emerald-800 font-bold bg-emerald-100/70 rounded-full px-4 py-1 active:scale-95 transition-all text-xs text-decoration-none"
+          href="/"
+        >
+          <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>home</span>
+          <span className="text-[9px] mt-0.5 font-bold">Beranda</span>
+        </Link>
+        <Link
+          className="flex flex-col items-center justify-center text-slate-600 hover:text-emerald-700 active:scale-95 transition-all text-xs p-1.5 text-decoration-none"
           href="/register"
         >
-          <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>how_to_reg</span>
-          <span className="text-[10px] mt-0.5 font-bold">Daftar</span>
-        </Link>
-        <Link
-          className="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-all text-xs p-2"
-          href="#katalog"
-        >
           <span className="material-symbols-outlined text-[20px]">medical_services</span>
-          <span className="text-[10px] mt-0.5">Katalog</span>
+          <span className="text-[9px] mt-0.5 font-medium">Katalog</span>
         </Link>
         <Link
-          className="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-all text-xs p-2"
+          className="flex flex-col items-center justify-center text-slate-600 hover:text-emerald-700 active:scale-95 transition-all text-xs p-1.5 text-decoration-none"
+          href="/about"
+        >
+          <span className="material-symbols-outlined text-[20px]">info</span>
+          <span className="text-[9px] mt-0.5 font-medium">Tentang</span>
+        </Link>
+        <Link
+          className="flex flex-col items-center justify-center text-slate-600 hover:text-emerald-700 active:scale-95 transition-all text-xs p-1.5 text-decoration-none"
           href="/login"
         >
-          <span className="material-symbols-outlined text-[20px]">login</span>
-          <span className="text-[10px] mt-0.5">Masuk</span>
+          <span className="material-symbols-outlined text-[20px]">account_circle</span>
+          <span className="text-[9px] mt-0.5 font-medium">Masuk</span>
         </Link>
       </nav>
     </div>

@@ -46,8 +46,8 @@ if [ "$1" = "push" ]; then
         exit 1
     fi
 
-    echo "⚡ 3. Merestart Server PM2 di VPS..."
-    ssh growmexa "cd $VPS_PATH && npm install --production=false && npx prisma generate && (pm2 restart groovycare || pm2 start npm --name 'groovycare' -- start) && pm2 save"
+    echo "⚡ 3. Menyinkronkan Database & Merestart Server PM2 di VPS..."
+    ssh growmexa "cd $VPS_PATH && npm install --production=false && npx prisma db push && npx prisma generate && (pm2 restart groovycare || pm2 start npm --name 'groovycare' -- start) && pm2 save"
 
     if [ $? -eq 0 ]; then
         echo ""
