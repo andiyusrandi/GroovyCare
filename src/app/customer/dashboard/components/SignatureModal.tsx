@@ -177,119 +177,122 @@ export default function SignatureModal({
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. MOBILE VIEW: Regulatory Approval Document Screen                       */}
+      {/* 2. MOBILE VIEW: Regulatory Approval Document Screen (Flex Architecture)   */}
       {/* ========================================================================= */}
-      <div className="block md:hidden w-full min-h-screen bg-slate-50 flex flex-col relative pb-36">
-        {/* TopAppBar (Elevated z-index z-[210]) */}
-        <header className="fixed top-0 left-0 right-0 w-full z-[210] bg-white/95 backdrop-blur-md shadow-sm h-16 flex items-center justify-between px-4">
-          <div className="flex items-center gap-4">
+      <div className="block md:hidden fixed inset-0 z-[9999] bg-slate-50 flex flex-col font-sans overflow-hidden">
+        {/* TopAppBar (Non-overlapping Flex Shrink-0 Header) */}
+        <header className="h-14 bg-white border-b border-slate-200/80 shadow-2xs px-4 flex items-center justify-between shrink-0 z-10">
+          <div className="flex items-center gap-3">
             <button 
               type="button"
               onClick={() => setIsDrawingModalOpen(false)}
-              className="active:scale-95 transition-transform text-primary p-1 border-none bg-transparent cursor-pointer flex items-center justify-center"
+              className="active:scale-95 transition-transform text-slate-800 p-1 border-none bg-transparent cursor-pointer flex items-center justify-center"
             >
               <span className="material-symbols-outlined text-xl">arrow_back</span>
             </button>
-            <h1 className="font-heading font-black text-sm text-primary">Konfirmasi e-Sign SP</h1>
+            <h1 className="font-heading font-black text-sm text-slate-900">Konfirmasi e-Sign SP</h1>
           </div>
-          <div className="text-on-surface-variant flex items-center justify-center">
-            <span className="material-symbols-outlined text-lg">help_outline</span>
-          </div>
+          <button
+            type="button"
+            onClick={() => setIsDrawingModalOpen(false)}
+            className="text-slate-400 hover:text-slate-600 border-none bg-transparent cursor-pointer flex items-center justify-center p-1"
+          >
+            <span className="material-symbols-outlined text-lg">close</span>
+          </button>
         </header>
 
-        {/* Content Container */}
-        <main className="pt-20 px-4 space-y-6 flex-grow">
-          {/* Order Summary Card */}
-          <section className="bg-white rounded-2xl p-4 border border-outline-variant/30 flex items-center justify-between shadow-sm">
-            <div>
-              <p className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Order ID</p>
-              <p className="font-heading font-black text-sm text-on-surface">{orderId}</p>
+        {/* Content Container (Independent Scroll, Scroll Affordance UX) */}
+        <main className="flex-1 overflow-y-auto p-4 space-y-3.5 select-none pb-36 font-sans scroll-smooth">
+          
+          {/* 1. Quick Info Bar */}
+          <section className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-2xs flex items-center justify-between">
+            <div className="space-y-0.5">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Order ID</span>
+              <p className="font-mono font-black text-xs text-slate-900 leading-none">{orderId}</p>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] text-on-surface-variant font-medium">
+            <div className="text-right flex items-center gap-2">
+              <span className="text-[10px] font-semibold text-slate-400">
                 {new Date().toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}
-              </p>
-              <p className="text-[10px] text-primary font-bold">{totalItems} Item Produk</p>
+              </span>
+              <span className="text-[9.5px] font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                {totalItems} Item
+              </span>
             </div>
           </section>
 
-          {/* Document Preview Sheet */}
-          <section className="document-shadow bg-white rounded-2xl border border-outline-variant/30 p-5 space-y-4">
-            <div className="flex justify-between items-start border-b border-surface-variant/40 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>medical_services</span>
-                <span className="font-heading font-black text-sm text-primary uppercase">PBF Online</span>
+          {/* 2. Dokumen Surat Pesanan (Clean & Compact Sheet) */}
+          <section className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-4 space-y-3 relative">
+            {/* Header Dokumen */}
+            <div className="flex justify-between items-center border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-emerald-700 text-base">verified_user</span>
+                <span className="font-heading font-black text-xs text-slate-900 tracking-tight">SURAT PESANAN (SP)</span>
               </div>
-              <div className="text-[8px] text-right text-on-surface-variant leading-tight">
-                <p className="font-bold">PT. GROOVYRX PHARMACEUTICAL GROUP</p>
-                <p>Brand: Growmexa &bull; Distribusi Obat</p>
-              </div>
+              <span className="font-mono text-[9.5px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200/60">
+                {spNumber}
+              </span>
             </div>
 
-            {/* Document Title */}
-            <div className="text-center py-1">
-              <h2 className="font-heading font-black text-xs uppercase tracking-widest text-on-surface">Surat Pesanan</h2>
-              <p className="text-[9px] text-on-surface-variant font-bold">Nomor: {spNumber}</p>
-            </div>
-
-            {/* APJ / Apotek Details */}
-            <div className="text-[11px] text-on-surface leading-relaxed space-y-2">
-              <p>Yang bertanda tangan di bawah ini, Apoteker Penanggung Jawab dari:</p>
-              <div className="bg-surface-container-low p-3 rounded-xl border border-outline-variant/20">
-                <p className="font-bold text-foreground text-xs">{institution.name}</p>
-                <p className="text-on-surface-variant text-[10px] italic mt-0.5">SIA: {institution.registrationNumber || "442/091/DINKES/2021"}</p>
+            {/* Data APJ & Apotek */}
+            <div className="bg-slate-50/90 rounded-2xl p-2.5 border border-slate-100 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Apoteker / Pemesan</p>
+                <p className="font-extrabold text-xs text-slate-900 leading-none">{institution.name}</p>
+                <p className="text-[9.5px] text-slate-500 font-mono">SIA: {institution.registrationNumber || "442/091/DINKES/2021"}</p>
               </div>
-              <p>Memesan obat-obatan di bawah ini sesuai dengan pedoman <strong>Cara Distribusi Obat yang Baik (CDOB)</strong>:</p>
+              <span className="bg-emerald-100/80 text-emerald-800 text-[8px] font-black px-2 py-0.5 rounded-md border border-emerald-200 uppercase">
+                CDOB Valid
+              </span>
             </div>
 
-            {/* Ordered Items Table */}
-            <div className="space-y-1.5 pt-2">
+            {/* Item Obat */}
+            <div className="space-y-1">
+              <p className="text-[9.5px] text-slate-400 font-bold uppercase tracking-wide">Daftar Pesanan:</p>
               {cart.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-start gap-2 border-b border-surface-variant/20 py-1.5 text-[11px] font-bold">
-                  <span className="text-on-surface-variant flex-1 leading-snug">
+                <div key={idx} className="bg-slate-50/50 rounded-xl p-2 border border-slate-100 flex items-center justify-between gap-2 text-xs font-semibold">
+                  <span className="text-slate-800 text-[11px] leading-snug line-clamp-1">
                     {idx + 1}. {item.product.name}
                   </span>
-                  <span className="font-mono text-primary shrink-0">{item.quantity} {item.product.unit.split(" ")[0]}</span>
+                  <span className="font-mono font-black text-emerald-800 bg-white px-2 py-0.5 rounded border border-slate-200 shrink-0 text-[10px]">
+                    {item.quantity} {item.product.unit.split(" ")[0]}
+                  </span>
                 </div>
               ))}
             </div>
 
-            {/* Legal Footnote */}
-            <div className="pt-3 text-[9px] text-on-surface-variant/60 italic leading-snug">
-              * Dokumen ini dibuat secara elektronik dan sah menurut hukum yang berlaku di Republik Indonesia (UU ITE).
-            </div>
+            <p className="text-[8.5px] text-slate-400 italic text-center pt-0.5">
+              Sah secara hukum (UU ITE) dan sesuai standar CDOB BPOM.
+            </p>
           </section>
 
-          {/* Regulatory Notice */}
-          <section className="bg-primary-container/10 border-l-4 border-primary p-4 rounded-r-2xl flex gap-3 shadow-sm">
-            <span className="material-symbols-outlined text-primary shrink-0 text-lg">gavel</span>
-            <div className="space-y-1">
-              <p className="font-heading font-black text-xs text-on-primary-container leading-none">Pemberitahuan Regulasi</p>
-              <p className="text-[10px] text-on-surface-variant font-medium leading-relaxed">
-                Tanda tangan elektronik ini setara dengan tanda tangan basah dan wajib dilakukan oleh APJ sesuai regulasi BPOM CDOB.
-              </p>
-            </div>
-          </section>
+          {/* 3. Scroll Affordance Banner (Mendorong User Melanjutkan ke TTD) */}
+          <div className="flex items-center justify-center gap-1.5 py-1 text-emerald-800 animate-bounce">
+            <span className="material-symbols-outlined text-xs">arrow_downward</span>
+            <span className="text-[10.5px] font-extrabold tracking-wide">Goreskan Tanda Tangan di Bawah</span>
+          </div>
 
-          {/* Signature Area */}
-          <section className="space-y-3 pb-8">
-            <div className="flex justify-between items-end">
-              <label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wide">Tanda Tangan Apoteker</label>
-              <button 
+          {/* 4. Area Tanda Tangan Digital APJ */}
+          <section className="bg-white rounded-3xl p-4 border border-slate-200/90 shadow-2xs space-y-2.5">
+            <div className="flex justify-between items-center">
+              <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-emerald-700 text-sm">draw</span>
+                E-Sign APJ
+              </label>
+              <button
                 type="button"
                 onClick={loadSavedSignature}
-                className="text-primary font-bold text-[10px] active:scale-95 transition-all border-none bg-transparent cursor-pointer hover:underline"
+                className="text-emerald-800 font-extrabold text-[10.5px] hover:underline active:scale-95 transition cursor-pointer border-none bg-transparent"
               >
-                Gunakan Tanda Tangan Tersimpan
+                Gunakan Tersimpan
               </button>
             </div>
-            
-            {/* Signature Pad */}
-            <div className="relative w-full h-48 bg-white border-2 border-dashed border-outline-variant/60 rounded-2xl signature-pad-grid flex items-center justify-center overflow-hidden">
+
+            {/* Canvas Pad Box */}
+            <div className="relative w-full h-40 bg-slate-50/60 border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center overflow-hidden transition-all focus-within:border-emerald-500 shadow-inner signature-pad-grid">
               <canvas
                 ref={canvasRef}
                 width={400}
-                height={192}
+                height={160}
                 onTouchStart={startDrawing}
                 onTouchMove={draw}
                 onTouchEnd={stopDrawing}
@@ -301,56 +304,61 @@ export default function SignatureModal({
                 className="signature-canvas absolute inset-0 w-full h-full cursor-crosshair z-10 bg-transparent"
               />
               
+              {/* Placeholder Label */}
               {!hasSigned && (
-                <span className="text-on-surface-variant/40 text-xs font-bold flex items-center gap-1.5 select-none pointer-events-none z-0">
-                  <span className="material-symbols-outlined text-sm">draw</span> Tanda tangan di sini
+                <span className="text-slate-400 text-xs font-semibold flex items-center gap-1 select-none pointer-events-none z-0 opacity-80">
+                  <span className="material-symbols-outlined text-sm">gesture</span> Tanda tangan digital di sini
                 </span>
               )}
-              
+
+              {/* Reset Button */}
               {hasSigned && (
-                <button 
+                <button
                   type="button"
                   onClick={clearSignature}
-                  className="absolute top-3.5 right-3.5 p-1 bg-surface-container-high rounded-full text-on-surface-variant hover:text-error transition-colors z-20 border-none cursor-pointer flex items-center justify-center"
+                  className="absolute bottom-2 right-2 z-20 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[9.5px] font-bold border border-slate-200 transition active:scale-90 flex items-center gap-1 border-none cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-xs">close</span>
+                  <span className="material-symbols-outlined text-[11px]">refresh</span> Reset
                 </button>
               )}
             </div>
           </section>
 
-          {/* Declaration Checkbox */}
-          <label className="flex items-start gap-3 cursor-pointer group pb-28">
-            <div className="mt-0.5">
+          {/* 5. Checkbox Persetujuan Legal */}
+          <label className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200/80 rounded-2xl cursor-pointer group active:bg-slate-100 transition-colors">
+            <div className="pt-0.5 shrink-0">
               <input 
-                type="checkbox"
+                type="checkbox" 
                 checked={isDeclared}
                 onChange={(e) => setIsDeclared(e.target.checked)}
-                className="w-5 h-5 rounded border-outline text-primary focus:ring-primary-container transition-all cursor-pointer"
+                className="w-4.5 h-4.5 rounded-lg border-slate-300 text-emerald-700 focus:ring-emerald-500 cursor-pointer"
               />
             </div>
-            <p className="text-[11px] font-bold text-on-surface-variant leading-tight group-active:text-on-surface transition-colors select-none">
-              Saya menyatakan bahwa pesanan ini sah dan sesuai dengan kebutuhan klinis {institution.name}.
+            <p className="text-[10.5px] font-semibold text-slate-700 leading-snug group-hover:text-slate-900 transition-colors">
+              Saya menyatakan pesanan ini sah dan sesuai kebutuhan klinis <strong className="text-slate-900">{institution.name}</strong>.
             </p>
           </label>
         </main>
 
-        {/* Action Bar (Fixed Bottom - Elevated z-index to z-[210] so it's NEVER covered) */}
-        <footer className="fixed bottom-0 left-0 right-0 w-full bg-white/95 backdrop-blur-md border-t border-outline-variant/20 shadow-[0_-4px_16px_rgba(0,0,0,0.12)] h-24 px-4 flex items-center justify-center pb-6 z-[210]">
-          <button 
-            type="button"
-            onClick={handleSaveSignature}
-            disabled={!hasSigned || !isDeclared}
-            className={`w-full h-12 text-white font-heading font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all duration-200 border-none cursor-pointer ${
-              !hasSigned || !isDeclared
-                ? "bg-surface-container-high text-on-surface-variant/40 cursor-not-allowed shadow-none"
-                : "bg-primary text-white active:scale-95 active:bg-primary/90 shadow-primary/25"
-            }`}
-          >
-            <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>lock</span>
-            Tanda Tangani &amp; Buat Pesanan
-          </button>
-        </footer>
+        {/* 6. Bottom Action Bar (Flex Shrink-0 Footer) */}
+        <div className="p-3.5 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-lg shrink-0 z-10">
+          <div className="max-w-md mx-auto">
+            <button 
+              type="button" 
+              onClick={handleSaveSignature}
+              disabled={!hasSigned || !isDeclared}
+              className={`w-full py-3 px-4 text-white font-extrabold text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 transition cursor-pointer border-none ${
+                !hasSigned || !isDeclared
+                  ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
+                  : "bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] shadow-emerald-700/20"
+              }`}
+            >
+              <span className="material-symbols-outlined text-base">verified</span>
+              <span>Konfirmasi &amp; Kirim SP</span>
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   );

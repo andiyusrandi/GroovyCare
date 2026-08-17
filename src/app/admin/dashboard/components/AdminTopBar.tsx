@@ -7,7 +7,7 @@ import { Search, Bell, History, ArrowRight, UserCheck, BookOpen } from "lucide-r
 interface AdminTopBarProps {
   adminName: string;
   pendingPartnersCount: number;
-  setActiveTab: (tab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "pembayaran" | "riwayat" | "pelaporan") => void;
+  setActiveTab: (tab: "overview" | "kemitraan" | "obat" | "cdob" | "promo" | "logistik" | "shipping" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin") => void;
 }
 
 export default function AdminTopBar({ adminName, pendingPartnersCount, setActiveTab }: AdminTopBarProps) {

@@ -49,10 +49,10 @@ export default function InventoryTab({
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Semua Kategori");
   const [expiryFilter, setExpiryFilter] = useState("Range Kadaluwarsa");
-  
+
   // Default Operational View set to "table" (List View)
   const [viewMode, setViewMode] = useState<"grid" | "table">("table");
-  
+
   // ED Warning Engine Banner Collapsible state
   const [isEdBannerDismissed, setIsEdBannerDismissed] = useState(false);
 
@@ -284,7 +284,7 @@ export default function InventoryTab({
 
       {/* Main Table & Bento Section */}
       <div className="bg-white rounded-3xl shadow-xs border border-slate-200/80 overflow-hidden">
-        
+
         {/* Control Bar: Search & Filters */}
         <div className="p-4 border-b border-slate-150 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
           <div className="flex flex-1 items-center gap-3 min-w-0 flex-wrap">
@@ -334,11 +334,10 @@ export default function InventoryTab({
               <button
                 type="button"
                 onClick={() => setViewMode("table")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border-none ${
-                  viewMode === "table" 
-                    ? "bg-white text-emerald-800 shadow-xs" 
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border-none ${viewMode === "table"
+                    ? "bg-white text-emerald-800 shadow-xs"
                     : "text-slate-600 hover:text-slate-900 bg-transparent"
-                }`}
+                  }`}
                 title="Tampilan Tabel Data (Default Operasional)"
               >
                 <List className="w-3.5 h-3.5" />
@@ -347,11 +346,10 @@ export default function InventoryTab({
               <button
                 type="button"
                 onClick={() => setViewMode("grid")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border-none ${
-                  viewMode === "grid" 
-                    ? "bg-white text-emerald-800 shadow-xs" 
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border-none ${viewMode === "grid"
+                    ? "bg-white text-emerald-800 shadow-xs"
                     : "text-slate-600 hover:text-slate-900 bg-transparent"
-                }`}
+                  }`}
                 title="Tampilan Kartu Bento"
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
@@ -400,15 +398,14 @@ export default function InventoryTab({
                   }
 
                   return (
-                    <tr 
-                      key={batch ? batch.id : `no-batch-${product.id}`} 
+                    <tr
+                      key={batch ? batch.id : `no-batch-${product.id}`}
                       className={`hover:bg-emerald-50/30 transition-colors group relative ${isFEFO ? "bg-emerald-50/20 font-medium" : ""}`}
                     >
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-xl overflow-hidden shrink-0 flex items-center justify-center border border-slate-200/80 bg-slate-50 ${
-                            isExpired ? "bg-rose-50 text-rose-600 border-rose-200" : ""
-                          }`}>
+                          <div className={`w-9 h-9 rounded-xl overflow-hidden shrink-0 flex items-center justify-center border border-slate-200/80 bg-slate-50 ${isExpired ? "bg-rose-50 text-rose-600 border-rose-200" : ""
+                            }`}>
                             {product.imageUrl ? (
                               <img src={product.imageUrl} alt={product.name} className="max-h-full max-w-full object-contain p-1" />
                             ) : (
@@ -448,13 +445,12 @@ export default function InventoryTab({
                       </td>
                       <td className="px-4 py-3">
                         {batch ? (
-                          <span className={`font-mono text-xs font-bold ${
-                            isExpired 
-                              ? "text-rose-600 font-black bg-rose-50 px-2 py-0.5 rounded border border-rose-200" 
-                              : isSoonExpired 
-                              ? "text-amber-700 font-black bg-amber-50 px-2 py-0.5 rounded border border-amber-200" 
-                              : "text-slate-800"
-                          }`}>
+                          <span className={`font-mono text-xs font-bold ${isExpired
+                              ? "text-rose-600 font-black bg-rose-50 px-2 py-0.5 rounded border border-rose-200"
+                              : isSoonExpired
+                                ? "text-amber-700 font-black bg-amber-50 px-2 py-0.5 rounded border border-amber-200"
+                                : "text-slate-800"
+                            }`}>
                             {new Date(batch.expiryDate).toLocaleDateString("id-ID")}
                           </span>
                         ) : (
@@ -547,13 +543,12 @@ export default function InventoryTab({
               }
 
               return (
-                <div 
-                  key={batch ? batch.id : `grid-${product.id}`} 
-                  className={`bg-white rounded-2xl border transition-all duration-300 flex flex-col justify-between p-4 space-y-3 group relative overflow-hidden ${
-                    isFEFO 
-                      ? "border-emerald-500/60 shadow-xs shadow-emerald-600/5 hover:border-emerald-500" 
+                <div
+                  key={batch ? batch.id : `grid-${product.id}`}
+                  className={`bg-white rounded-2xl border transition-all duration-300 flex flex-col justify-between p-4 space-y-3 group relative overflow-hidden ${isFEFO
+                      ? "border-emerald-500/60 shadow-xs shadow-emerald-600/5 hover:border-emerald-500"
                       : "border-slate-200/80 shadow-2xs hover:shadow-md hover:border-slate-300"
-                  }`}
+                    }`}
                 >
                   {/* Floating FEFO Badge */}
                   {isFEFO && (
@@ -565,9 +560,8 @@ export default function InventoryTab({
 
                   {/* Header: Image, Title, Category */}
                   <div className="flex items-start gap-2.5 pr-14">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-slate-200 bg-slate-50 shadow-2xs overflow-hidden ${
-                      isExpired ? "bg-rose-50 text-rose-600 border-rose-200" : ""
-                    }`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-slate-200 bg-slate-50 shadow-2xs overflow-hidden ${isExpired ? "bg-rose-50 text-rose-600 border-rose-200" : ""
+                      }`}>
                       {product.imageUrl ? (
                         <img src={product.imageUrl} alt={product.name} className="max-h-full max-w-full object-contain p-1" />
                       ) : (

@@ -18,6 +18,8 @@ interface Product {
   code: string;
   activeIngredient: string;
   price: number;
+  promoPrice?: number | null;
+  isPromo?: boolean;
   category: string;
   description: string | null;
   unit: string;
@@ -175,7 +177,7 @@ export default function ProductCatalog({
     // 3. Golongan & Kategori Legalitas BPOM
     const isKeras = catLower.includes("keras") || catLower.includes("antibiotik") || catLower.includes("ethical") || nameLower.includes("amoxicillin") || nameLower.includes("bisoprolol") || nameLower.includes("dexamethasone") || nameLower.includes("timolol") || nameLower.includes("metformin") || nameLower.includes("amlodipine");
     const isInfus = nameLower.includes("dextrose") || nameLower.includes("sodium chloride") || nameLower.includes("infus");
-    
+
     let golongan = "Obat Bebas (W)";
     if (isInfus) {
       golongan = "Sediaan Infus Steril (PBF / RS)";
@@ -451,8 +453,8 @@ export default function ProductCatalog({
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-2xs space-y-6">
                 <div className="flex gap-6 items-start">
                   <div className="w-52 h-52 rounded-xl bg-slate-50 p-4 border border-slate-100 flex items-center justify-center shrink-0 relative overflow-hidden">
-                    <img 
-                      src={getProductImageUrl(p)} 
+                    <img
+                      src={getProductImageUrl(p)}
                       alt={p.name}
                       className="w-full h-full object-contain mix-blend-multiply"
                     />
@@ -638,15 +640,31 @@ export default function ProductCatalog({
             {/* Right Purchase Sidebar Widget */}
             <div>
               <div className="bg-white text-slate-900 p-6 rounded-2xl border border-slate-100 shadow-2xs sticky top-24 space-y-6">
-                <div className="border-b border-slate-100 pb-4 space-y-1.5">
-                  <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block">Harga HET Grosir PBF</span>
-                  <p className="text-2xl font-black font-mono text-emerald-700 tracking-tight">
-                    Rp {(p.price * detailModalQty).toLocaleString("id-ID")}
-                  </p>
-                  <p className="text-[10px] text-slate-400 font-bold">
-                    Harga per {p.unit}: <strong className="text-slate-800">Rp {p.price.toLocaleString("id-ID")}</strong>
-                  </p>
-                </div>
+                {(() => {
+                  const effectivePrice = p.isPromo && p.promoPrice && p.promoPrice > 0 ? p.promoPrice : p.price;
+                  return (
+                    <div className="border-b border-slate-100 pb-4 space-y-1.5">
+                      <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block">Harga HET Grosir PBF</span>
+                      {p.isPromo && p.promoPrice && p.promoPrice > 0 && (
+                        <span className="text-xs line-through text-slate-400 font-mono block">
+                          Rp {(p.price * detailModalQty).toLocaleString("id-ID")}
+                        </span>
+                      )}
+                      <p className="text-2xl font-black font-mono text-emerald-700 tracking-tight">
+                        Rp {(effectivePrice * detailModalQty).toLocaleString("id-ID")}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1.5">
+                        <span>Harga per {p.unit}:</span>
+                        <strong className="text-slate-800 font-mono">Rp {effectivePrice.toLocaleString("id-ID")}</strong>
+                        {p.isPromo && (
+                          <span className="text-[8px] font-black px-1.5 py-0.2 rounded bg-rose-600 text-white">
+                            🔥 PROMO
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-700 block">Kuantitas Pesanan ({p.unit}):</label>
@@ -698,11 +716,10 @@ export default function ProductCatalog({
                     addToCartWithQty(p, detailModalQty);
                   }}
                   disabled={isOutOfStock || hasCdobWarning}
-                  className={`w-full h-11 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border-none shadow-2xs ${
-                    isOutOfStock || hasCdobWarning
+                  className={`w-full h-11 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border-none shadow-2xs ${isOutOfStock || hasCdobWarning
                       ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
                       : "bg-emerald-700 hover:bg-emerald-800 text-white active:scale-95"
-                  }`}
+                    }`}
                 >
                   <span className="material-symbols-outlined text-base">add_shopping_cart</span>
                   <span>+ Tambah ke Keranjang</span>
@@ -739,7 +756,7 @@ export default function ProductCatalog({
               <span className="material-symbols-outlined text-sm">arrow_back</span>
               <span>Kembali ke Katalog</span>
             </button>
-            
+
             <div className="border-t border-slate-100 pt-2 flex items-center">
               {isLoadingLiveDetail ? (
                 <span className="text-amber-700 text-[9px] font-extrabold flex items-center gap-1">
@@ -762,8 +779,8 @@ export default function ProductCatalog({
           {/* Image & Title Card */}
           <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-2xs space-y-4">
             <div className="w-full h-44 rounded-xl bg-slate-50 p-3 border border-slate-100 flex items-center justify-center relative overflow-hidden">
-              <img 
-                src={getProductImageUrl(p)} 
+              <img
+                src={getProductImageUrl(p)}
                 alt={p.name}
                 className="h-full object-contain mix-blend-multiply"
               />
@@ -799,15 +816,30 @@ export default function ProductCatalog({
           {/* Quick Purchase Card */}
           <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-2xs space-y-4">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <div>
-                <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-wider block">Harga HET Grosir PBF</span>
-                <p className="text-xl font-black font-mono text-emerald-700 tracking-tight">
-                  Rp {(p.price * detailModalQty).toLocaleString("id-ID")}
-                </p>
-                <p className="text-[8px] text-slate-400 font-bold">
-                  Rp {p.price.toLocaleString("id-ID")} / {p.unit}
-                </p>
-              </div>
+              {(() => {
+                const effectivePrice = p.isPromo && p.promoPrice && p.promoPrice > 0 ? p.promoPrice : p.price;
+                return (
+                  <div>
+                    <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-wider block">Harga HET Grosir PBF</span>
+                    {p.isPromo && p.promoPrice && p.promoPrice > 0 && (
+                      <span className="text-[9px] line-through text-slate-400 font-mono block">
+                        Rp {(p.price * detailModalQty).toLocaleString("id-ID")}
+                      </span>
+                    )}
+                    <p className="text-xl font-black font-mono text-emerald-700 tracking-tight">
+                      Rp {(effectivePrice * detailModalQty).toLocaleString("id-ID")}
+                    </p>
+                    <p className="text-[8px] text-slate-400 font-bold flex items-center gap-1">
+                      <span>Rp {effectivePrice.toLocaleString("id-ID")} / {p.unit}</span>
+                      {p.isPromo && (
+                        <span className="text-[7.5px] font-black px-1 rounded bg-rose-600 text-white">
+                          🔥 PROMO
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                );
+              })()}
 
               <div className="text-right">
                 <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-wider block">Stok Gudang</span>
@@ -860,11 +892,10 @@ export default function ProductCatalog({
                     addToCartWithQty(p, detailModalQty);
                   }}
                   disabled={isOutOfStock || hasCdobWarning}
-                  className={`w-full h-9 rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer border-none shadow-2xs ${
-                    isOutOfStock || hasCdobWarning
+                  className={`w-full h-9 rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer border-none shadow-2xs ${isOutOfStock || hasCdobWarning
                       ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                       : "bg-emerald-700 text-white active:scale-95"
-                  }`}
+                    }`}
                 >
                   <span className="material-symbols-outlined text-sm">add_shopping_cart</span>
                   <span>Keranjang</span>
@@ -880,36 +911,32 @@ export default function ProductCatalog({
               <button
                 type="button"
                 onClick={() => setMobileInfoTab("deskripsi")}
-                className={`pb-2 transition-colors border-b-2 whitespace-nowrap outline-none border-none bg-transparent cursor-pointer ${
-                  mobileInfoTab === "deskripsi" ? "border-emerald-700 text-emerald-700" : "border-transparent text-slate-400"
-                }`}
+                className={`pb-2 transition-colors border-b-2 whitespace-nowrap outline-none border-none bg-transparent cursor-pointer ${mobileInfoTab === "deskripsi" ? "border-emerald-700 text-emerald-700" : "border-transparent text-slate-400"
+                  }`}
               >
                 Deskripsi
               </button>
               <button
                 type="button"
                 onClick={() => setMobileInfoTab("spesifikasi")}
-                className={`pb-2 transition-colors border-b-2 whitespace-nowrap outline-none border-none bg-transparent cursor-pointer ${
-                  mobileInfoTab === "spesifikasi" ? "border-emerald-700 text-emerald-700" : "border-transparent text-slate-400"
-                }`}
+                className={`pb-2 transition-colors border-b-2 whitespace-nowrap outline-none border-none bg-transparent cursor-pointer ${mobileInfoTab === "spesifikasi" ? "border-emerald-700 text-emerald-700" : "border-transparent text-slate-400"
+                  }`}
               >
                 Spesifikasi
               </button>
               <button
                 type="button"
                 onClick={() => setMobileInfoTab("dosis")}
-                className={`pb-2 transition-colors border-b-2 whitespace-nowrap outline-none border-none bg-transparent cursor-pointer ${
-                  mobileInfoTab === "dosis" ? "border-emerald-700 text-emerald-700" : "border-transparent text-slate-400"
-                }`}
+                className={`pb-2 transition-colors border-b-2 whitespace-nowrap outline-none border-none bg-transparent cursor-pointer ${mobileInfoTab === "dosis" ? "border-emerald-700 text-emerald-700" : "border-transparent text-slate-400"
+                  }`}
               >
                 Dosis &amp; Pakai
               </button>
               <button
                 type="button"
                 onClick={() => setMobileInfoTab("efek")}
-                className={`pb-2 transition-colors border-b-2 whitespace-nowrap outline-none border-none bg-transparent cursor-pointer ${
-                  mobileInfoTab === "efek" ? "border-emerald-700 text-emerald-700" : "border-transparent text-slate-400"
-                }`}
+                className={`pb-2 transition-colors border-b-2 whitespace-nowrap outline-none border-none bg-transparent cursor-pointer ${mobileInfoTab === "efek" ? "border-emerald-700 text-emerald-700" : "border-transparent text-slate-400"
+                  }`}
               >
                 Peringatan &amp; Efek
               </button>
@@ -925,7 +952,7 @@ export default function ProductCatalog({
                       {info.description}
                     </p>
                   </div>
-                  
+
                   <div className="bg-amber-50/70 border border-amber-200/70 p-4 rounded-xl space-y-1 text-amber-950">
                     <div className="flex items-center gap-1.5">
                       <span className="bg-amber-500 text-white font-extrabold text-[8px] px-1.5 py-0.5 rounded uppercase">
@@ -1042,7 +1069,7 @@ export default function ProductCatalog({
               )}
             </div>
           </div>
-          
+
           <p className="text-[9px] text-slate-400 text-center leading-normal pt-2 font-semibold">
             🔒 Distribusi obat resmi bersertifikat CDOB BPOM &amp; Kemenkes RI.
           </p>
@@ -1053,7 +1080,8 @@ export default function ProductCatalog({
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12 font-sans">
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
@@ -1072,7 +1100,7 @@ export default function ProductCatalog({
                 Filter Pencarian Produk
               </h3>
             </div>
-            
+
             <button
               onClick={resetFilters}
               className="text-[11px] text-emerald-600 hover:text-emerald-700 font-bold cursor-pointer transition-colors border-none bg-transparent"
@@ -1215,6 +1243,11 @@ export default function ProductCatalog({
                         />
 
                         <div className="absolute top-1.5 left-1.5 flex flex-col gap-1 z-10">
+                          {p.isPromo && (
+                            <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-rose-600 text-white shadow-2xs">
+                              🔥 PROMO
+                            </span>
+                          )}
                           {golongan === "KERAS" && (
                             <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200/80">
                               KERAS (G)
@@ -1278,7 +1311,16 @@ export default function ProductCatalog({
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
                       <div>
                         <span className="text-[9px] text-slate-400 block leading-none">Harga</span>
-                        {p.price > 0 ? (
+                        {p.isPromo && p.promoPrice && p.promoPrice > 0 ? (
+                          <div>
+                            <span className="text-[9.5px] line-through text-slate-400 font-mono block leading-none">
+                              Rp {p.price.toLocaleString("id-ID")}
+                            </span>
+                            <span className="text-xs font-black text-emerald-700 font-sans">
+                              Rp {p.promoPrice.toLocaleString("id-ID")}
+                            </span>
+                          </div>
+                        ) : p.price > 0 ? (
                           <span className="text-xs font-extrabold text-slate-900 font-sans">
                             Rp {p.price.toLocaleString("id-ID")}
                           </span>
@@ -1323,11 +1365,10 @@ export default function ProductCatalog({
                           title="Tambah ke Keranjang"
                           onClick={() => addToCartWithQty(p, qty || 1)}
                           disabled={isOutOfStock || hasCdobWarning}
-                          className={`w-8 h-8 rounded-lg text-white flex items-center justify-center shadow-xs cursor-pointer active:scale-95 border-none transition-all ${
-                            isOutOfStock || hasCdobWarning
+                          className={`w-8 h-8 rounded-lg text-white flex items-center justify-center shadow-xs cursor-pointer active:scale-95 border-none transition-all ${isOutOfStock || hasCdobWarning
                               ? "bg-slate-300 cursor-not-allowed"
                               : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
-                          }`}
+                            }`}
                         >
                           <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
                         </button>
@@ -1362,11 +1403,10 @@ export default function ProductCatalog({
                     triggerHapticImpact();
                     setActiveChip(c.label);
                   }}
-                  className={`whitespace-nowrap px-3.5 py-1.5 rounded-full font-sans text-[10px] font-bold transition-all cursor-pointer border-none flex items-center gap-1 shrink-0 ${
-                    isActive
+                  className={`whitespace-nowrap px-3.5 py-1.5 rounded-full font-sans text-[10px] font-bold transition-all cursor-pointer border-none flex items-center gap-1 shrink-0 ${isActive
                       ? "bg-slate-900 text-white shadow-xs scale-105"
                       : "bg-slate-100/90 text-slate-600 hover:bg-slate-200/80 active:scale-95"
-                  }`}
+                    }`}
                 >
                   {c.label === "Cold Chain" ? (
                     <>
@@ -1413,32 +1453,39 @@ export default function ProductCatalog({
                 p.category.toLowerCase().includes("cold chain");
 
               return (
-                <div 
-                  key={p.id} 
-                  className="bg-white rounded-2xl p-3 shadow-xs border border-slate-200/70 flex flex-col justify-between group transition-all duration-200 hover:shadow-md active:scale-[0.98] relative overflow-hidden"
+                <div
+                  key={p.id}
+                  className="bg-white rounded-2xl p-2.5 shadow-xs border border-slate-200/70 flex flex-col justify-between group transition-all duration-200 hover:shadow-md active:scale-[0.98] relative overflow-hidden"
                 >
-                  {/* Visual Image & Badges Container */}
+                  {/* Image & Badges Container */}
                   <div>
-                    <div className="relative aspect-square rounded-xl bg-slate-50 overflow-hidden mb-2.5 flex items-center justify-center border border-slate-100">
-                      <img 
-                        className="w-full h-full object-contain p-2 mix-blend-multiply transition-transform duration-300 group-hover:scale-105" 
+                    <div className="relative aspect-square rounded-xl bg-slate-50 overflow-hidden mb-2 flex items-center justify-center border border-slate-100">
+                      <img
+                        className="w-full h-full object-contain p-2 mix-blend-multiply transition-transform duration-300 group-hover:scale-105"
                         alt={p.name}
                         src={getProductImageUrl(p)}
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = "https://lh3.googleusercontent.com/aida-public/AB6AXuBVwwWGNG9klmFlTxE7qRJlM1a7CWQA41HcodSrxAo5yyi2kDDxkKfVY-ZKWSidodMppE_pXoP_mQCrcx9gRPdHjb967dBVWUoFL5AFRR5c_Jl2dQgOsaFvIFY5EDsB4KhW6Yp97g7uZJaWqjHlKz4J8OY4vHoN93-nWI0lZZOj7DhkS8ZaO6mCejJMLHI-yHbtaiqlkdO0f2skoMG2UQD7cf0ywd87rynYVJHts51V9wTivLcGooleoOrenqnrUzra16cONC2_49Y";
                         }}
                       />
-                      
-                      {/* Cold Chain Badge (top left) */}
-                      {isColdChain && (
-                        <div className="absolute top-1.5 left-1.5 bg-blue-50/90 backdrop-blur-xs border border-blue-200 text-blue-700 text-[8px] font-extrabold px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-xs">
-                          <span className="material-symbols-outlined text-[10px]">ac_unit</span>
-                          <span>2°-8°C</span>
-                        </div>
-                      )}
-                      
-                      {/* Golongan Badge (top right) */}
-                      <div className="absolute top-1.5 right-1.5">
+
+                      {/* Top Left: Auto-wrapping Badges (Promo & Cold Chain) */}
+                      <div className="absolute top-1.5 left-1.5 flex flex-wrap items-center gap-1 max-w-[62%] z-10">
+                        {p.isPromo && (
+                          <span className="bg-rose-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-2xs animate-pulse">
+                            🔥 PROMO
+                          </span>
+                        )}
+                        {isColdChain && (
+                          <span className="bg-blue-50/95 backdrop-blur-xs border border-blue-200 text-blue-700 text-[8px] font-extrabold px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-2xs">
+                            <span className="material-symbols-outlined text-[9px] leading-none">ac_unit</span>
+                            <span>2°-8°C</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Top Right: Kategori Obat */}
+                      <div className="absolute top-1.5 right-1.5 z-10">
                         {golongan === "KERAS" ? (
                           <span className="bg-rose-50 border border-rose-200 text-rose-700 text-[8px] font-extrabold px-1.5 py-0.5 rounded-md uppercase">
                             Obat Keras
@@ -1452,58 +1499,73 @@ export default function ProductCatalog({
                     </div>
 
                     {/* Product Metadata Details */}
-                    <div 
+                    <div
                       onClick={() => handleOpenProductDetail(p)}
-                      className="space-y-1 cursor-pointer group-hover:text-primary"
+                      className="space-y-0.5 cursor-pointer"
                     >
                       <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider truncate">
                         {mfg}
                       </p>
-                      <h3 className="font-heading font-extrabold text-xs text-slate-900 line-clamp-2 leading-snug group-hover:text-primary transition-colors" title={p.name}>
+                      <h3 className="font-heading font-extrabold text-xs text-slate-900 line-clamp-2 leading-tight min-h-[2rem] group-hover:text-primary transition-colors" title={p.name}>
                         {p.name}
                       </h3>
-                      <p className="text-[10px] text-slate-500 font-medium">
+                      <p className="text-[10px] text-slate-500 font-medium truncate">
                         {p.unit}
                       </p>
                     </div>
                   </div>
 
                   {/* Pricing & Stock Status Bottom Block */}
-                  <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-black text-slate-900 font-mono">Rp {p.price.toLocaleString("id-ID")}</p>
-                        <p className="text-[8px] text-slate-400 line-through font-mono">Rp {(p.price * 1.05).toLocaleString("id-ID")}</p>
-                      </div>
-
-                      {/* Stock Dot */}
-                      <div className="text-right">
-                        {isOutOfStock ? (
-                          <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md">Habis</span>
-                        ) : isLowStock ? (
-                          <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md">Sisa {p.totalStock}</span>
+                  <div className="mt-2.5 pt-2 border-t border-slate-100 space-y-2">
+                    <div className="flex items-end justify-between min-h-[28px]">
+                      <div className="flex flex-col justify-end">
+                        {p.isPromo && p.promoPrice && p.promoPrice > 0 ? (
+                          <>
+                            <p className="text-[9px] line-through text-slate-400 font-mono leading-none">
+                              Rp {p.price.toLocaleString("id-ID")}
+                            </p>
+                            <p className="text-xs font-black text-emerald-700 font-mono mt-0.5 leading-none">
+                              Rp {p.promoPrice.toLocaleString("id-ID")}
+                            </p>
+                          </>
+                        ) : p.price > 0 ? (
+                          <p className="text-xs font-black text-slate-900 font-mono leading-none">
+                            Rp {p.price.toLocaleString("id-ID")}
+                          </p>
                         ) : (
-                          <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">Ada Stok</span>
+                          <span className="text-[8.5px] font-extrabold text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 block">
+                            Hubungi Sales
+                          </span>
                         )}
                       </div>
+
+                      {/* Stock Dot / Badge */}
+                      <span className={`text-[8.5px] font-bold px-1.5 py-0.5 rounded-md border ${
+                        isOutOfStock
+                          ? "text-rose-600 bg-rose-50 border-rose-200"
+                          : isLowStock
+                          ? "text-amber-600 bg-amber-50 border-amber-200"
+                          : "text-emerald-600 bg-emerald-50 border-emerald-100"
+                      }`}>
+                        {isOutOfStock ? "Habis" : isLowStock ? `Sisa ${p.totalStock}` : "Ada Stok"}
+                      </span>
                     </div>
-                    
+
                     {/* Add to Cart Action Row */}
-                    <div className="flex items-center gap-1">
-                      <button 
+                    <div className="flex items-center gap-1.5">
+                      <button
                         type="button"
                         onClick={() => {
                           triggerHapticImpact();
                           addToCartWithQty(p, 1);
                         }}
                         disabled={isOutOfStock || hasCdobWarning}
-                        className={`flex-1 h-8 font-sans font-extrabold text-[10px] rounded-xl flex items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer border-none shadow-xs ${
-                          isOutOfStock || hasCdobWarning
+                        className={`flex-1 h-7.5 font-sans font-extrabold text-[10px] rounded-xl flex items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer border-none shadow-xs ${isOutOfStock || hasCdobWarning
                             ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
                             : "bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-700/20"
-                        }`}
+                          }`}
                       >
-                        <span className="material-symbols-outlined text-sm">add_shopping_cart</span>
+                        <span className="material-symbols-outlined text-[13px] leading-none">add_shopping_cart</span>
                         <span>+1 Box</span>
                       </button>
 
@@ -1514,7 +1576,7 @@ export default function ProductCatalog({
                             triggerHapticImpact();
                             addToCartWithQty(p, 10);
                           }}
-                          className="px-2.5 h-8 font-mono font-extrabold text-[9.5px] rounded-xl bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer border-none shadow-xs shrink-0"
+                          className="px-2.5 h-7.5 font-mono font-extrabold text-[9.5px] rounded-xl bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer border-none shadow-xs shrink-0"
                           title="Tambah 10 Box Grosir Langsung"
                         >
                           +10

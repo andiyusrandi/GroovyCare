@@ -7,7 +7,34 @@ VPS_IP="103.58.101.215"
 VPS_PATH="/var/www/growmexa.com"
 LOCAL_PATH="/Users/macbookpro/mamp/GroovyCare"
 
-if [ "$1" = "push" ]; then
+if [ "$1" = "build-apk" ]; then
+    echo "📱 [GROWMEXA] Memulai proses Build Android APK otomatis..."
+    echo "🔄 1. Menyinkronkan aset web & manifest ke Projek Android..."
+    cd "$LOCAL_PATH" && npx cap sync android
+
+    echo "⚙️ 2. Mengompilasi APK Android via Gradle..."
+    cd "$LOCAL_PATH/android" && ./gradlew assembleDebug
+
+    if [ $? -ne 0 ]; then
+        echo "❌ [GROWMEXA] Build APK Android gagal!"
+        exit 1
+    fi
+
+    echo "📦 3. Memindahkan APK terbaru ke folder unduhan publik..."
+    mkdir -p "$LOCAL_PATH/public/downloads"
+    cp "$LOCAL_PATH/android/app/build/outputs/apk/debug/app-debug.apk" "$LOCAL_PATH/public/downloads/growmexa.apk"
+
+    if [ $? -eq 0 ]; then
+        echo ""
+        echo "✅ [GROWMEXA] BERHASIL! Berkas APK terbaru telah tercopy ke:"
+        echo "   -> $LOCAL_PATH/public/downloads/growmexa.apk"
+        echo "   Jalankan './growmexa push' jika ingin mengunggahnya ke server live growmexa.com!"
+    else
+        echo "❌ [GROWMEXA] Gagal memindahkan berkas APK!"
+        exit 1
+    fi
+
+elif [ "$1" = "push" ]; then
     echo "🚀 [GROWMEXA] Memulai proses deployment..."
     echo "💻 1. Melakukan Build Next.js di Laptop (Local)..."
     cd "$LOCAL_PATH" && npx prisma generate && npm run build
@@ -57,8 +84,9 @@ if [ "$1" = "push" ]; then
         exit 1
     fi
 else
-    echo "GroovyCare Deployment CLI"
+    echo "GroovyCare Deployment & Android Build CLI"
     echo "Penggunaan:"
-    echo "  ./growmexa push   - Build di local, sync ke VPS & Restart PM2"
-    echo "  npm run push      - Alternative via npm script"
+    echo "  ./growmexa build-apk - Build APK Android otomatis & copy ke public/downloads/growmexa.apk"
+    echo "  ./growmexa push      - Build di local, sync ke VPS & Restart PM2"
+    echo "  npm run apk          - Pintasan via npm"
 fi

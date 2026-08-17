@@ -99,7 +99,9 @@ export default function OrderDetailView({
   } else {
     shippingFee = 50000;
   }
-  const totalBilling = subtotal + vat + shippingFee;
+  const couponDiscount = order.couponDiscount || 0;
+  const subtotalAfterDiscount = Math.max(0, subtotal - couponDiscount);
+  const totalBilling = subtotalAfterDiscount + vat + shippingFee;
 
   // Stepper calculations
   const isPendingApproval = order.status === "PENDING_APPROVAL";
@@ -401,6 +403,12 @@ export default function OrderDetailView({
                     <span>Subtotal Produk</span>
                     <span className="font-bold text-foreground font-mono">Rp {subtotal.toLocaleString("id-ID")}</span>
                   </div>
+                  {couponDiscount > 0 && (
+                    <div className="flex justify-between text-emerald-700 font-bold">
+                      <span>Diskon Voucher Promo ({order.couponCode || "Voucher"})</span>
+                      <span className="font-mono font-black">-Rp {couponDiscount.toLocaleString("id-ID")}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span>PPN (11%)</span>
                     <span className="font-bold text-foreground font-mono">Rp {vat.toLocaleString("id-ID")}</span>
@@ -594,33 +602,51 @@ export default function OrderDetailView({
       {/* 2. MOBILE VIEW: Live Tracking Delivery Page (Tokopedia / Grab Style)       */}
       {/* ========================================================================= */}
       <div className="block md:hidden space-y-4 px-1 pb-12 font-sans">
-        {/* Status Hero Card (Tokopedia / Alodokter Soft Clean White Style) */}
-        <section className="bg-white p-5 rounded-3xl shadow-xs border border-slate-200/80 space-y-3 relative overflow-hidden">
-          <div className="flex justify-between items-start gap-2 relative z-10">
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Surat Pesanan (SP)</p>
-              <h2 className="text-sm font-black text-slate-800 font-mono mt-0.5">{order.orderNumber}</h2>
+        {/* Status Hero Card (Android Native Order Tracking Header Style) */}
+        <section className="bg-white p-4 rounded-3xl shadow-xs border border-slate-200/80 space-y-3 relative overflow-hidden font-sans">
+          
+          {/* Subtle Gradient Accent Top */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-emerald-500" />
+
+          {/* Header: SP Number & Dynamic State Badge */}
+          <div className="flex items-center justify-between gap-2 pt-0.5">
+            <div className="space-y-0.5">
+              <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-wider">Surat Pesanan</span>
+              <h2 className="text-xs font-mono font-black text-slate-900 leading-none">{order.orderNumber}</h2>
             </div>
+            
+            {/* Native Pill Status */}
             {(() => {
               const meta = getBiteshipStatusMeta(order.biteshipStatus, order.status);
               return (
-                <span className={`px-3 py-1 rounded-full text-[9.5px] font-black uppercase tracking-tight shadow-2xs ${meta.badgeClass}`}>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-200/80 tracking-wide">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping" />
                   {meta.label}
                 </span>
               );
             })()}
           </div>
 
-          <div className="pt-2.5 border-t border-slate-100 relative z-10 space-y-1">
-            <p className="text-xs font-black text-emerald-800 flex items-center gap-1.5">
-              <Truck className="w-4 h-4 text-emerald-600 shrink-0" />
-              {getBiteshipStatusMeta(order.biteshipStatus, order.status).label}
-            </p>
-            <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-              {order.biteshipStatusLabel || getBiteshipStatusMeta(order.biteshipStatus, order.status).description}
-            </p>
+          {/* Delivery Status Info Box */}
+          <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-100 flex items-start gap-2.5">
+            <div className="w-7 h-7 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+              <span className="material-symbols-outlined text-base">local_shipping</span>
+            </div>
+            <div className="space-y-0.5 min-w-0 flex-1">
+              <p className="text-xs font-black text-slate-900 leading-tight">
+                {order.status === "DELIVERED"
+                  ? "Pesanan Tiba & Terverifikasi APJ"
+                  : order.status === "SHIPPED"
+                  ? "Paket Menuju Apotek Anda"
+                  : "Pesanan Sedang Diproses Gudang"}
+              </p>
+              <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                {order.biteshipStatusLabel || getBiteshipStatusMeta(order.biteshipStatus, order.status).description}
+              </p>
+            </div>
           </div>
 
+          {/* Native Live GPS Action Button */}
           {(order.biteshipOrderId || order.trackingNumber) && (
             <button
               type="button"
@@ -628,16 +654,18 @@ export default function OrderDetailView({
                 triggerHapticImpact();
                 setIsTrackingModalOpen(true);
               }}
-              className="mt-3 flex h-11 w-full items-center justify-center gap-2.5 rounded-xl bg-emerald-600 px-4 text-xs font-bold text-white shadow-md shadow-emerald-700/20 transition active:scale-[0.98] active:bg-emerald-700 active:shadow-none border-none cursor-pointer"
+              className="w-full h-11 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white font-extrabold text-xs rounded-2xl shadow-md shadow-emerald-700/20 flex items-center justify-center gap-2 transition cursor-pointer border-none"
             >
+              {/* Live Beacon Dot */}
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75"></span>
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-white"></span>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
               </span>
-              <MapPin className="w-4 h-4 stroke-[2.5]" />
+              <span className="material-symbols-outlined text-base">location_searching</span>
               <span>Lacak Live GPS Biteship</span>
             </button>
           )}
+
         </section>
 
         {/* Tokopedia Horizontal Stepper */}
@@ -779,7 +807,7 @@ export default function OrderDetailView({
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-extrabold text-slate-800 truncate">{item.product.name}</p>
-                      <p className="text-[10px] text-slate-500 font-medium">{item.quantity} {item.product.unit.split(" ")[0]} x Rp {item.price.toLocaleString("id-ID")}</p>
+                      <p className="text-[10px] text-slate-500 font-medium">{item.quantity} {item.product.unit?.split(" ")[0] || "Unit"} x Rp {item.price.toLocaleString("id-ID")}</p>
                     </div>
                   </div>
                   <span className="font-mono text-xs font-black text-slate-900 shrink-0">
@@ -788,6 +816,32 @@ export default function OrderDetailView({
                 </div>
               );
             })}
+          </div>
+
+          {/* Ringkasan Perhitungan Biaya SP Mobile */}
+          <div className="p-4 bg-slate-50/80 border-t border-slate-100 space-y-2 text-xs font-sans">
+            <div className="flex justify-between items-center text-slate-600">
+              <span>Subtotal Produk</span>
+              <span className="font-mono font-bold">Rp {subtotal.toLocaleString("id-ID")}</span>
+            </div>
+            {couponDiscount > 0 && (
+              <div className="flex justify-between items-center text-emerald-700 font-extrabold text-xs">
+                <span>Diskon Voucher ({order.couponCode || "Voucher Promo"})</span>
+                <span className="font-mono font-black">-Rp {couponDiscount.toLocaleString("id-ID")}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center text-slate-600">
+              <span>PPN (11%)</span>
+              <span className="font-mono font-bold">Rp {vat.toLocaleString("id-ID")}</span>
+            </div>
+            <div className="flex justify-between items-center text-slate-600">
+              <span>Ongkos Kirim &amp; Kurir</span>
+              <span className="font-mono font-bold">Rp {shippingFee.toLocaleString("id-ID")}</span>
+            </div>
+            <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-slate-900 font-black text-xs">
+              <span>Total Pembayaran SP</span>
+              <span className="font-mono text-emerald-700 text-sm font-black">Rp {totalBilling.toLocaleString("id-ID")}</span>
+            </div>
           </div>
         </section>
 

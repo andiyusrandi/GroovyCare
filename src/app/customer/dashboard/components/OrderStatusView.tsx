@@ -143,7 +143,114 @@ export default function OrderStatusView({
             <span className="text-xs font-semibold">Tidak ada pengiriman yang sedang berjalan</span>
           </div>
         ) : (
-          <div className="space-y-4">
+          <>
+            {/* MOBILE VIEW: Horizontal Snap Slider */}
+            <div className="block md:hidden">
+              <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-2 -mx-4 px-4">
+                {activeOrders.map((order) => {
+                  const isColdChain = order.items.some((it: any) => it.product.name.includes("Insulin") || it.product.code.includes("AMX"));
+                  const isExpanded = expandedOrderId === order.id;
+                  const formattedDate = new Date(order.createdAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+                  return (
+                    <div
+                      key={order.id}
+                      className="w-[85vw] max-w-[340px] shrink-0 snap-center bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-xs relative overflow-hidden flex flex-col justify-between font-sans"
+                    >
+                      {isColdChain && (
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-teal-400" />
+                      )}
+
+                      {/* Header: No SP & Badges (Clickable to open Order Detail) */}
+                      <div className="cursor-pointer" onClick={() => setViewingDetailOrder(order)}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono font-extrabold text-xs text-slate-900 tracking-tight">{order.orderNumber}</span>
+                          {order.paymentStatus === "PAID" ? (
+                            <span className="bg-emerald-50 text-emerald-700 text-[8.5px] font-extrabold px-1.5 py-0.5 rounded border border-emerald-200">
+                              Lunas
+                            </span>
+                          ) : (
+                            <span className="bg-rose-50 text-rose-700 text-[8.5px] font-black px-1.5 py-0.5 rounded border border-rose-200 animate-pulse">
+                              Belum Bayar
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                          {isColdChain && (
+                            <span className="bg-blue-50 text-blue-700 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 border border-blue-200">
+                              <span className="material-symbols-outlined text-[9px] leading-none">ac_unit</span> Cold Chain
+                            </span>
+                          )}
+                          <span className="bg-slate-100 text-slate-600 text-[8px] font-bold px-1.5 py-0.5 rounded">
+                            {order.paymentMethod === "VA" ? "VA" : order.paymentMethod === "TOP" ? "TOP" : order.paymentMethod}
+                          </span>
+                          <span className="text-[9px] text-slate-400 ml-auto">{formattedDate}</span>
+                        </div>
+                      </div>
+
+                      {/* Status Tracker & Action */}
+                      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                        {order.status === "PENDING_APPROVAL" && !order.spSignature && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9.5px] font-bold bg-rose-50 text-rose-700 border border-rose-200 animate-pulse">
+                            <Clock className="w-3 h-3" /> Menunggu e-Sign SP
+                          </span>
+                        )}
+                        {order.status === "PENDING_APPROVAL" && order.spSignature && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9.5px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                            <Clock className="w-3 h-3" /> Verifikasi CDOB
+                          </span>
+                        )}
+                        {order.status === "PENDING_SHIPPING" && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="material-symbols-outlined text-xs">inventory_2</span> Packing Gudang
+                          </span>
+                        )}
+                        {order.status === "SHIPPED" && (() => {
+                          const meta = getBiteshipStatusMeta((order as any).biteshipStatus, order.status);
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9.5px] font-bold ${meta.badgeClass}`}>
+                              <Truck className="w-3 h-3" /> {meta.label}
+                            </span>
+                          );
+                        })()}
+                        {(order.status === "REJECTED" || order.status === "CANCELLED") && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9.5px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                            <span className="material-symbols-outlined text-xs">cancel</span> Dibatalkan
+                          </span>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setViewingDetailOrder(order)}
+                          className="text-xs font-extrabold text-emerald-700 flex items-center gap-0.5 hover:underline cursor-pointer border-none bg-transparent"
+                        >
+                          Lacak <span className="material-symbols-outlined text-sm">chevron_right</span>
+                        </button>
+                      </div>
+
+                      {/* Accordion detail if expanded */}
+                      {isExpanded && (
+                        <div className="mt-3 pt-3 border-t border-slate-200 text-xs animate-fadeIn">
+                          <p className="font-bold text-slate-800 text-[11px] mb-1">Rincian Barang ({order.items.length} Item)</p>
+                          <div className="space-y-1 text-[10px]">
+                            {order.items.map((it: any) => (
+                              <div key={it.id} className="flex justify-between text-slate-600">
+                                <span className="truncate max-w-[180px]">{it.product.name}</span>
+                                <span className="font-mono font-bold">{it.quantity} {it.product.unit.split(" ")[0]}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* DESKTOP VIEW: Stacked Vertical Cards */}
+            <div className="hidden md:block space-y-4">
             {activeOrders.map((order) => {
               const isColdChain = order.items.some((it: any) => it.product.name.includes("Insulin") || it.product.code.includes("AMX"));
               const isExpanded = expandedOrderId === order.id;
@@ -480,7 +587,8 @@ export default function OrderStatusView({
               );
             })}
           </div>
-        )}
+        </>
+      )}
       </section>
 
       {/* Desktop Table View */}

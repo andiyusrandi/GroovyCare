@@ -52,7 +52,9 @@ export async function checkoutOrder(
   items: { productId: string; quantity: number }[],
   spSignature: string,
   paymentMethod: "VA" | "TOP" | "INVOICE" | "COD" = "VA",
-  shippingAddress?: string
+  shippingAddress?: string,
+  couponCode?: string,
+  couponDiscount?: number
 ) {
   try {
     const session = await getActiveUser();
@@ -217,11 +219,20 @@ export async function checkoutOrder(
             shippingAddress: shippingAddress || user.institution.address,
             paymentStatus: "UNPAID",
             paymentMethod,
+            couponCode: couponCode || null,
+            couponDiscount: couponDiscount || 0.0,
             items: {
               create: orderItemsData,
             },
           },
         });
+
+        if (couponCode) {
+          await db.promoCoupon.updateMany({
+            where: { code: couponCode },
+            data: { usedCount: { increment: 1 } },
+          }).catch(() => {});
+        }
         break; // Successfully created order without collision
       } catch (err: any) {
         if (err.code === "P2002" || (err.message && err.message.includes("Unique constraint"))) {
@@ -538,7 +549,7 @@ export async function rejectOrder(orderId: string, reason: string) {
 
     if (biteshipId || shippingFee > 0) {
       const { refundBiteshipShippingFee } = await import("@/app/actions/biteship");
-      await refundBiteshipShippingFee(shippingFee, order.orderNumber).catch(() => {});
+      await refundBiteshipShippingFee(shippingFee, order.orderNumber).catch(() => { });
     }
 
     // Jika pesanan sudah disetujui sebelumnya, kembalikan stok dan debt
@@ -636,7 +647,7 @@ export async function deleteOrder(orderId: string) {
 
     if (biteshipId || shippingFee > 0) {
       const { refundBiteshipShippingFee } = await import("@/app/actions/biteship");
-      await refundBiteshipShippingFee(shippingFee, order.orderNumber).catch(() => {});
+      await refundBiteshipShippingFee(shippingFee, order.orderNumber).catch(() => { });
     }
 
     const isApprovedBefore = order.status !== "PENDING_APPROVAL" && order.status !== "REJECTED";
@@ -716,7 +727,7 @@ export async function deleteBulkOrders(orderIds: string[]) {
 
       if (biteshipId || shippingFee > 0) {
         const { refundBiteshipShippingFee } = await import("@/app/actions/biteship");
-        await refundBiteshipShippingFee(shippingFee, order.orderNumber).catch(() => {});
+        await refundBiteshipShippingFee(shippingFee, order.orderNumber).catch(() => { });
       }
     }
 
@@ -1457,7 +1468,7 @@ export async function cancelOrderByCustomer(orderId: string, reason: string) {
 
     if (biteshipId || shippingFee > 0) {
       const { refundBiteshipShippingFee } = await import("@/app/actions/biteship");
-      await refundBiteshipShippingFee(shippingFee, order.orderNumber).catch(() => {});
+      await refundBiteshipShippingFee(shippingFee, order.orderNumber).catch(() => { });
     }
 
     await db.$transaction(async (tx: any) => {
@@ -1880,7 +1891,7 @@ export async function getBiteshipLiveTracking(orderId: string) {
       await (db.order as any).update({
         where: { id: orderId },
         data: { trackingNumber: realWaybill }
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     return {
@@ -1979,7 +1990,7 @@ export async function cancelBiteshipOrder(orderId: string, reason?: string) {
 
     const shippingFee = (order as any).shippingCost || 0;
     const { refundBiteshipShippingFee } = await import("@/app/actions/biteship");
-    await refundBiteshipShippingFee(shippingFee, (order as any).orderNumber).catch(() => {});
+    await refundBiteshipShippingFee(shippingFee, (order as any).orderNumber).catch(() => { });
 
     revalidatePath("/admin/dashboard");
     revalidatePath("/customer/dashboard");

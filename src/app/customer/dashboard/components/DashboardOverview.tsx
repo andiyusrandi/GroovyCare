@@ -23,7 +23,9 @@ interface DashboardOverviewProps {
 }
 
 function calculateOrderTotals(order: any) {
-  const subtotal = order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+  const subtotal = (order.items || []).reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+  const couponDiscount = order.couponDiscount || 0;
+  const subtotalAfterDiscount = Math.max(0, subtotal - couponDiscount);
   const vat = Math.round(subtotal * 0.11);
 
   const addr = order.shippingAddress || "";
@@ -32,7 +34,7 @@ function calculateOrderTotals(order: any) {
   if (feeMatch && feeMatch[1]) {
     shippingFee = parseInt(feeMatch[1].replace(/[.,]/g, ""), 10) || 0;
   } else if (addr.includes("Kurir: Standard Flat Rate")) {
-    const isColdChain = order.items.some((item: any) =>
+    const isColdChain = (order.items || []).some((item: any) =>
       item.product?.category === "COLD_CHAIN" || item.product?.category?.toLowerCase() === "cold chain" ||
       item.product?.name?.toLowerCase().includes("insulin") || item.product?.code?.toLowerCase().includes("amx")
     );
@@ -41,8 +43,8 @@ function calculateOrderTotals(order: any) {
     shippingFee = 50000;
   }
 
-  const total = subtotal + vat + shippingFee;
-  return { subtotal, vat, shippingFee, total };
+  const total = subtotalAfterDiscount + vat + shippingFee;
+  return { subtotal, couponDiscount, subtotalAfterDiscount, vat, shippingFee, total };
 }
 
 function getCourierName(shipment: any): string {
@@ -121,11 +123,11 @@ export default function DashboardOverview({
     return {
       month: monthName,
       val: monthTotal,
-      label: monthTotal >= 1000000 
-        ? `${(monthTotal / 1000000).toFixed(1)}M` 
-        : monthTotal >= 1000 
-        ? `${Math.round(monthTotal / 1000)}K` 
-        : `${monthTotal}`,
+      label: monthTotal >= 1000000
+        ? `${(monthTotal / 1000000).toFixed(1)}M`
+        : monthTotal >= 1000
+          ? `${Math.round(monthTotal / 1000)}K`
+          : `${monthTotal}`,
     };
   });
 
@@ -200,7 +202,7 @@ export default function DashboardOverview({
                       Mitra Terverifikasi
                     </span>
                   </div>
-                  
+
                   {/* Status Metadata Baris Bawah */}
                   <div className="mt-1.5 flex items-center gap-3 text-xs text-emerald-100/80">
                     <span className="inline-flex items-center gap-1.5">
@@ -722,7 +724,7 @@ export default function DashboardOverview({
                   </span>
                 )}
               </div>
-              <span className="text-[10.5px] font-extrabold text-slate-700 text-center leading-tight">E-Sign SP</span>
+              <span className="text-[10.5px] font-extrabold text-slate-700 text-center leading-tight">Transaksi</span>
             </button>
 
             {/* 3. Pelunasan TOP & Tagihan */}
@@ -855,10 +857,37 @@ export default function DashboardOverview({
                         <span className="text-[8.5px] font-extrabold text-emerald-600/90">{getCourierName(shipment)}</span>
                       </div>
                     ) : (
-                      <div className="h-24 w-full rounded-xl bg-slate-50 border border-slate-100 flex flex-col items-center justify-center gap-1 text-slate-400">
-                        <span className="material-symbols-outlined text-2xl text-slate-400">hourglass_top</span>
-                        <span className="text-[10px] font-bold italic">Menunggu Pick-up Kurir PBF</span>
-                        <span className="text-[8.5px] font-bold text-slate-500 uppercase">{getCourierName(shipment)}</span>
+                      <div className="h-24 w-full rounded-xl bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-slate-50 border border-amber-200/60 relative overflow-hidden flex flex-col justify-between p-2.5 font-sans">
+                        {/* Background Cartoon/Vector Warehouse Illustration */}
+                        <svg className="absolute -right-3 -bottom-2 w-28 h-28 opacity-25 text-amber-600 pointer-events-none" viewBox="0 0 120 120" fill="currentColor">
+                          <path d="M60 10 L105 35 L60 60 L15 35 Z" fill="currentColor" opacity="0.4" />
+                          <path d="M15 35 L60 60 L60 105 L15 80 Z" fill="currentColor" opacity="0.7" />
+                          <path d="M105 35 L60 60 L60 105 L105 80 Z" fill="currentColor" opacity="0.9" />
+                          <rect x="75" y="70" width="22" height="14" rx="2" fill="white" opacity="0.6" />
+                          <circle cx="80" cy="85" r="3" fill="currentColor" />
+                          <circle cx="92" cy="85" r="3" fill="currentColor" />
+                        </svg>
+
+                        {/* Top Status Badge */}
+                        <div className="flex items-center justify-between z-10">
+                          <span className="inline-flex items-center gap-1 bg-amber-500/15 text-amber-800 text-[8.5px] font-black px-2 py-0.5 rounded-md border border-amber-300/60">
+                            <span className="material-symbols-outlined text-[11px] animate-spin">hourglass_top</span>
+                            {shipment.status === "PENDING_APPROVAL" ? "Verifikasi SP" : "Siap Diambil"}
+                          </span>
+                          <span className="text-[8px] font-mono font-bold text-amber-700 bg-white/80 backdrop-blur-xs px-1.5 py-0.5 rounded border border-amber-200/50 truncate max-w-[140px]">
+                            {getCourierName(shipment)}
+                          </span>
+                        </div>
+
+                        {/* Bottom Message */}
+                        <div className="z-10">
+                          <p className="text-[10px] font-extrabold text-slate-800 leading-tight">
+                            {shipment.status === "PENDING_APPROVAL" ? "Proses Verifikasi APJ PBF" : "Menunggu Pick-up Kurir"}
+                          </p>
+                          <p className="text-[8.5px] font-medium text-slate-500">
+                            {shipment.status === "PENDING_APPROVAL" ? "Dokumen SP sedang ditinjau legalitasnya" : "Paket telah dikemas rapi di gudang PBF"}
+                          </p>
+                        </div>
                       </div>
                     )}
 

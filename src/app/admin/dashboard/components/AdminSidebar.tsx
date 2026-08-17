@@ -1,8 +1,8 @@
 "use client";
 
 interface AdminSidebarProps {
-  activeTab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "shipping" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin";
-  setActiveTab: (tab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "shipping" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin") => void;
+  activeTab: "overview" | "kemitraan" | "obat" | "cdob" | "promo" | "logistik" | "shipping" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin";
+  setActiveTab: (tab: "overview" | "kemitraan" | "obat" | "cdob" | "promo" | "logistik" | "shipping" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin") => void;
   pendingApprovalsCount: number;
   pendingPaymentsCount: number;
   pendingLogisticsCount: number;
@@ -97,6 +97,18 @@ export default function AdminSidebar({
           >
             <span className="material-symbols-outlined text-[20px] shrink-0">inventory_2</span>
             <span className="truncate">Inventori (FEFO)</span>
+          </button>
+
+          {/* Tab: Promo & Voucher */}
+          <button
+            onClick={() => setActiveTab("promo")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${activeTab === "promo"
+              ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
+              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+              }`}
+          >
+            <span className="material-symbols-outlined text-[20px] shrink-0">confirmation_number</span>
+            <span className="truncate">Promo &amp; Voucher</span>
           </button>
 
           {/* Tab: Logistik */}

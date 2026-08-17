@@ -6,6 +6,7 @@ import Link from "next/link";
 import { logout } from "@/app/actions/auth";
 import { checkoutOrder, confirmDelivery, uploadPaymentProof, cancelOrderByCustomer } from "@/app/actions/orders";
 import { getSnapToken, handlePaymentSuccess } from "@/app/actions/payment";
+import { validateCouponCode, getAvailableCouponsForCustomer } from "@/app/actions/coupon";
 import {
   ShoppingBag,
   History,
@@ -152,7 +153,9 @@ interface User {
 }
 
 function calculateOrderTotals(order: any) {
-  const subtotal = order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+  const subtotal = (order.items || []).reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+  const couponDiscount = order.couponDiscount || 0;
+  const subtotalAfterDiscount = Math.max(0, subtotal - couponDiscount);
   const vat = Math.round(subtotal * 0.11);
 
   const addr = order.shippingAddress || "";
@@ -161,7 +164,7 @@ function calculateOrderTotals(order: any) {
   if (feeMatch && feeMatch[1]) {
     shippingFee = parseInt(feeMatch[1].replace(/[.,]/g, ""), 10) || 0;
   } else if (addr.includes("Kurir: Standard Flat Rate")) {
-    const isColdChain = order.items.some((item: any) =>
+    const isColdChain = (order.items || []).some((item: any) =>
       item.product?.category === "COLD_CHAIN" || item.product?.category?.toLowerCase() === "cold chain" ||
       item.product?.name?.toLowerCase().includes("insulin") || item.product?.code?.toLowerCase().includes("amx")
     );
@@ -170,8 +173,8 @@ function calculateOrderTotals(order: any) {
     shippingFee = 50000;
   }
 
-  const total = subtotal + vat + shippingFee;
-  return { subtotal, vat, shippingFee, total };
+  const total = subtotalAfterDiscount + vat + shippingFee;
+  return { subtotal, couponDiscount, subtotalAfterDiscount, vat, shippingFee, total };
 }
 
 export default function CustomerDashboardClient({
@@ -213,6 +216,103 @@ export default function CustomerDashboardClient({
   const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [addedProductInfo, setAddedProductInfo] = useState<{ product: Product; quantity: number } | null>(null);
+
+  // Voucher Coupon States
+  const [couponCodeInput, setCouponCodeInput] = useState<string>("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; title: string; discountAmount: number } | null>(null);
+  const [couponErrorMessage, setCouponErrorMessage] = useState<string | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState<boolean>(false);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCodeInput.trim()) return;
+    setIsValidatingCoupon(true);
+    setCouponErrorMessage(null);
+    try {
+      const res = await validateCouponCode(
+        couponCodeInput,
+        cart.map((item) => ({
+          productId: item.product.id,
+          category: item.product.category,
+          price: item.product.price,
+          quantity: item.quantity,
+        })),
+        cartTotal,
+        institution?.id,
+        institution?.type
+      );
+
+      if (res.success && res.discountAmount) {
+        setAppliedCoupon({
+          code: res.coupon?.code || couponCodeInput.toUpperCase(),
+          title: res.coupon?.title || "Voucher Diskon Promo",
+          discountAmount: res.discountAmount,
+        });
+        setCouponCodeInput("");
+      } else {
+        setCouponErrorMessage(res.error || "Voucher tidak dapat digunakan");
+      }
+    } catch (err: any) {
+      setCouponErrorMessage(err.message || "Gagal memproses voucher");
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  const [isVoucherModalOpen, setIsVoucherModalOpen] = useState<boolean>(false);
+  const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState<boolean>(false);
+
+  const handleFetchAvailableCoupons = async () => {
+    setIsVoucherModalOpen(true);
+    setLoadingCoupons(true);
+    try {
+      const res = await getAvailableCouponsForCustomer(institution?.type);
+      if (res.success) {
+        setAvailableCoupons(res.coupons || []);
+      }
+    } catch (e) {
+      console.error("Gagal memuat voucher:", e);
+    } finally {
+      setLoadingCoupons(false);
+    }
+  };
+
+  const handleSelectCouponFromModal = async (c: any) => {
+    setCouponCodeInput(c.code);
+    setIsVoucherModalOpen(false);
+    setIsValidatingCoupon(true);
+    setCouponErrorMessage(null);
+    try {
+      const res = await validateCouponCode(
+        c.code,
+        cart.map((item) => ({
+          productId: item.product.id,
+          category: item.product.category,
+          price: item.product.price,
+          quantity: item.quantity,
+        })),
+        cartTotal,
+        institution?.id,
+        institution?.type
+      );
+
+      if (res.success && res.discountAmount) {
+        setAppliedCoupon({
+          code: res.coupon?.code || c.code,
+          title: res.coupon?.title || c.title || "Voucher Diskon Promo",
+          discountAmount: res.discountAmount,
+        });
+        setCouponCodeInput("");
+      } else {
+        setCouponErrorMessage(res.error || "Voucher tidak dapat digunakan");
+      }
+    } catch (err: any) {
+      setCouponErrorMessage(err.message || "Gagal memproses voucher");
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
   const [biteshipStatusToast, setBiteshipStatusToast] = useState<{
     orderNumber: string;
     status: string;
@@ -1011,13 +1111,21 @@ export default function CustomerDashboardClient({
 
       const finalAddress = shippingAddress || tempShippingAddress || institution.address;
 
-      const res = await checkoutOrder(items, signatureDataUrl, paymentMethod, finalAddress);
+      const res = await checkoutOrder(
+        items,
+        signatureDataUrl,
+        paymentMethod,
+        finalAddress,
+        appliedCoupon?.code,
+        appliedCoupon?.discountAmount
+      );
       setIsSubmittingOrder(false);
 
       if (!res.success) {
         setCheckoutError(res.error || "Gagal membuat pesanan");
       } else {
         setCart([]);
+        setAppliedCoupon(null);
         setIsVaModalOpen(false);
         setIsCheckoutOpen(false);
         setIsCartOpen(false);
@@ -1234,8 +1342,8 @@ export default function CustomerDashboardClient({
 
           <div className="pt-2">
             <a
-              href="/downloads/groovycare.apk"
-              download="GroovyCare-PBF-Online.apk"
+              href="/downloads/growmexa.apk"
+              download="GrowMexa-PBF-Online.apk"
               className="inline-flex items-center gap-3 px-5 py-2.5 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-md text-left cursor-pointer mx-auto border border-emerald-500"
             >
               <svg viewBox="0 0 512 512" width="24" height="24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1865,6 +1973,14 @@ export default function CustomerDashboardClient({
                 isSubmittingOrder={isSubmittingOrder}
                 handleCheckout={handleCheckout}
                 setIsCheckoutOpen={setIsCheckoutOpen}
+                appliedCoupon={appliedCoupon}
+                setAppliedCoupon={setAppliedCoupon}
+                couponCodeInput={couponCodeInput}
+                setCouponCodeInput={setCouponCodeInput}
+                couponErrorMessage={couponErrorMessage}
+                isValidatingCoupon={isValidatingCoupon}
+                handleApplyCoupon={handleApplyCoupon}
+                handleFetchAvailableCoupons={handleFetchAvailableCoupons}
               />
             ) : isLoadingTab ? (
               activeTab === "dashboard" ? (
@@ -2074,38 +2190,108 @@ export default function CustomerDashboardClient({
                             ))}
                           </div>
 
-                          {/* Summary & Action Panel */}
-                          <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-6">
-                            <div className="space-y-1 text-center sm:text-left">
-                              <span className="text-xs text-slate-500 font-medium">Total Nilai Keranjang:</span>
-                              <p className="font-extrabold text-xl text-emerald-700 font-sans">
-                                Rp {cartTotal.toLocaleString("id-ID")}
-                              </p>
+                          {/* Summary & Action Panel (Desktop) */}
+                          <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-2xl space-y-4">
+                            {/* VOUCHER SECTION IN DESKTOP CART */}
+                            <div className="p-4 bg-white border border-slate-200/80 rounded-xl space-y-2 font-sans">
+                              <div className="flex items-center justify-between text-xs font-extrabold text-slate-800">
+                                <span className="flex items-center gap-1.5">
+                                  <span>🎟️</span>
+                                  <span>Kode Voucher Promo</span>
+                                </span>
+                                {appliedCoupon ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setAppliedCoupon(null)}
+                                    className="text-rose-600 hover:underline text-[11px] cursor-pointer font-bold"
+                                  >
+                                    Hapus Voucher
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={handleFetchAvailableCoupons}
+                                    className="text-emerald-800 hover:underline text-xs cursor-pointer font-extrabold flex items-center gap-1"
+                                  >
+                                    Pilih Voucher Promo Tersedia ➔
+                                  </button>
+                                )}
+                              </div>
+
+                              {appliedCoupon ? (
+                                <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between font-mono text-xs">
+                                  <div>
+                                    <span className="font-black text-emerald-900 bg-emerald-200/80 px-2 py-0.5 rounded mr-2">
+                                      {appliedCoupon.code}
+                                    </span>
+                                    <span className="text-xs text-emerald-800 font-sans font-bold">{appliedCoupon.title}</span>
+                                  </div>
+                                  <span className="font-black text-emerald-800 text-sm">
+                                    -Rp {appliedCoupon.discountAmount.toLocaleString("id-ID")}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Masukkan Kode Voucher (e.g. PROMO-10K)..."
+                                    value={couponCodeInput}
+                                    onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                                    className="flex-1 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold uppercase outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={handleApplyCoupon}
+                                    disabled={isValidatingCoupon || !couponCodeInput.trim()}
+                                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer shrink-0"
+                                  >
+                                    {isValidatingCoupon ? "Memproses..." : "Terapkan Voucher"}
+                                  </button>
+                                </div>
+                              )}
+
+                              {couponErrorMessage && (
+                                <p className="text-[11px] text-rose-600 font-bold leading-tight pt-1">{couponErrorMessage}</p>
+                              )}
                             </div>
 
-                            <div className="flex gap-3 w-full sm:w-auto">
-                              <button
-                                type="button"
-                                onClick={() => setActiveTab("belanja")}
-                                className="flex-1 sm:flex-initial px-5 py-2.5 bg-white border border-slate-200/80 hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer text-center"
-                              >
-                                Tambah Obat
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!isProfileComplete) {
-                                    alert("Pemesanan diblokir. Harap lengkapi profil Mitra (KTP Pemilik, NPWP Pemilik, SIA, dan SIPA) terlebih dahulu di menu Pengaturan > Profil Apotek.");
-                                    setActiveTab("pengaturan");
-                                    return;
-                                  }
-                                  setIsCheckoutOpen(true);
-                                  setCheckoutError(null);
-                                }}
-                                className="flex-1 sm:flex-initial px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-emerald-600/20 cursor-pointer text-center border-none"
-                              >
-                                Checkout &amp; e-Sign SP
-                              </button>
+                            <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-2">
+                              <div className="space-y-1 text-center sm:text-left">
+                                <span className="text-xs text-slate-500 font-medium">Total Nilai Keranjang:</span>
+                                {appliedCoupon && (
+                                  <div className="text-xs text-emerald-700 font-bold font-mono">
+                                    Potongan Voucher: -Rp {appliedCoupon.discountAmount.toLocaleString("id-ID")}
+                                  </div>
+                                )}
+                                <p className="font-extrabold text-xl text-emerald-700 font-sans">
+                                  Rp {Math.max(0, cartTotal - (appliedCoupon ? appliedCoupon.discountAmount : 0)).toLocaleString("id-ID")}
+                                </p>
+                              </div>
+
+                              <div className="flex gap-3 w-full sm:w-auto">
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab("belanja")}
+                                  className="flex-1 sm:flex-initial px-5 py-2.5 bg-white border border-slate-200/80 hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer text-center"
+                                >
+                                  Tambah Obat
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!isProfileComplete) {
+                                      alert("Pemesanan diblokir. Harap lengkapi profil Mitra (KTP Pemilik, NPWP Pemilik, SIA, dan SIPA) terlebih dahulu di menu Pengaturan > Profil Apotek.");
+                                      setActiveTab("pengaturan");
+                                      return;
+                                    }
+                                    setIsCheckoutOpen(true);
+                                    setCheckoutError(null);
+                                  }}
+                                  className="flex-1 sm:flex-initial px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-emerald-600/20 cursor-pointer text-center border-none"
+                                >
+                                  Checkout &amp; e-Sign SP
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -2159,12 +2345,13 @@ export default function CustomerDashboardClient({
                         </div>
                       ) : (
                         <>
-                          {/* Section 2: Alamat Pengiriman Apotek (Tokopedia Class) */}
-                          <section className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3 font-sans">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                              <h3 className="font-heading font-black text-xs text-slate-900 flex items-center gap-1.5 uppercase tracking-wider">
-                                <span className="material-symbols-outlined text-emerald-600 text-base">location_on</span>
-                                Alamat Pengiriman Apotek
+                          {/* Section 2: Alamat Pengiriman Apotek (Android Native Card Style) */}
+                          <section className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-xs space-y-3 font-sans">
+                            {/* Header: Title & Action */}
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-heading font-black text-xs text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
+                                <span className="material-symbols-outlined text-emerald-700 text-base">location_on</span>
+                                Alamat Pengiriman
                               </h3>
                               <button
                                 type="button"
@@ -2172,34 +2359,49 @@ export default function CustomerDashboardClient({
                                   triggerHapticImpact();
                                   setIsAddressManagerOpenMobile(true);
                                 }}
-                                className="text-emerald-700 text-xs font-black hover:underline border-none bg-transparent cursor-pointer flex items-center gap-0.5"
+                                className="text-emerald-800 text-xs font-black hover:underline active:scale-95 transition bg-transparent border-none cursor-pointer flex items-center gap-0.5"
                               >
-                                <span>Pilih Alamat</span>
+                                <span>Ganti</span>
                                 <span className="material-symbols-outlined text-sm">chevron_right</span>
                               </button>
                             </div>
 
-                            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/60 text-xs text-slate-700 leading-relaxed font-semibold">
-                              <div className="flex items-center justify-between gap-1 mb-1">
-                                <p className="font-black text-slate-900 text-xs">
-                                  {selectedMainAddress ? selectedMainAddress.label : institution.name}
-                                </p>
-                                {selectedMainAddress?.isMain && (
-                                  <span className="px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                    Alamat Utama
+                            {/* Address Card Body (Native Tappable Look) */}
+                            <div
+                              onClick={() => {
+                                triggerHapticImpact();
+                                setIsAddressManagerOpenMobile(true);
+                              }}
+                              className="bg-slate-50/80 hover:bg-slate-100/70 active:bg-slate-100 transition-colors p-3.5 rounded-2xl border border-slate-200/60 space-y-2 cursor-pointer"
+                            >
+                              {/* Recipient Name & Badge */}
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="font-heading font-black text-xs text-slate-900 truncate">
+                                    {selectedMainAddress ? selectedMainAddress.recipientName : (institution.name || user.name)}
                                   </span>
-                                )}
+                                  <span className="text-[11px] font-semibold text-slate-500 font-mono shrink-0">
+                                    ({selectedMainAddress ? selectedMainAddress.recipientPhone : user.phone || "085383138647"})
+                                  </span>
+                                </div>
+                                <span className="px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+                                  {selectedMainAddress?.isMain ? "Utama" : "Apotek"}
+                                </span>
                               </div>
-                              <p className="text-[11px] text-slate-800 font-extrabold">
-                                {selectedMainAddress ? `${selectedMainAddress.recipientName} (${selectedMainAddress.recipientPhone})` : user.name}
-                              </p>
-                              <p className="whitespace-pre-wrap text-[11px] text-slate-600 mt-1 leading-normal">
-                                {selectedMainAddress ? selectedMainAddress.fullAddress : (tempShippingAddress || institution.address)}
+
+                              {/* Street Address */}
+                              <p className="text-[11.5px] font-medium text-slate-600 leading-snug">
+                                {selectedMainAddress ? selectedMainAddress.fullAddress : (tempShippingAddress || institution.address || "Jl. Operational Apotek")}
                               </p>
 
-                              <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-extrabold uppercase text-emerald-800">
-                                <span>📍 {shippingDistrict || "TAMALANREA"}, {shippingRegency || "KOTA MAKASSAR"}</span>
-                                <span>📮 {shippingPostalCode || "90245"}</span>
+                              {/* Region & Postal Code Footer */}
+                              <div className="pt-2 border-t border-slate-200/60 flex items-center gap-1.5 text-[10.5px] font-bold text-slate-700">
+                                <span className="material-symbols-outlined text-[13px] text-emerald-700 shrink-0">apartment</span>
+                                <span className="truncate">
+                                  {shippingVillage ? `${shippingVillage}, ` : ""}{shippingDistrict ? `Kec. ${shippingDistrict}, ` : ""}{shippingRegency || "Kota Makassar"}
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                <span className="font-mono shrink-0 text-slate-500">{shippingPostalCode || "90125"}</span>
                               </div>
                             </div>
                           </section>
@@ -2375,29 +2577,129 @@ export default function CustomerDashboardClient({
                             </div>
                           </section>
 
-                          {/* Section 6: Ringkasan Harga */}
-                          <section className="bg-slate-50/90 rounded-2xl p-4 space-y-3 border border-slate-200/80 font-sans mt-3">
-                            <h3 className="font-heading font-black text-xs text-slate-900 uppercase tracking-wider">Ringkasan Harga</h3>
-                            <div className="space-y-2 text-xs font-bold">
-                              <div className="flex justify-between text-slate-600">
-                                <span>Subtotal ({cart.length} item)</span>
-                                <span className="font-mono text-slate-900 font-black">Rp {cartTotal.toLocaleString("id-ID")}</span>
+                          {/* Section 6: Ringkasan Harga (Android Material 3 Native Style) */}
+                          <section className="bg-white rounded-3xl p-4.5 border border-slate-100 shadow-xs space-y-4 font-sans select-none active:scale-[0.999] transition-transform mt-3">
+                            {/* Header Title */}
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-heading font-extrabold text-xs text-slate-800 tracking-tight flex items-center gap-1.5">
+                                <span className="material-symbols-outlined text-base text-slate-500">receipt_long</span>
+                                Rincian Pembayaran
+                              </h3>
+                              <span className="text-[10px] font-bold text-slate-400 font-mono">{cart.length} Item</span>
+                            </div>
+
+                            {/* Voucher Selector Entry (Android Bottom-Sheet Trigger Style) */}
+                            {appliedCoupon ? (
+                              <div className="bg-emerald-50 border border-emerald-300/90 rounded-2xl p-3 flex items-center justify-between gap-3 font-mono text-xs">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-black text-emerald-900 bg-emerald-200/90 px-2 py-0.5 rounded-lg text-[11px]">
+                                      {appliedCoupon.code}
+                                    </span>
+                                    <span className="text-[11px] text-emerald-700 font-sans font-bold truncate block sm:inline">{appliedCoupon.title}</span>
+                                  </div>
+                                  <p className="text-[10px] text-emerald-600 font-sans font-semibold mt-0.5">Voucher promo berhasil digunakan</p>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="font-black text-emerald-800 font-mono text-xs">
+                                    -Rp {appliedCoupon.discountAmount.toLocaleString("id-ID")}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAppliedCoupon(null)}
+                                    className="text-rose-600 hover:text-rose-700 text-xs cursor-pointer font-bold border-none bg-transparent"
+                                    title="Hapus Voucher"
+                                  >
+                                    <span className="material-symbols-outlined text-base">close</span>
+                                  </button>
+                                </div>
                               </div>
-                              <div className="flex justify-between text-slate-600">
-                                <span>PPN (11%)</span>
-                                <span className="font-mono text-slate-900 font-black">Rp {Math.round(cartTotal * 0.11).toLocaleString("id-ID")}</span>
+                            ) : (
+                              <div
+                                onClick={handleFetchAvailableCoupons}
+                                className="bg-emerald-50/60 hover:bg-emerald-50/90 active:bg-emerald-100/70 border border-dashed border-emerald-300/80 rounded-2xl p-3 transition-colors cursor-pointer flex items-center justify-between gap-3"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="w-8 h-8 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                                    <span className="material-symbols-outlined text-base">confirmation_number</span>
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-black text-slate-900 leading-tight truncate">Gunakan Voucher Promo</p>
+                                    <p className="text-[10.5px] font-semibold text-emerald-700 leading-tight">Hemat hingga puluhan ribu</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-0.5 text-emerald-800 font-extrabold text-xs shrink-0">
+                                  <span>Pilih</span>
+                                  <span className="material-symbols-outlined text-sm">chevron_right</span>
+                                </div>
                               </div>
-                              <div className="flex justify-between text-slate-600">
-                                <span>Biaya Pengiriman</span>
-                                <span className="text-emerald-800 font-black font-mono">Rp {shippingFeeMobile.toLocaleString("id-ID")}</span>
+                            )}
+
+                            {/* Manual Voucher Input */}
+                            {!appliedCoupon && (
+                              <div className="flex items-center gap-1.5 pt-0.5">
+                                <input
+                                  type="text"
+                                  placeholder="Masukkan Kode Voucher..."
+                                  value={couponCodeInput}
+                                  onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                                  className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold uppercase outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleApplyCoupon}
+                                  disabled={isValidatingCoupon || !couponCodeInput.trim()}
+                                  className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer shrink-0 border-none shadow-2xs"
+                                >
+                                  {isValidatingCoupon ? "..." : "Pakai"}
+                                </button>
                               </div>
-                              <hr className="border-slate-200/80 my-2" />
-                              <div className="flex justify-between text-slate-900">
-                                <span className="font-heading font-black text-xs uppercase tracking-wide">Total Estimasi</span>
-                                <span className="font-extrabold text-base text-emerald-800 font-mono">
-                                  Rp {(cartTotal + Math.round(cartTotal * 0.11) + shippingFeeMobile).toLocaleString("id-ID")}
-                                </span>
+                            )}
+
+                            {couponErrorMessage && (
+                              <p className="text-[10px] text-rose-600 font-bold leading-tight px-1">{couponErrorMessage}</p>
+                            )}
+
+                            {/* Price Breakdown List */}
+                            <div className="space-y-2 text-xs font-semibold text-slate-600 pt-1">
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-500">Subtotal Produk</span>
+                                <span className="font-mono text-slate-900 font-bold">Rp {cartTotal.toLocaleString("id-ID")}</span>
                               </div>
+                              
+                              {appliedCoupon && (
+                                <div className="flex justify-between items-center text-emerald-700 font-bold">
+                                  <span>Diskon Voucher</span>
+                                  <span className="font-mono font-black">-Rp {appliedCoupon.discountAmount.toLocaleString("id-ID")}</span>
+                                </div>
+                              )}
+
+                              <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-1 text-slate-500">
+                                  <span>PPN (11%)</span>
+                                  <span className="material-symbols-outlined text-xs text-slate-400">info</span>
+                                </div>
+                                <span className="font-mono text-slate-900 font-bold">Rp {Math.round(cartTotal * 0.11).toLocaleString("id-ID")}</span>
+                              </div>
+
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-500">Biaya Pengiriman</span>
+                                <span className="font-mono text-slate-900 font-bold">Rp {shippingFeeMobile.toLocaleString("id-ID")}</span>
+                              </div>
+                            </div>
+
+                            {/* Divider Native Inset */}
+                            <div className="border-t border-slate-100 my-1"></div>
+
+                            {/* Total Row */}
+                            <div className="flex items-baseline justify-between pt-0.5">
+                              <div>
+                                <p className="text-[11px] font-bold text-slate-400 leading-none">Total Tagihan</p>
+                                <p className="text-[9.5px] text-slate-400 mt-1">Termasuk PPN &amp; Ongkir</p>
+                              </div>
+                              <span className="text-lg font-black text-emerald-700 font-mono tracking-tight leading-none">
+                                Rp {Math.max(0, cartTotal - (appliedCoupon ? appliedCoupon.discountAmount : 0) + Math.round(cartTotal * 0.11) + shippingFeeMobile).toLocaleString("id-ID")}
+                              </span>
                             </div>
                           </section>
 
@@ -2408,67 +2710,81 @@ export default function CustomerDashboardClient({
                             </p>
                           </div>
 
-                          {/* Sticky Bottom Action Bar Tokopedia Class (Floats safely above MobileBottomNav) */}
-                          <div className="fixed bottom-[98px] md:bottom-6 left-3 right-3 z-[90] bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl p-3.5 shadow-[0_12px_36px_rgba(0,0,0,0.18)] flex items-center justify-between gap-3 font-sans">
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-slate-400 text-[10px] font-extrabold uppercase tracking-wider truncate">Total Pembayaran</span>
-                              <span className="font-black text-base text-emerald-900 font-mono truncate">
-                                Rp {(cartTotal + Math.round(cartTotal * 0.11) + shippingFeeMobile).toLocaleString("id-ID")}
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                triggerHapticImpact();
-                                if (!isProfileComplete) {
-                                  alert("Pemesanan diblokir. Harap lengkapi profil Mitra (KTP Pemilik, NPWP Pemilik, SIA, dan SIPA) terlebih dahulu di menu Pengaturan > Profil Apotek.");
-                                  setActiveTab("pengaturan");
-                                  return;
-                                }
-                                if (cart.length === 0) return;
+                          {/* Clean White Glassmorphism Floating Bottom Action Bar */}
+                          <div className="fixed bottom-3 left-3 right-3 z-50 max-w-md mx-auto font-sans">
+                            <div className="bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-3xl p-2.5 pl-14 pr-3 shadow-xl shadow-slate-900/10 flex items-center justify-between gap-3 text-slate-900">
+                              
+                              {/* Total Ringkasan (Kiri) */}
+                              <div className="flex flex-col min-w-0">
+                                <div className="flex items-center gap-1.5 leading-none">
+                                  <span className="text-slate-400 text-[9.5px] font-black uppercase tracking-wider">Total</span>
+                                  <span className="text-[9px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-full">
+                                    {cart.reduce((sum, i) => sum + i.quantity, 0)} Item
+                                  </span>
+                                </div>
+                                <span className="font-mono font-black text-base text-emerald-700 tracking-tight mt-1 leading-none truncate">
+                                  Rp {Math.max(0, cartTotal - (appliedCoupon ? appliedCoupon.discountAmount : 0) + Math.round(cartTotal * 0.11) + shippingFeeMobile).toLocaleString("id-ID")}
+                                </span>
+                              </div>
 
-                                if (!shippingProvince) {
-                                  alert("Silakan lengkapi regional alamat pengiriman dan pilih kurir pengiriman terlebih dahulu.");
-                                  setIsAddressManagerOpenMobile(true);
-                                  return;
-                                }
+                              {/* Tombol Aksi Utama (Kanan) */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  triggerHapticImpact();
+                                  if (!isProfileComplete) {
+                                    alert("Pemesanan diblokir. Harap lengkapi profil Mitra (KTP Pemilik, NPWP Pemilik, SIA, dan SIPA) terlebih dahulu di menu Pengaturan > Profil Apotek.");
+                                    setActiveTab("pengaturan");
+                                    return;
+                                  }
+                                  if (cart.length === 0) return;
 
-                                // Open e-Sign modal directly if SP is not signed yet
-                                if (!hasSigned) {
-                                  setIsDrawingModalOpen(true);
-                                  return;
-                                }
+                                  if (!shippingProvince) {
+                                    alert("Silakan lengkapi regional alamat pengiriman dan pilih kurir pengiriman terlebih dahulu.");
+                                    setIsAddressManagerOpenMobile(true);
+                                    return;
+                                  }
 
-                                // Save the consolidated address with selected courier info
-                                const durationText = selectedRate?.shipment_duration ? ` (${selectedRate.shipment_duration} hari)` : "";
-                                const courierPriceText = typeof selectedRate?.price === "number"
-                                  ? ` - Rp ${selectedRate.price.toLocaleString("id-ID")}`
-                                  : " - Tarif Realtime Belum Dimuat";
-                                const courierString = selectedRate
-                                  ? ` | Kurir: ${selectedRate.courier_name.toUpperCase()} ${selectedRate.courier_service_name} [code: ${selectedRate.courier_code}:${selectedRate.courier_service_code || selectedRate.type || 'reg'}]${durationText}${courierPriceText}`
-                                  : " | Kurir: Standard Flat Rate";
-                                const cleanDetail = parseFullAddress(shippingAddressDetail).detail || shippingAddressDetail.replace(/^Alamat:\s*/i, "").split(/,\s*(?:Kel\/Desa|Kel|Kec|Kab\/Kota|Provinsi):/i)[0].replace(/,\s*Tamalanrea,\s*Makassar.*$/i, "").trim();
-                                const finalAddress = `Alamat: ${cleanDetail}, Kel/Desa: ${shippingVillage}, Kec: ${shippingDistrict}, Kab/Kota: ${shippingRegency}, Provinsi: ${shippingProvince}, Kode Pos: ${shippingPostalCode}${courierString}`;
-                                setTempShippingAddress(finalAddress);
+                                  // Open e-Sign modal directly if SP is not signed yet
+                                  if (!hasSigned) {
+                                    setIsDrawingModalOpen(true);
+                                    return;
+                                  }
 
-                                // Execute order checkout directly
-                                executeCheckout(finalAddress);
-                              }}
-                              disabled={isSubmittingOrder || cart.length === 0}
-                              className={`bg-primary text-white font-heading font-black text-xs sm:text-sm px-5 sm:px-8 py-3.5 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center justify-center gap-1.5 border-none cursor-pointer shrink-0 ${cart.length === 0 ? "opacity-50 cursor-not-allowed shadow-none" : ""
+                                  // Save the consolidated address with selected courier info
+                                  const durationText = selectedRate?.shipment_duration ? ` (${selectedRate.shipment_duration} hari)` : "";
+                                  const courierPriceText = typeof selectedRate?.price === "number"
+                                    ? ` - Rp ${selectedRate.price.toLocaleString("id-ID")}`
+                                    : " - Tarif Realtime Belum Dimuat";
+                                  const courierString = selectedRate
+                                    ? ` | Kurir: ${selectedRate.courier_name.toUpperCase()} ${selectedRate.courier_service_name} [code: ${selectedRate.courier_code}:${selectedRate.courier_service_code || selectedRate.type || 'reg'}]${durationText}${courierPriceText}`
+                                    : " | Kurir: Standard Flat Rate";
+                                  const cleanDetail = parseFullAddress(shippingAddressDetail).detail || shippingAddressDetail.replace(/^Alamat:\s*/i, "").split(/,\s*(?:Kel\/Desa|Kel|Kec|Kab\/Kota|Provinsi):/i)[0].replace(/,\s*Tamalanrea,\s*Makassar.*$/i, "").trim();
+                                  const finalAddress = `Alamat: ${cleanDetail}, Kel/Desa: ${shippingVillage}, Kec: ${shippingDistrict}, Kab/Kota: ${shippingRegency}, Provinsi: ${shippingProvince}, Kode Pos: ${shippingPostalCode}${courierString}`;
+                                  setTempShippingAddress(finalAddress);
+
+                                  // Execute order checkout directly
+                                  executeCheckout(finalAddress);
+                                }}
+                                disabled={isSubmittingOrder || cart.length === 0}
+                                className={`bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-md shadow-emerald-700/20 flex items-center justify-center gap-1.5 transition-all border-none cursor-pointer shrink-0 ${
+                                  cart.length === 0 ? "opacity-50 cursor-not-allowed shadow-none" : ""
                                 }`}
-                            >
-                              <span>
-                                {isSubmittingOrder
-                                  ? "Memproses..."
-                                  : !hasSigned
-                                    ? "Tanda Tangani SP & Checkout"
-                                    : "Checkout"}
-                              </span>
-                              <span className="material-symbols-outlined text-base">
-                                {!hasSigned ? "draw" : "arrow_forward"}
-                              </span>
-                            </button>
+                              >
+                                <span className="material-symbols-outlined text-base">
+                                  {isSubmittingOrder ? "sync" : !hasSigned ? "draw" : "shopping_cart_checkout"}
+                                </span>
+                                <span>
+                                  {isSubmittingOrder
+                                    ? "Memproses..."
+                                    : !hasSigned
+                                      ? "Checkout SP"
+                                      : "Checkout"}
+                                </span>
+                                <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                              </button>
+
+                            </div>
                           </div>
                         </>
                       )}
@@ -2726,28 +3042,9 @@ export default function CustomerDashboardClient({
       </main>
 
 
-      <Suspense fallback={null}>
-        <MobileDrawer
-          isOpen={isMobileSidebarOpen}
-          onClose={() => setIsMobileSidebarOpen(false)}
-          user={user}
-          institution={institution}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          docSubTab={docSubTab}
-          setDocSubTab={setDocSubTab}
-          legalSubTab={legalSubTab}
-          setLegalSubTab={setLegalSubTab}
-          cartItemCount={cartItemCount}
-          activeOrdersCount={activeOrdersCount}
-          pendingPaymentCount={pendingPaymentCount}
-          esignPendingCount={orders.filter(o => o.status === "PENDING_APPROVAL" && !o.spSignature).length}
-          handleLogout={handleLogout}
-          setViewingDetailOrder={setViewingDetailOrder}
-          setViewingReceiptReport={setViewingReceiptReport}
-          setIsCheckoutOpen={setIsCheckoutOpen}
-        />
 
+
+      <Suspense fallback={null}>
         <SignatureModal
           isDrawingModalOpen={isDrawingModalOpen}
           setIsDrawingModalOpen={setIsDrawingModalOpen}
@@ -3143,8 +3440,8 @@ export default function CustomerDashboardClient({
 
       {/* MOBILE FLOATING STICKY CART BAR dihapus sesuai instruksi agar katalog mobile bersih */}
 
-      {/* MOBILE BOTTOM NAVIGATION BAR (DOCK APP 5 TAB) */}
-      {!isCheckoutOpen && (
+      {/* MOBILE BOTTOM NAVIGATION BAR (DOCK APP 5 TAB - Sembunyi di Halaman Checkout) */}
+      {!isCheckoutOpen && activeTab !== "keranjang" && (
         <MobileBottomNav
           activeTab={activeTab}
           setActiveTab={handleSwitchTab}
@@ -3389,8 +3686,8 @@ export default function CustomerDashboardClient({
         </div>
       )}
 
-      {/* Floating WhatsApp Support Button on Mobile Android */}
-      {!isCheckoutOpen && (
+      {/* Floating WhatsApp Support Button on Mobile Android (Sembunyi di Halaman Checkout) */}
+      {!isCheckoutOpen && activeTab !== "keranjang" && (
         <a
           href="https://wa.me/6285151005960?text=Halo%20CS%20GroovyCare,%20saya%20butuh%20bantuan%20mengenai%20pesanan%20saya"
           target="_blank"
@@ -3492,6 +3789,151 @@ export default function CustomerDashboardClient({
             className="flex-1 h-full cursor-pointer"
             onClick={() => setIsMobileSidebarOpen(false)}
           />
+        </div>
+      )}
+
+      {/* MODAL PICKER VOUCHER PROMO TERSEDIA (Android Native Bottom Sheet Style) */}
+      {isVoucherModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[9999] flex flex-col justify-end sm:items-center sm:justify-center transition-opacity animate-fadeIn font-sans">
+          {/* Bottom Sheet Container (Slides up from bottom on mobile) */}
+          <div className="w-full sm:max-w-lg bg-white rounded-t-[28px] sm:rounded-3xl shadow-2xl flex flex-col max-h-[85vh] border border-slate-200/80 overflow-hidden animate-slideUp">
+            
+            {/* Drag Handle Indicator */}
+            <div className="pt-3 pb-1.5 flex justify-center shrink-0">
+              <div className="w-10 h-1.5 bg-slate-300 rounded-full" />
+            </div>
+
+            {/* Header Modal */}
+            <div className="px-5 py-2.5 flex items-center justify-between border-b border-slate-100 shrink-0">
+              <div>
+                <h3 className="text-sm font-heading font-black text-slate-900 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-emerald-700 text-lg">confirmation_number</span>
+                  Voucher &amp; Promo
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">Pilih atau masukkan kode voucher promo Anda</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsVoucherModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-90 text-slate-500 flex items-center justify-center transition border-none cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-base">close</span>
+              </button>
+            </div>
+
+            {/* Sticky Manual Input Promo Code */}
+            <div className="p-3.5 bg-slate-50 border-b border-slate-100 shrink-0 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">sell</span>
+                  <input
+                    type="text"
+                    placeholder="Punya kode voucher lain?"
+                    value={couponCodeInput}
+                    onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold uppercase placeholder:normal-case placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-2xs"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  disabled={isValidatingCoupon || !couponCodeInput.trim()}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition shadow-xs shrink-0 border-none disabled:opacity-50 cursor-pointer"
+                >
+                  {isValidatingCoupon ? "..." : "Terapkan"}
+                </button>
+              </div>
+              {couponErrorMessage && (
+                <p className="text-[10px] text-rose-600 font-bold leading-tight px-1">{couponErrorMessage}</p>
+              )}
+            </div>
+
+            {/* Scrollable Voucher Ticket List */}
+            <div className="p-4 space-y-3 overflow-y-auto overscroll-contain flex-1">
+              {loadingCoupons ? (
+                <div className="py-8 text-center text-slate-400 italic text-xs">
+                  Memuat daftar voucher promo...
+                </div>
+              ) : availableCoupons.length === 0 ? (
+                <div className="py-8 text-center text-slate-400 italic text-xs">
+                  Saat ini belum ada voucher promo yang dapat digunakan.
+                </div>
+              ) : (
+                availableCoupons.map((c) => {
+                  const isEligibleMinSpend = cartTotal >= c.minSpend;
+                  const totalCartQty = cart.reduce((sum, item) => sum + item.quantity, 0);
+                  const isEligibleMinQty = c.minQuantity <= 0 || totalCartQty >= c.minQuantity;
+                  const isEligible = isEligibleMinSpend && isEligibleMinQty;
+
+                  const displayTitle = (c.title && c.title.trim() !== c.code)
+                    ? c.title
+                    : c.targetProduct
+                    ? `Diskon Khusus ${c.targetProduct.name}`
+                    : "Promo Spesial Diskon Voucher";
+
+                  return (
+                    <div
+                      key={c.id}
+                      className={`bg-white border rounded-2xl p-3.5 shadow-2xs transition-all flex items-start justify-between gap-3 ${
+                        isEligible
+                          ? "border-slate-200 hover:border-emerald-400"
+                          : "border-slate-200 opacity-60 bg-slate-50"
+                      }`}
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-mono font-black text-xs text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md">
+                            {c.code}
+                          </span>
+                          <span className="bg-rose-50 text-rose-700 text-[9px] font-black px-1.5 py-0.5 rounded border border-rose-200">
+                            {c.type === "PERCENTAGE" ? `${c.discountValue}% OFF` : `Diskon Rp ${c.discountValue.toLocaleString("id-ID")}`}
+                          </span>
+                        </div>
+                        <p className="font-extrabold text-xs text-slate-900 leading-tight">{displayTitle}</p>
+                        {c.targetProduct && (
+                          <p className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs">check_circle</span> Khusus: {c.targetProduct.name}
+                          </p>
+                        )}
+                        <div className="text-[10px] text-slate-400 space-y-0.5 pt-0.5">
+                          {c.minSpend > 0 && (
+                            <div>Min. transaksi Rp {c.minSpend.toLocaleString("id-ID")}</div>
+                          )}
+                          {c.minQuantity > 0 && (
+                            <div>Min. pembelian {c.minQuantity} Unit Obat</div>
+                          )}
+                          <div>Berlaku s/d {new Date(c.expiryDate).toLocaleDateString("id-ID")}</div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={!isEligible}
+                        onClick={() => handleSelectCouponFromModal(c)}
+                        className={`px-3.5 py-1.5 rounded-xl font-extrabold text-xs bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white border-none shadow-xs shrink-0 cursor-pointer ${
+                          isEligible ? "" : "bg-slate-200 text-slate-500 cursor-not-allowed shadow-none"
+                        }`}
+                      >
+                        {isEligible ? "Pakai" : "Syarat Belum Cukup"}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Bottom Footer (Safe Padding) */}
+            <div className="p-3.5 pb-6 border-t border-slate-100 bg-white shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsVoucherModalOpen(false)}
+                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] text-slate-700 font-bold rounded-xl text-xs transition border-none cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
 

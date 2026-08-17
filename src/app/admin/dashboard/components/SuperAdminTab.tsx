@@ -344,8 +344,8 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
             <button
               onClick={() => setActiveSubTab("users")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeSubTab === "users"
-                  ? "bg-primary text-white shadow-md"
-                  : "text-slate-300 hover:text-white hover:bg-white/5"
+                ? "bg-primary text-white shadow-md"
+                : "text-slate-300 hover:text-white hover:bg-white/5"
                 }`}
             >
               <Users className="w-4 h-4" />
@@ -354,8 +354,8 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
             <button
               onClick={() => setActiveSubTab("settings")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeSubTab === "settings"
-                  ? "bg-primary text-white shadow-md"
-                  : "text-slate-300 hover:text-white hover:bg-white/5"
+                ? "bg-primary text-white shadow-md"
+                : "text-slate-300 hover:text-white hover:bg-white/5"
                 }`}
             >
               <Image className="w-4 h-4" />
@@ -365,8 +365,8 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
               <button
                 onClick={() => setActiveSubTab("topup")}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeSubTab === "topup"
-                    ? "bg-primary text-white shadow-md"
-                    : "text-slate-300 hover:text-white hover:bg-white/5"
+                  ? "bg-primary text-white shadow-md"
+                  : "text-slate-300 hover:text-white hover:bg-white/5"
                   }`}
               >
                 <Wallet className="w-4 h-4" />
@@ -381,8 +381,8 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
       {alertMessage && (
         <div
           className={`flex items-center gap-3 px-5 py-4 rounded-2xl border text-xs font-medium shadow-sm animate-slideDown ${alertMessage.type === "success"
-              ? "bg-green-50 border-green-200 text-green-700"
-              : "bg-red-50 border-red-200 text-red-700"
+            ? "bg-green-50 border-green-200 text-green-700"
+            : "bg-red-50 border-red-200 text-red-700"
             }`}
         >
           {alertMessage.type === "success" ? (
@@ -457,8 +457,8 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
                             <td className="py-4 px-4">
                               <span
                                 className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wide ${admin.role === "SYSTEM_ADMIN"
-                                    ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                                    : "bg-teal-50 text-teal-700 border border-teal-200"
+                                  ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                  : "bg-teal-50 text-teal-700 border border-teal-200"
                                   }`}
                               >
                                 {admin.role}
@@ -658,7 +658,7 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
         {/* TAB 2: PENGATURAN SISTEM */}
         {activeSubTab === "settings" && (
           <div className="bg-white border border-outline-variant/30 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
-            
+
             {loadingSettings ? (
               <div className="py-12 text-center text-xs text-on-surface-variant flex flex-col items-center justify-center gap-3">
                 <span className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></span>
@@ -742,7 +742,7 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
                       />
                     </div>
 
-                    </div>
+                  </div>
 
                   {/* Pratinjau Kompak (1 Kolom) */}
                   <div className="flex flex-col items-center justify-center p-3 border border-dashed border-slate-200 rounded-2xl bg-slate-50/80 h-full min-h-[140px] space-y-3">
@@ -835,11 +835,10 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
                     key={item.slug}
                     type="button"
                     onClick={() => setSelectedCmsSlug(item.slug)}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer border-none ${
-                      selectedCmsSlug === item.slug
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer border-none ${selectedCmsSlug === item.slug
                         ? "bg-slate-900 text-white shadow-xs"
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200/70"
-                    }`}
+                      }`}
                   >
                     {item.label}
                   </button>
@@ -978,13 +977,12 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span
-                              className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${
-                                log.eventType === "AUTH_PASSWORD_RESET_SUCCESS"
+                              className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${log.eventType === "AUTH_PASSWORD_RESET_SUCCESS"
                                   ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                                   : log.eventType === "SECURITY_ALERT"
-                                  ? "bg-rose-50 text-rose-800 border-rose-200"
-                                  : "bg-amber-50 text-amber-800 border-amber-200"
-                              }`}
+                                    ? "bg-rose-50 text-rose-800 border-rose-200"
+                                    : "bg-amber-50 text-amber-800 border-amber-200"
+                                }`}
                             >
                               {log.eventType}
                             </span>
@@ -999,13 +997,12 @@ export default function SuperAdminTab({ currentUserEmail }: SuperAdminTabProps) 
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span
-                              className={`text-[10px] font-bold ${
-                                log.status === "SUCCESS"
+                              className={`text-[10px] font-bold ${log.status === "SUCCESS"
                                   ? "text-emerald-700"
                                   : log.status === "BLOCKED"
-                                  ? "text-rose-700"
-                                  : "text-amber-700"
-                              }`}
+                                    ? "text-rose-700"
+                                    : "text-amber-700"
+                                }`}
                             >
                               {log.status}
                             </span>

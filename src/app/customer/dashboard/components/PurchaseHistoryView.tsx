@@ -33,7 +33,10 @@ interface PurchaseHistoryViewProps {
 }
 
 function calculateOrderTotals(order: any) {
-  const subtotal = order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+  const subtotal = (order.items || []).reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+  const couponDiscount = order.couponDiscount || 0;
+  const couponCode = order.couponCode || null;
+  const subtotalAfterDiscount = Math.max(0, subtotal - couponDiscount);
   const vat = Math.round(subtotal * 0.11);
 
   const addr = order.shippingAddress || "";
@@ -42,7 +45,7 @@ function calculateOrderTotals(order: any) {
   if (feeMatch && feeMatch[1]) {
     shippingFee = parseInt(feeMatch[1].replace(/[.,]/g, ""), 10) || 0;
   } else if (addr.includes("Kurir: Standard Flat Rate")) {
-    const isColdChain = order.items.some((item: any) =>
+    const isColdChain = (order.items || []).some((item: any) =>
       item.product?.category === "COLD_CHAIN" || item.product?.category?.toLowerCase() === "cold chain" ||
       item.product?.name?.toLowerCase().includes("insulin") || item.product?.code?.toLowerCase().includes("amx")
     );
@@ -51,8 +54,8 @@ function calculateOrderTotals(order: any) {
     shippingFee = 50000;
   }
 
-  const total = subtotal + vat + shippingFee;
-  return { subtotal, vat, shippingFee, total };
+  const total = subtotalAfterDiscount + vat + shippingFee;
+  return { subtotal, couponDiscount, couponCode, subtotalAfterDiscount, vat, shippingFee, total };
 }
 
 export default function PurchaseHistoryView({
@@ -376,7 +379,7 @@ export default function PurchaseHistoryView({
                 </tr>
               ) : (
                 filteredOrders.map((order) => {
-                  const { total: orderTotal } = calculateOrderTotals(order);
+                  const { total: orderTotal, couponDiscount, couponCode } = calculateOrderTotals(order);
                   const isPaid = order.paymentStatus === "PAID";
                   const isRejected = order.status === "REJECTED" || order.status === "CANCELLED";
 
@@ -417,8 +420,21 @@ export default function PurchaseHistoryView({
                       </td>
 
                       {/* Total */}
-                      <td className="px-5 py-4 text-right font-bold font-mono">
-                        Rp {orderTotal.toLocaleString("id-ID")}
+                      <td className="px-5 py-4 text-right font-mono">
+                        {couponDiscount > 0 ? (
+                          <div>
+                            <span className="font-extrabold text-emerald-800 text-xs block">
+                              Rp {orderTotal.toLocaleString("id-ID")}
+                            </span>
+                            <span className="text-[9.5px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full inline-block mt-0.5">
+                              🎟️ Hemat Rp {couponDiscount.toLocaleString("id-ID")}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="font-bold text-foreground">
+                            Rp {orderTotal.toLocaleString("id-ID")}
+                          </span>
+                        )}
                       </td>
 
                       {/* Status Bayar */}
@@ -576,7 +592,7 @@ export default function PurchaseHistoryView({
           </div>
         ) : (
           filteredOrders.map((order) => {
-            const { total: orderTotal } = calculateOrderTotals(order);
+            const { total: orderTotal, couponDiscount } = calculateOrderTotals(order);
             const isPaid = order.paymentStatus === "PAID";
             const isRejected = order.status === "REJECTED" || order.status === "CANCELLED";
 
@@ -644,6 +660,11 @@ export default function PurchaseHistoryView({
                     <span className="text-slate-900 font-extrabold font-mono text-xs sm:text-sm">
                       Rp {orderTotal.toLocaleString("id-ID")}
                     </span>
+                    {couponDiscount > 0 && (
+                      <div className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 block text-right mt-0.5">
+                        🎟️ Hemat Rp {couponDiscount.toLocaleString("id-ID")}
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -103,6 +103,8 @@ model Product {
   manufacturer     String      @default("Kalbe Farma")
   nie              String      @default("") // Nomor Izin Edar BPOM
   imageUrl         String?
+  promoPrice       Float?
+  isPromo          Boolean     @default(false)
   createdAt        DateTime    @default(now())
   batches          Batch[]
   orderItems       OrderItem[]
@@ -152,6 +154,8 @@ model Order {
   paymentProofUrl   String?                // Base64 bukti bayar
   paymentStatus     String                 @default("UNPAID") // "UNPAID" | "PENDING_VERIFICATION" | "PAID"
   paymentMethod     String                 @default("VA")     // "VA" | "TOP" | "INVOICE"
+  couponCode        String?
+  couponDiscount    Float                  @default(0.0)
   items             OrderItem[]
   batchAllocations  OrderBatchAllocation[]
 
@@ -248,4 +252,31 @@ model TopUpRequest {
 
   @@index([requestedById])
   @@index([paymentStatus])
+}
+
+model PromoCoupon {
+  id                    String   @id @default(uuid())
+  code                  String   @unique
+  title                 String
+  type                  String   @default("FIXED_AMOUNT") // "FIXED_AMOUNT" | "PERCENTAGE"
+  scope                 String   @default("GLOBAL")       // "GLOBAL" | "CATEGORY" | "PRODUCT"
+  discountValue         Float
+  maxDiscount           Float?
+  minSpend              Float    @default(0.0)
+  minQuantity           Int      @default(0)
+  usageLimit            Int      @default(100)
+  perUserLimit          Int      @default(1)
+  usedCount             Int      @default(0)
+  targetProductId       String?
+  targetCategory        String?
+  targetCustomerSegment String   @default("ALL")          // "ALL" | "NEW_PARTNER" | "APOTEK" | "KLINIK_RS"
+  startDate             DateTime @default(now())
+  expiryDate            DateTime
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([code])
+  @@index([targetProductId])
+  @@index([isActive])
 }

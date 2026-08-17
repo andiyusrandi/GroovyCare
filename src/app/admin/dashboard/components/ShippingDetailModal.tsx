@@ -46,6 +46,8 @@ interface Order {
   paymentMethod: string;
   rejectionReason: string | null;
   biteshipOrderId?: string | null;
+  couponDiscount?: number | null;
+  couponCode?: string | null;
   institution: {
     name: string;
     address: string;
@@ -135,8 +137,10 @@ export default function ShippingDetailModal({
   );
 
   const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const couponDiscount = order.couponDiscount || 0;
+  const subtotalAfterDiscount = Math.max(0, subtotal - couponDiscount);
   const vat = Math.round(subtotal * 0.11);
-  const totalAmount = subtotal + vat + courierInfo.shippingFee;
+  const totalAmount = subtotalAfterDiscount + vat + courierInfo.shippingFee;
 
   const handlePrintResi = () => {
     printCDOBDocument(order, "SURAT_JALAN");
@@ -406,11 +410,17 @@ export default function ShippingDetailModal({
           </section>
 
           {/* D. RINCIAN BIAYA / TAGIHAN */}
-          <section className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 max-w-sm ml-auto text-xs">
+          <section className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 max-w-sm ml-auto text-xs font-sans">
             <div className="flex justify-between items-center text-slate-600">
               <span>Subtotal Sediaan Obat</span>
               <span className="font-mono font-bold">Rp {subtotal.toLocaleString("id-ID")}</span>
             </div>
+            {couponDiscount > 0 && (
+              <div className="flex justify-between items-center text-emerald-700 font-extrabold text-xs">
+                <span>Diskon Voucher Promo ({order.couponCode || "Voucher"})</span>
+                <span className="font-mono font-black">-Rp {couponDiscount.toLocaleString("id-ID")}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center text-slate-600">
               <span>PPN 11% (Faktur Pajak)</span>
               <span className="font-mono font-bold">Rp {vat.toLocaleString("id-ID")}</span>

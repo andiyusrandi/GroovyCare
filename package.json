@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "mcp:devtools": "chrome-devtools-mcp",
-    "push": "./growmexa push"
+    "push": "./growmexa push",
+    "apk": "./growmexa build-apk",
+    "build:apk": "./growmexa build-apk"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

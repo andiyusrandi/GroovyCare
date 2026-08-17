@@ -42,6 +42,8 @@ interface Order {
     sipaNumber: string | null;
     sipaExpiry: Date | null;
   };
+  couponDiscount?: number | null;
+  couponCode?: string | null;
   items: OrderItem[];
 }
 
@@ -53,7 +55,9 @@ interface OrderHistoryTabProps {
 }
 
 function calculateOrderTotals(order: any) {
-  const subtotal = order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+  const subtotal = (order.items || []).reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+  const couponDiscount = order.couponDiscount || 0;
+  const subtotalAfterDiscount = Math.max(0, subtotal - couponDiscount);
   const vat = Math.round(subtotal * 0.11);
 
   const addr = order.shippingAddress || "";
@@ -62,7 +66,7 @@ function calculateOrderTotals(order: any) {
   if (feeMatch && feeMatch[1]) {
     shippingFee = parseInt(feeMatch[1].replace(/[.,]/g, ""), 10) || 0;
   } else if (addr.includes("Kurir: Standard Flat Rate")) {
-    const isColdChain = order.items.some((item: any) =>
+    const isColdChain = (order.items || []).some((item: any) =>
       item.product?.category === "COLD_CHAIN" || item.product?.category?.toLowerCase() === "cold chain" ||
       item.product?.name?.toLowerCase().includes("insulin") || item.product?.code?.toLowerCase().includes("amx")
     );
@@ -71,8 +75,8 @@ function calculateOrderTotals(order: any) {
     shippingFee = 50000;
   }
 
-  const total = subtotal + vat + shippingFee;
-  return { subtotal, vat, shippingFee, total };
+  const total = subtotalAfterDiscount + vat + shippingFee;
+  return { subtotal, couponDiscount, subtotalAfterDiscount, vat, shippingFee, total };
 }
 
 // Helper to extract short location (e.g., Kota/Kabupaten) from address
@@ -738,6 +742,12 @@ export default function OrderHistoryTab({
                             <span>Subtotal Produk:</span>
                             <span className="font-mono">Rp {subtotal.toLocaleString("id-ID")}</span>
                           </div>
+                          {selectedDetailOrder.couponDiscount && selectedDetailOrder.couponDiscount > 0 ? (
+                            <div className="flex justify-between text-emerald-700 font-bold text-[10px]">
+                              <span>Diskon Voucher Promo ({selectedDetailOrder.couponCode || "Voucher"}):</span>
+                              <span className="font-mono font-black">-Rp {selectedDetailOrder.couponDiscount.toLocaleString("id-ID")}</span>
+                            </div>
+                          ) : null}
                           <div className="flex justify-between text-slate-500 text-[10px]">
                             <span>PPN (11%):</span>
                             <span className="font-mono">Rp {vat.toLocaleString("id-ID")}</span>

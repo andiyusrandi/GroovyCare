@@ -1,11 +1,11 @@
 {
-  "name": "GroovyCare B2B Pharmacy",
-  "short_name": "GroovyCare",
+  "name": "GrowMexa PBF Online",
+  "short_name": "GrowMexa",
   "description": "Portal B2B Distribusi Obat & PBF Terpadu dengan Kepatuhan CDOB BPOM",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#064e3b",
-  "theme_color": "#064e3b",
+  "background_color": "#ffffff",
+  "theme_color": "#047857",
   "icons": [
     {
       "src": "/favicon.ico",

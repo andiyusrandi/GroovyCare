@@ -68,6 +68,7 @@ import FinanceTab from "./components/FinanceTab";
 import OrderHistoryTab from "./components/OrderHistoryTab";
 import ReportTab from "./components/ReportTab";
 import SuperAdminTab from "./components/SuperAdminTab";
+import PromoManagementTab from "./components/PromoManagementTab";
 
 
 interface Batch {
@@ -209,10 +210,10 @@ export default function AdminDashboardClient({
   useEffect(() => {
     setProducts(initialProducts);
   }, [initialProducts]);
-  const validTabs = ["overview", "kemitraan", "obat", "cdob", "logistik", "shipping", "pembayaran", "riwayat", "pelaporan", "superadmin"];
-  const [activeTab, setActiveTab] = useState<"overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "shipping" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin">("overview");
+  const validTabs = ["overview", "kemitraan", "obat", "cdob", "promo", "logistik", "shipping", "pembayaran", "riwayat", "pelaporan", "superadmin"];
+  const [activeTab, setActiveTab] = useState<"overview" | "kemitraan" | "obat" | "cdob" | "promo" | "logistik" | "shipping" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin">("overview");
 
-  const handleSetActiveTab = (tab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "shipping" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin") => {
+  const handleSetActiveTab = (tab: "overview" | "kemitraan" | "obat" | "cdob" | "promo" | "logistik" | "shipping" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin") => {
     const targetTab = validTabs.includes(tab) ? tab : "overview";
     setActiveTab(targetTab as any);
     if (typeof window !== "undefined") {
@@ -815,6 +816,10 @@ export default function AdminDashboardClient({
               onEditProduct={setEditingProduct}
               onQuarantineNearExpiry={handleQuarantineNearExpiry}
             />
+          )}
+
+          {activeTab === "promo" && (
+            <PromoManagementTab />
           )}
 
           {activeTab === "cdob" && (

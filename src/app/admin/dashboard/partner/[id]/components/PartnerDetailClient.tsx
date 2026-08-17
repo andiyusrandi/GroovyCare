@@ -68,6 +68,8 @@ interface Order {
   paymentMethod: string;
   shippingAddress?: string | null;
   shippingFee?: number | null;
+  couponDiscount?: number | null;
+  couponCode?: string | null;
   items: OrderItem[];
   batchAllocations: OrderBatchAllocation[];
 }
@@ -94,8 +96,10 @@ function calculateOrderTotals(order: any) {
     shippingFee = 50000;
   }
 
-  const total = subtotal + vat + shippingFee;
-  return { subtotal, vat, shippingFee, total };
+  const couponDiscount = order.couponDiscount || 0;
+  const subtotalAfterDiscount = Math.max(0, subtotal - couponDiscount);
+  const total = subtotalAfterDiscount + vat + shippingFee;
+  return { subtotal, couponDiscount, subtotalAfterDiscount, vat, shippingFee, total };
 }
 
 interface Partner {
@@ -1187,31 +1191,46 @@ export default function PartnerDetailClient({
             )}
 
             {/* Total Footer Breakdown */}
-            <div className="pt-4 border-t border-slate-100 space-y-1.5">
-              <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
-                <span>Subtotal Produk</span>
-                <span className="font-mono font-bold text-slate-700">
-                  Rp {calculateOrderTotals(selectedOrder).subtotal.toLocaleString("id-ID")}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
-                <span>PPN (11%)</span>
-                <span className="font-mono font-bold text-slate-700">
-                  Rp {calculateOrderTotals(selectedOrder).vat.toLocaleString("id-ID")}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
-                <span>Biaya Pengiriman & Kurir</span>
-                <span className="font-mono font-bold text-slate-700">
-                  Rp {calculateOrderTotals(selectedOrder).shippingFee.toLocaleString("id-ID")}
-                </span>
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-                <span className="text-xs font-bold text-slate-800 uppercase">Total Akumulasi Transaksi</span>
-                <span className="text-lg font-heading font-black text-emerald-800 font-mono">
-                  Rp {calculateOrderTotals(selectedOrder).total.toLocaleString("id-ID")}
-                </span>
-              </div>
+            <div className="pt-4 border-t border-slate-100 space-y-1.5 font-sans">
+              {(() => {
+                const { subtotal, couponDiscount, vat, shippingFee, total } = calculateOrderTotals(selectedOrder);
+                return (
+                  <>
+                    <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
+                      <span>Subtotal Produk</span>
+                      <span className="font-mono font-bold text-slate-700">
+                        Rp {subtotal.toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                    {couponDiscount > 0 && (
+                      <div className="flex justify-between items-center text-xs text-emerald-700 font-extrabold">
+                        <span>Diskon Voucher Promo ({selectedOrder.couponCode || "Voucher"})</span>
+                        <span className="font-mono font-black">
+                          -Rp {couponDiscount.toLocaleString("id-ID")}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
+                      <span>PPN (11%)</span>
+                      <span className="font-mono font-bold text-slate-700">
+                        Rp {vat.toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
+                      <span>Biaya Pengiriman &amp; Kurir</span>
+                      <span className="font-mono font-bold text-slate-700">
+                        Rp {shippingFee.toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+                      <span className="text-xs font-bold text-slate-800 uppercase">Total Akumulasi Transaksi</span>
+                      <span className="text-lg font-heading font-black text-emerald-800 font-mono">
+                        Rp {total.toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

@@ -47,6 +47,14 @@ interface CheckoutViewProps {
   isSubmittingOrder: boolean;
   handleCheckout: (shippingAddress: string) => void;
   setIsCheckoutOpen: (val: boolean) => void;
+  appliedCoupon?: { code: string; title: string; discountAmount: number } | null;
+  setAppliedCoupon?: (coupon: any) => void;
+  couponCodeInput?: string;
+  setCouponCodeInput?: (code: string) => void;
+  couponErrorMessage?: string | null;
+  isValidatingCoupon?: boolean;
+  handleApplyCoupon?: () => void;
+  handleFetchAvailableCoupons?: () => void;
 }
 
 export default function CheckoutView({
@@ -66,11 +74,20 @@ export default function CheckoutView({
   isSubmittingOrder,
   handleCheckout,
   setIsCheckoutOpen,
+  appliedCoupon,
+  setAppliedCoupon,
+  couponCodeInput = "",
+  setCouponCodeInput,
+  couponErrorMessage,
+  isValidatingCoupon,
+  handleApplyCoupon,
+  handleFetchAvailableCoupons,
 }: CheckoutViewProps) {
   const isColdChain = cart.some(it => it.product.name.includes("Insulin") || it.product.code.includes("AMX"));
   const [shippingFee, setShippingFee] = useState(isColdChain ? 85000 : 50000);
   const vatAmount = cartTotal * 0.11;
-  const totalBilling = cartTotal + vatAmount + shippingFee;
+  const couponDiscountVal = appliedCoupon ? appliedCoupon.discountAmount : 0;
+  const totalBilling = Math.max(0, cartTotal - couponDiscountVal) + vatAmount + shippingFee;
 
   const availableLimit = institution.creditLimit - institution.currentDebt;
   const isLimitInsufficient = totalBilling > availableLimit;
@@ -865,6 +882,73 @@ export default function CheckoutView({
                 <span>Biaya Pengiriman</span>
                 <span className="font-sans font-bold text-slate-700">Rp {shippingFee.toLocaleString("id-ID")}</span>
               </div>
+
+              {/* VOUCHER CODE INPUT UI IN CHECKOUT */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-700">
+                  <span className="flex items-center gap-1">🎟️ Voucher Promo</span>
+                  {appliedCoupon ? (
+                    <button
+                      type="button"
+                      onClick={() => setAppliedCoupon && setAppliedCoupon(null)}
+                      className="text-rose-600 hover:underline text-[10px] cursor-pointer font-bold"
+                    >
+                      Hapus Voucher
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleFetchAvailableCoupons && handleFetchAvailableCoupons()}
+                      className="text-emerald-800 hover:underline text-[10.5px] cursor-pointer font-extrabold flex items-center gap-0.5"
+                    >
+                      Pilih Voucher Tersedia ➔
+                    </button>
+                  )}
+                </div>
+
+                {appliedCoupon ? (
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between font-mono text-xs">
+                    <div className="min-w-0">
+                      <span className="font-black text-emerald-900 bg-emerald-200/80 px-1.5 py-0.2 rounded mr-1.5 text-[11px]">
+                        {appliedCoupon.code}
+                      </span>
+                      <span className="text-[10px] text-emerald-700 font-sans font-bold truncate block sm:inline">{appliedCoupon.title}</span>
+                    </div>
+                    <span className="font-black text-emerald-800 shrink-0">
+                      -Rp {appliedCoupon.discountAmount.toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="Masukkan Kode Voucher..."
+                      value={couponCodeInput}
+                      onChange={(e) => setCouponCodeInput && setCouponCodeInput(e.target.value.toUpperCase())}
+                      className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold uppercase outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleApplyCoupon && handleApplyCoupon()}
+                      disabled={isValidatingCoupon || !couponCodeInput.trim()}
+                      className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer shrink-0"
+                    >
+                      {isValidatingCoupon ? "..." : "Pakai"}
+                    </button>
+                  </div>
+                )}
+
+                {couponErrorMessage && (
+                  <p className="text-[10px] text-rose-600 font-bold leading-tight">{couponErrorMessage}</p>
+                )}
+              </div>
+
+              {appliedCoupon && (
+                <div className="flex justify-between text-emerald-700 font-extrabold text-xs">
+                  <span>Potongan Voucher Promo</span>
+                  <span className="font-mono font-black">-Rp {appliedCoupon.discountAmount.toLocaleString("id-ID")}</span>
+                </div>
+              )}
               
               <div className="pt-3 border-t border-slate-100 flex justify-between items-end">
                 <div>

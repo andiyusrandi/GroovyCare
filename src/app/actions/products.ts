@@ -209,7 +209,7 @@ export async function quarantineNearExpiryBatches(daysThreshold: number = 60) {
   await verifyAdmin();
   try {
     const thresholdDate = new Date(Date.now() + daysThreshold * 24 * 60 * 60 * 1000);
-    
+
     // Cari seluruh batch aktif dengan ED <= daysThreshold hari
     const batchesToQuarantine = await db.batch.findMany({
       where: {

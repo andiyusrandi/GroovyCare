@@ -23,6 +23,8 @@ export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JA
 
   // Calculate order totals
   const subtotal = order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+  const couponDiscount = order.couponDiscount || 0;
+  const subtotalAfterDiscount = Math.max(0, subtotal - couponDiscount);
   const vat = Math.round(subtotal * 0.11);
   
   const addr = order.shippingAddress || "";
@@ -36,7 +38,7 @@ export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JA
     );
     shippingFee = isColdChain ? 85000 : 50000;
   }
-  const total = subtotal + vat + shippingFee;
+  const total = subtotalAfterDiscount + vat + shippingFee;
 
   const orderDate = new Date(order.createdAt).toLocaleDateString("id-ID", {
     day: "numeric",
@@ -263,6 +265,12 @@ export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JA
               <span>Subtotal Penjualan:</span>
               <span class="font-mono">Rp ${subtotal.toLocaleString("id-ID")}</span>
             </div>
+            ${couponDiscount > 0 ? `
+              <div class="flex justify-between text-emerald-700 font-bold">
+                <span>Diskon Voucher Promo (${order.couponCode || "Voucher"}):</span>
+                <span class="font-mono font-bold">-Rp ${couponDiscount.toLocaleString("id-ID")}</span>
+              </div>
+            ` : ""}
             <div class="flex justify-between">
               <span>PPN (11%):</span>
               <span class="font-mono">Rp ${vat.toLocaleString("id-ID")}</span>

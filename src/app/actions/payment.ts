@@ -53,7 +53,11 @@ export async function getSnapToken(orderId: string) {
 
     // Hitung Subtotal
     const subtotal = order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
-    // Hitung PPN 11%
+    // Hitung Diskon Voucher jika ada
+    const couponDiscount = order.couponDiscount || 0;
+    // Hitung Subtotal Setelah Diskon
+    const subtotalAfterDiscount = Math.max(0, subtotal - couponDiscount);
+    // Hitung PPN 11% dari Subtotal
     const vat = Math.round(subtotal * 0.11);
 
     // Parse Ongkos Kirim dari format teks consolidatedAddress
@@ -72,7 +76,7 @@ export async function getSnapToken(orderId: string) {
       shippingFee = 50000;
     }
 
-    const grossAmount = subtotal + vat + shippingFee;
+    const grossAmount = subtotalAfterDiscount + vat + shippingFee;
 
     // Persiapkan detail barang untuk Midtrans
     const itemDetails = order.items.map((item: any) => ({
@@ -81,6 +85,16 @@ export async function getSnapToken(orderId: string) {
       quantity: item.quantity,
       name: item.product.name.substring(0, 50)
     }));
+
+    // Tambahkan Potongan Diskon Voucher jika ada (sebagai nilai minus)
+    if (couponDiscount > 0) {
+      itemDetails.push({
+        id: `VOUCHER-${(order.couponCode || "DISCOUNT").substring(0, 15)}`,
+        price: -Math.round(couponDiscount),
+        quantity: 1,
+        name: `Diskon Voucher ${order.couponCode || "Promo"}`.substring(0, 50)
+      });
+    }
 
     // Tambahkan PPN sebagai item baris tersendiri
     itemDetails.push({
