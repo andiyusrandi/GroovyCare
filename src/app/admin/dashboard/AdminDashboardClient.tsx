@@ -56,20 +56,18 @@ import {
   ScanLine,
 } from "lucide-react";
 
-import dynamic from "next/dynamic";
-
 import AdminSidebar from "./components/AdminSidebar";
 import AdminTopBar from "./components/AdminTopBar";
-
-const OverviewTab = dynamic(() => import("./components/OverviewTab"), { ssr: false });
-const PartnershipTab = dynamic(() => import("./components/PartnershipTab"), { ssr: false });
-const InventoryTab = dynamic(() => import("./components/InventoryTab"), { ssr: false });
-const OrderApprovalsTab = dynamic(() => import("./components/OrderApprovalsTab"), { ssr: false });
-const LogisticsTab = dynamic(() => import("./components/LogisticsTab"), { ssr: false });
-const FinanceTab = dynamic(() => import("./components/FinanceTab"), { ssr: false });
-const OrderHistoryTab = dynamic(() => import("./components/OrderHistoryTab"), { ssr: false });
-const ReportTab = dynamic(() => import("./components/ReportTab"), { ssr: false });
-const SuperAdminTab = dynamic<{ currentUserEmail: string }>(() => import("@/app/admin/dashboard/components/SuperAdminTab"), { ssr: false });
+import OverviewTab from "./components/OverviewTab";
+import PartnershipTab from "./components/PartnershipTab";
+import InventoryTab from "./components/InventoryTab";
+import OrderApprovalsTab from "./components/OrderApprovalsTab";
+import LogisticsTab from "./components/LogisticsTab";
+import ShippingTab from "./components/ShippingTab";
+import FinanceTab from "./components/FinanceTab";
+import OrderHistoryTab from "./components/OrderHistoryTab";
+import ReportTab from "./components/ReportTab";
+import SuperAdminTab from "./components/SuperAdminTab";
 
 
 interface Batch {
@@ -211,10 +209,10 @@ export default function AdminDashboardClient({
   useEffect(() => {
     setProducts(initialProducts);
   }, [initialProducts]);
-  const validTabs = ["overview", "kemitraan", "obat", "cdob", "logistik", "pembayaran", "riwayat", "pelaporan", "superadmin"];
-  const [activeTab, setActiveTab] = useState<"overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin">("overview");
+  const validTabs = ["overview", "kemitraan", "obat", "cdob", "logistik", "shipping", "pembayaran", "riwayat", "pelaporan", "superadmin"];
+  const [activeTab, setActiveTab] = useState<"overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "shipping" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin">("overview");
 
-  const handleSetActiveTab = (tab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin") => {
+  const handleSetActiveTab = (tab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "shipping" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin") => {
     const targetTab = validTabs.includes(tab) ? tab : "overview";
     setActiveTab(targetTab as any);
     if (typeof window !== "undefined") {
@@ -848,6 +846,10 @@ export default function AdminDashboardClient({
             />
           )}
 
+          {activeTab === "shipping" && (
+            <ShippingTab currentUserEmail={currentUserEmail} />
+          )}
+
           {activeTab === "pembayaran" && (
             <FinanceTab
               orders={orders}
@@ -872,9 +874,9 @@ export default function AdminDashboardClient({
             />
           )}
 
-          {activeTab === "superadmin" && adminRole === "SYSTEM_ADMIN" && (
+          {activeTab === "superadmin" && (adminRole === "SYSTEM_ADMIN" || adminRole === "PBF_ADMIN") && (
             <SuperAdminTab
-              currentUserEmail={currentUserEmail}
+              currentUserEmail={currentUserEmail || ""}
             />
           )}
         </div>

@@ -126,11 +126,11 @@ export default function OrderHistoryTab({
       order.institution.name.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
-      statusFilter === "ALL" 
-        ? true 
+      statusFilter === "ALL"
+        ? true
         : statusFilter === "BITESHIP_CANCELLED"
-        ? order.status === "REJECTED" && ((order.rejectionReason || "").toLowerCase().includes("biteship") || (order.rejectionReason || "").toLowerCase().includes("ekspedisi"))
-        : order.status === statusFilter;
+          ? order.status === "REJECTED" && ((order.rejectionReason || "").toLowerCase().includes("biteship") || (order.rejectionReason || "").toLowerCase().includes("ekspedisi"))
+          : order.status === statusFilter;
 
     const matchesPayment =
       paymentFilter === "ALL"
@@ -419,11 +419,10 @@ export default function OrderHistoryTab({
                 setSelectedOrderIds(filteredOrders.map((o) => o.id));
               }
             }}
-            className={`px-3 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-1.5 shadow-2xs ${
-              selectedOrderIds.length > 0
+            className={`px-3 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-1.5 shadow-2xs ${selectedOrderIds.length > 0
                 ? "bg-rose-50 text-rose-700 border-rose-200"
                 : "bg-white text-slate-700 border-slate-200/90 hover:bg-slate-50"
-            }`}
+              }`}
           >
             <span className="material-symbols-outlined text-[16px]">
               {selectedOrderIds.length > 0 ? "check_box" : "checklist"}
@@ -536,9 +535,8 @@ export default function OrderHistoryTab({
                   return (
                     <tr
                       key={order.id}
-                      className={`transition-colors hover:bg-emerald-50/30 ${
-                        isChecked ? "bg-emerald-50/30" : ""
-                      }`}
+                      className={`transition-colors hover:bg-emerald-50/30 ${isChecked ? "bg-emerald-50/30" : ""
+                        }`}
                     >
                       {isSelectionMode && (
                         <td className="px-3 py-3 text-center w-10" onClick={(e) => e.stopPropagation()}>
@@ -595,7 +593,7 @@ export default function OrderHistoryTab({
                         <div className="flex items-center justify-center gap-1.5">
                           {getStatusBadge(order.status, order)}
                           {isAnomalyRisk && (
-                            <span 
+                            <span
                               className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-black bg-amber-100 text-amber-800 border border-amber-300"
                               title="Risiko CDOB: Barang dikirim sebelum terverifikasi bayar!"
                             >
@@ -633,7 +631,7 @@ export default function OrderHistoryTab({
                               type="button"
                               onClick={() => setTrackingModalOrderId(order.id)}
                               className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-all cursor-pointer border border-emerald-200/80 shadow-2xs active:scale-95"
-                              title="Lacak Resi Biteship Live"
+                              title="Lacak Resi Live"
                             >
                               <Truck className="w-3.5 h-3.5" />
                             </button>

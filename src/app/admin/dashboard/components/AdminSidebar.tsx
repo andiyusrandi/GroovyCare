@@ -1,8 +1,8 @@
 "use client";
 
 interface AdminSidebarProps {
-  activeTab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin";
-  setActiveTab: (tab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin") => void;
+  activeTab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "shipping" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin";
+  setActiveTab: (tab: "overview" | "kemitraan" | "obat" | "cdob" | "logistik" | "shipping" | "pembayaran" | "riwayat" | "pelaporan" | "superadmin") => void;
   pendingApprovalsCount: number;
   pendingPaymentsCount: number;
   pendingLogisticsCount: number;
@@ -47,11 +47,10 @@ export default function AdminSidebar({
           </p>
           <button
             onClick={() => setActiveTab("overview")}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${
-              activeTab === "overview"
-                ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
-                : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
-            }`}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${activeTab === "overview"
+              ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
+              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+              }`}
           >
             <span
               className="material-symbols-outlined text-[20px] shrink-0"
@@ -59,7 +58,7 @@ export default function AdminSidebar({
             >
               dashboard
             </span>
-            <span className="truncate">Ikhtisar</span>
+            <span className="truncate">Dashboard</span>
           </button>
         </div>
 
@@ -68,15 +67,14 @@ export default function AdminSidebar({
           <p className="px-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
             Operasional PBF
           </p>
-          
+
           {/* Tab: Pesanan Aktif (Live Orders) */}
           <button
             onClick={() => setActiveTab("cdob")}
-            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${
-              activeTab === "cdob"
-                ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
-                : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
-            }`}
+            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${activeTab === "cdob"
+              ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
+              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+              }`}
           >
             <div className="flex items-center gap-3 min-w-0">
               <span className="material-symbols-outlined text-[20px] shrink-0">fact_check</span>
@@ -92,11 +90,10 @@ export default function AdminSidebar({
           {/* Tab: Inventori (FEFO) */}
           <button
             onClick={() => setActiveTab("obat")}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${
-              activeTab === "obat"
-                ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
-                : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
-            }`}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${activeTab === "obat"
+              ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
+              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+              }`}
           >
             <span className="material-symbols-outlined text-[20px] shrink-0">inventory_2</span>
             <span className="truncate">Inventori (FEFO)</span>
@@ -105,31 +102,41 @@ export default function AdminSidebar({
           {/* Tab: Logistik */}
           <button
             onClick={() => setActiveTab("logistik")}
-            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${
-              activeTab === "logistik"
-                ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
-                : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
-            }`}
+            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${activeTab === "logistik"
+              ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
+              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+              }`}
           >
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
               <span className="material-symbols-outlined text-[20px] shrink-0">local_shipping</span>
-              <span className="truncate">Logistik & Pengiriman</span>
+              <span className="truncate text-[11px]">Logistik &amp; Pengiriman</span>
             </div>
             {pendingLogisticsCount > 0 && (
-              <span className="bg-red-500 text-white font-extrabold px-2 py-0.5 rounded-full text-[9px] animate-pulse shrink-0 ml-2">
+              <span className="bg-red-500 text-white font-extrabold px-1.5 py-0.5 rounded-full text-[9px] animate-pulse shrink-0 ml-1">
                 {pendingLogisticsCount}
               </span>
             )}
           </button>
 
+          {/* Tab: Shipping (API) */}
+          <button
+            onClick={() => setActiveTab("shipping")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${activeTab === "shipping"
+              ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
+              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+              }`}
+          >
+            <span className="material-symbols-outlined text-[20px] shrink-0">api</span>
+            <span className="truncate">Shipping (API)</span>
+          </button>
+
           {/* Tab: Kemitraan */}
           <button
             onClick={() => setActiveTab("kemitraan")}
-            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${
-              activeTab === "kemitraan"
-                ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
-                : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
-            }`}
+            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${activeTab === "kemitraan"
+              ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
+              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+              }`}
           >
             <div className="flex items-center gap-3 min-w-0">
               <span className="material-symbols-outlined text-[20px] shrink-0">handshake</span>
@@ -152,11 +159,10 @@ export default function AdminSidebar({
           {/* Tab: Keuangan */}
           <button
             onClick={() => setActiveTab("pembayaran")}
-            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${
-              activeTab === "pembayaran"
-                ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
-                : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
-            }`}
+            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${activeTab === "pembayaran"
+              ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
+              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+              }`}
           >
             <div className="flex items-center gap-3 min-w-0">
               <span className="material-symbols-outlined text-[20px] shrink-0">payments</span>
@@ -173,11 +179,10 @@ export default function AdminSidebar({
           {/* Tab: Riwayat & Arsip Pesanan */}
           <button
             onClick={() => setActiveTab("riwayat")}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${
-              activeTab === "riwayat"
-                ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
-                : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
-            }`}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${activeTab === "riwayat"
+              ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
+              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+              }`}
           >
             <span className="material-symbols-outlined text-[20px] shrink-0">history</span>
             <span className="truncate">Riwayat & Arsip Pesanan</span>
@@ -186,11 +191,10 @@ export default function AdminSidebar({
           {/* Tab: E-Report BPOM */}
           <button
             onClick={() => setActiveTab("pelaporan")}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${
-              activeTab === "pelaporan"
-                ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
-                : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
-            }`}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${activeTab === "pelaporan"
+              ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
+              : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+              }`}
           >
             <span className="material-symbols-outlined text-[20px] shrink-0">description</span>
             <span className="truncate">E-Report BPOM</span>
@@ -203,14 +207,13 @@ export default function AdminSidebar({
             Sistem
           </p>
 
-          {adminRole === "SYSTEM_ADMIN" && (
+          {(adminRole === "SYSTEM_ADMIN" || adminRole === "PBF_ADMIN") && (
             <button
               onClick={() => setActiveTab("superadmin")}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${
-                activeTab === "superadmin"
-                  ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
-                  : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
-              }`}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-left font-sans text-xs font-bold whitespace-nowrap cursor-pointer ${activeTab === "superadmin"
+                ? "text-primary border-l-4 border-primary bg-primary-container/15 shadow-2xs"
+                : "text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary"
+                }`}
             >
               <span
                 className="material-symbols-outlined text-[20px] shrink-0"
@@ -236,13 +239,15 @@ export default function AdminSidebar({
             <span className="truncate">Pengaturan</span>
           </button>
 
-          <button
-            onClick={() => alert("Hubungi IT support: tech@groovyrx.com")}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left text-xs font-bold text-on-surface-variant hover:bg-surface-container-high/50 hover:text-primary transition-colors whitespace-nowrap cursor-pointer"
+          <a
+            href="/admin/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left text-xs font-bold text-emerald-800 hover:bg-emerald-50 hover:text-emerald-900 transition-colors whitespace-nowrap cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[20px] shrink-0">help</span>
-            <span className="truncate">Bantuan</span>
-          </button>
+            <span className="material-symbols-outlined text-[20px] shrink-0 text-emerald-700">menu_book</span>
+            <span className="truncate">Panduan &amp; Dokumentasi</span>
+          </a>
         </div>
       </nav>
 

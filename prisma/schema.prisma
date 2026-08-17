@@ -43,6 +43,8 @@ model User {
   institution     Institution? @relation(fields: [institutionId], references: [id])
   orders          Order[]      @relation("CreatedBy")
   pbfApprovals    Order[]      @relation("PbfApprovedBy")
+  topUpRequests   TopUpRequest[] @relation("UserTopUpRequests")
+  approvedTopUps  TopUpRequest[] @relation("UserApprovedTopUps")
 
   @@index([institutionId])
 }
@@ -226,4 +228,24 @@ model SecurityAuditLog {
 
   @@index([email])
   @@index([eventType])
+}
+
+model TopUpRequest {
+  id              String    @id @default(uuid())
+  topUpNumber     String    @unique
+  amount          Float
+  snapToken       String?
+  midtransOrderId String?   @unique
+  paymentStatus   String    @default("PENDING_PAYMENT") // "PENDING_PAYMENT" | "PAID_WAITING_APPROVAL" | "APPROVED" | "REJECTED"
+  rejectionReason String?
+  requestedById   String
+  requestedBy     User      @relation("UserTopUpRequests", fields: [requestedById], references: [id], onDelete: Cascade)
+  approvedById    String?
+  approvedBy      User?     @relation("UserApprovedTopUps", fields: [approvedById], references: [id])
+  createdAt       DateTime  @default(now())
+  paidAt          DateTime?
+  approvedAt      DateTime?
+
+  @@index([requestedById])
+  @@index([paymentStatus])
 }

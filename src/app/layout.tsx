@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import Script from "next/script";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import OfflineDetector from "@/components/OfflineDetector";
+import DynamicFavicon from "@/components/DynamicFavicon";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -18,7 +19,17 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Growmexa | PT. GROOVYRX PHARMACEUTICAL GROUP",
   description: "Portal B2B Distribusi Obat & PBF Terpadu dengan Kepatuhan CDOB BPOM",
-  manifest: "/manifest.json",
+  manifest: "/favicon/site.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon/favicon.ico" },
+      { url: "/favicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [
+      { url: "/favicon/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 };
 
 export const viewport: Viewport = {
@@ -47,7 +58,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+        <link rel="manifest" href="/favicon/site.webmanifest" />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
@@ -56,6 +71,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground" suppressHydrationWarning>
         <ServiceWorkerRegister />
         <OfflineDetector />
+        <DynamicFavicon />
         {children}
         <Script
           src={snapScriptUrl}

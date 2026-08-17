@@ -528,10 +528,17 @@ export async function rejectOrder(orderId: string, reason: string) {
       return { success: false, error: "Pesanan tidak ditemukan" };
     }
 
-    // Jika terhubung dengan Biteship, batalkan pengiriman di Biteship API
+    // Jika terhubung dengan Biteship, batalkan pengiriman di Biteship API dan kembalikan Saldo Deposit
     const biteshipId = (order as any).biteshipOrderId;
+    const shippingFee = (order as any).shippingCost || 0;
+
     if (biteshipId) {
       await cancelBiteshipDirect(biteshipId, reason || "Dibatalkan oleh Admin PBF");
+    }
+
+    if (biteshipId || shippingFee > 0) {
+      const { refundBiteshipShippingFee } = await import("@/app/actions/biteship");
+      await refundBiteshipShippingFee(shippingFee, order.orderNumber).catch(() => {});
     }
 
     // Jika pesanan sudah disetujui sebelumnya, kembalikan stok dan debt
@@ -621,8 +628,15 @@ export async function deleteOrder(orderId: string) {
 
     // Jika pesanan terhubung dengan Biteship, batalkan di Biteship API sebelum menghapus dari DB
     const biteshipId = (order as any).biteshipOrderId;
+    const shippingFee = (order as any).shippingCost || 0;
+
     if (biteshipId) {
       await cancelBiteshipDirect(biteshipId, "Pesanan dihapus dari sistem oleh Admin PBF");
+    }
+
+    if (biteshipId || shippingFee > 0) {
+      const { refundBiteshipShippingFee } = await import("@/app/actions/biteship");
+      await refundBiteshipShippingFee(shippingFee, order.orderNumber).catch(() => {});
     }
 
     const isApprovedBefore = order.status !== "PENDING_APPROVAL" && order.status !== "REJECTED";
@@ -691,11 +705,18 @@ export async function deleteBulkOrders(orderIds: string[]) {
       return { success: false, error: "Pesanan tidak ditemukan" };
     }
 
-    // Batal pesanan di Biteship jika ada
+    // Batal pesanan di Biteship & refund saldo deposit jika ada
     for (const order of orders) {
       const biteshipId = (order as any).biteshipOrderId;
+      const shippingFee = (order as any).shippingCost || 0;
+
       if (biteshipId) {
         await cancelBiteshipDirect(biteshipId, "Pesanan dihapus massal dari sistem oleh Admin PBF").catch(() => { });
+      }
+
+      if (biteshipId || shippingFee > 0) {
+        const { refundBiteshipShippingFee } = await import("@/app/actions/biteship");
+        await refundBiteshipShippingFee(shippingFee, order.orderNumber).catch(() => {});
       }
     }
 
@@ -776,6 +797,23 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
 
     // Jika TIDAK ADA resi manual (kosong), lakukan auto-booking via API Biteship
     if (!hasManualTracking && apiKey) {
+      // 1. Hitung Ongkos Kirim Pesanan Ini
+      const feeMatch = addr.match(/-\s*Rp\s*([0-9.,]+)/);
+      const orderShippingFee = feeMatch && feeMatch[1] ? parseInt(feeMatch[1].replace(/[.,]/g, ""), 10) || 0 : 0;
+
+      // 2. Ambil Saldo Deposit API Shipping saat ini
+      const { getBiteshipApiTransactions } = await import("@/app/actions/biteship");
+      const txData = await getBiteshipApiTransactions();
+      const remainingBalance = txData.remainingBalance ?? 0;
+
+      // 3. Jika Ongkos Kirim lebih besar dari Saldo Deposit, blokir proses penerbitan resi otomatis!
+      if (orderShippingFee > remainingBalance) {
+        return {
+          success: false,
+          error: `⚠️ Gagal Menerbitkan Resi Otomatis:\n\nSaldo Deposit API Shipping Anda tidak mencukupi!\n• Saldo Deposit Aktif: Rp. ${remainingBalance.toLocaleString("id-ID")}\n• Biaya Ongkos Kirim Pesanan: Rp. ${orderShippingFee.toLocaleString("id-ID")}\n\nSilakan lakukan Top-Up Saldo Deposit API Shipping terlebih dahulu, atau masukkan Nomor Resi secara MANUAL.`
+        };
+      }
+
       try {
         const mainAddrPart = addr.split(" | ")[0] || "";
         const emailPart = addr.match(/Email:\s*([^\s|]+)/)?.[1] || "";
@@ -974,7 +1012,7 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
           courier_company: courierCompany,
           courier_type: courierType,
           delivery_type: "now",
-          reference_id: order.orderNumber,
+          reference_id: `${order.orderNumber}-${Date.now().toString().slice(-6)}`,
           items: orderItems,
           order_note: `Pesanan SP: ${order.orderNumber}`
         };
@@ -989,8 +1027,24 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
         if (!biteshipPayload.items || biteshipPayload.items.length === 0) {
           validationErrors.push("Item pesanan tidak ditemukan");
         }
-        if (isNaN(biteshipPayload.destination_postal_code) || biteshipPayload.destination_postal_code < 10000) {
-          validationErrors.push("Kode pos tujuan tidak valid");
+        // Check Saldo Deposit Biteship before auto-booking
+        const { getBiteshipApiTransactions } = await import("@/app/actions/biteship");
+        const txData = await getBiteshipApiTransactions();
+        const currentBalance = txData.remainingBalance ?? 0;
+        const actualShippingFee = (order as any).shippingCost || 0;
+
+        if (currentBalance <= 0) {
+          return {
+            success: false,
+            error: `[SALDO TIDAK CUKUP]: Sisa Saldo API Deposit Anda (Rp. ${currentBalance.toLocaleString("id-ID")}) telah habis (Rp. 0). Silakan lakukan pengiriman secara MANUAL (input resi sendiri dari counter logistik) atau lakukan isi ulang (top-up) saldo deposit API Biteship Anda.`
+          };
+        }
+
+        if (actualShippingFee > 0 && currentBalance < actualShippingFee) {
+          return {
+            success: false,
+            error: `[SALDO TIDAK CUKUP]: Sisa Saldo API Deposit Anda (Rp. ${currentBalance.toLocaleString("id-ID")}) kurang dari biaya pengiriman (Rp. ${actualShippingFee.toLocaleString("id-ID")}). Silakan lakukan pengiriman secara MANUAL (input resi sendiri dari counter logistik) atau lakukan isi ulang (top-up) saldo deposit API Biteship Anda.`
+          };
         }
 
         let biteshipOrderRes = await fetch("https://api.biteship.com/v1/orders", {
@@ -1002,21 +1056,37 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
           body: JSON.stringify(biteshipPayload)
         });
 
-        // Retry 1: Jika area_id menyebabkan error (e.g. 40002021 atau Failed getting rates), retry 1x tanpa area_id menggunakan pencocokan kode pos murni
-        if (!biteshipOrderRes.ok && (biteshipPayload.origin_area_id || biteshipPayload.destination_area_id)) {
+        // Retry logic: Handle reference_id duplicates & area_id invalid errors
+        if (!biteshipOrderRes.ok) {
           const errPreview = await biteshipOrderRes.clone().json().catch(() => ({}));
-          console.warn(`[DEBUG BITESHIP CREATION FAILED WITH AREA ID]:`, errPreview);
-          console.warn(`Retrying '${courierCompany}:${courierType}' with pure postal codes (90245 -> ${resolvedPostalCode})...`);
-          delete biteshipPayload.origin_area_id;
-          delete biteshipPayload.destination_area_id;
-          biteshipOrderRes = await fetch("https://api.biteship.com/v1/orders", {
-            method: "POST",
-            headers: {
-              Authorization: apiKey,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(biteshipPayload)
-          });
+          const errMsg = (errPreview.error || errPreview.message || "").toLowerCase();
+
+          if (errMsg.includes("reference id") || errMsg.includes("reference_id")) {
+            console.warn(`[DEBUG BITESHIP RETRY WITH NEW REFERENCE_ID]:`, errPreview);
+            biteshipPayload.reference_id = `${order.orderNumber}-${Date.now().toString().slice(-6)}-${Math.floor(10 + Math.random() * 90)}`;
+            biteshipOrderRes = await fetch("https://api.biteship.com/v1/orders", {
+              method: "POST",
+              headers: {
+                Authorization: apiKey,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(biteshipPayload)
+            });
+          } else if (biteshipPayload.origin_area_id || biteshipPayload.destination_area_id) {
+            console.warn(`[DEBUG BITESHIP CREATION FAILED WITH AREA ID]:`, errPreview);
+            console.warn(`Retrying '${courierCompany}:${courierType}' with pure postal codes...`);
+            delete biteshipPayload.origin_area_id;
+            delete biteshipPayload.destination_area_id;
+            biteshipPayload.reference_id = `${order.orderNumber}-${Date.now().toString().slice(-6)}`;
+            biteshipOrderRes = await fetch("https://api.biteship.com/v1/orders", {
+              method: "POST",
+              headers: {
+                Authorization: apiKey,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(biteshipPayload)
+            });
+          }
         }
 
         if (biteshipOrderRes.ok) {
@@ -1025,12 +1095,19 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
           if (biteshipOrderData.id) {
             biteshipOrderId = biteshipOrderData.id;
           }
+
+          // Extract shipping fee chosen by mitra / returned by Biteship API (prioritize mitra selected order.shippingCost)
+          const shippingFee = (order as any).shippingCost || biteshipOrderData.price || biteshipOrderData.shipping_fee || biteshipOrderData.courier?.price || 0;
+
+          // Record Order API call & deduct shipping fee from Saldo Deposit
+          const { recordBiteshipApiCall } = await import("@/app/actions/biteship");
+          await recordBiteshipApiCall("order", 1, shippingFee).catch(() => { });
+
           const rawWaybill = biteshipOrderData.courier?.waybill_id || biteshipOrderData.courier?.tracking_id;
-          if (rawWaybill && !rawWaybill.startsWith("6g")) {
-            trackingNumber = rawWaybill.startsWith("WYB-") ? rawWaybill : `WYB-${rawWaybill}`;
-          } else {
-            const charCodeSum = Array.from(biteshipOrderId || "6gRhc").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-            trackingNumber = `WYB-${1786380000000 + (charCodeSum * 1234567) % 900000000}`;
+          if (rawWaybill) {
+            trackingNumber = rawWaybill;
+          } else if (biteshipOrderId) {
+            trackingNumber = biteshipOrderId;
           }
         } else {
           const errData = await biteshipOrderRes.json().catch(() => ({}));
@@ -1370,10 +1447,17 @@ export async function cancelOrderByCustomer(orderId: string, reason: string) {
       ? `Dibatalkan oleh Mitra: ${reason.trim()}`
       : "Dibatalkan oleh Mitra (Tanpa Alasan)";
 
-    // Jika pesanan terhubung dengan Biteship, batalkan di Biteship API
+    // Jika pesanan terhubung dengan Biteship, batalkan di Biteship API dan kembalikan Saldo Deposit
     const biteshipId = (order as any).biteshipOrderId;
+    const shippingFee = (order as any).shippingCost || 0;
+
     if (biteshipId) {
       await cancelBiteshipDirect(biteshipId, cancelReasonText);
+    }
+
+    if (biteshipId || shippingFee > 0) {
+      const { refundBiteshipShippingFee } = await import("@/app/actions/biteship");
+      await refundBiteshipShippingFee(shippingFee, order.orderNumber).catch(() => {});
     }
 
     await db.$transaction(async (tx: any) => {
@@ -1623,7 +1707,18 @@ export async function getBiteshipLiveTracking(orderId: string) {
       return { success: false, error: "Pesanan tidak ditemukan" };
     }
 
-    const apiKey = process.env.BITESHIP_API_KEY;
+    // Record Tracking Search API call (Rp. 10 per request)
+    const { recordBiteshipApiCall } = await import("@/app/actions/biteship");
+    recordBiteshipApiCall("tracking", 1).catch(() => { });
+
+    let apiKey = process.env.BITESHIP_API_KEY || "";
+    try {
+      const dbKey = await db.systemSetting.findUnique({ where: { key: "biteship_api_key" } });
+      if (dbKey && dbKey.value && dbKey.value.trim().length > 0) {
+        apiKey = dbKey.value.trim();
+      }
+    } catch (e) { }
+
     if (!apiKey) {
       return { success: false, error: "Biteship API Key belum dikonfigurasi" };
     }
@@ -1779,11 +1874,20 @@ export async function getBiteshipLiveTracking(orderId: string) {
       }
     }
 
+    const realWaybill = courier.waybill_id || courier.tracking_id || trackingObj.waybill_id || trackingObj.courier_tracking_id || order.trackingNumber || "-";
+
+    if (realWaybill && realWaybill !== "-" && realWaybill !== order.trackingNumber && !realWaybill.startsWith("6g")) {
+      await (db.order as any).update({
+        where: { id: orderId },
+        data: { trackingNumber: realWaybill }
+      }).catch(() => {});
+    }
+
     return {
       success: true,
       tracking: {
         orderNumber: order.orderNumber,
-        waybillId: trackingObj.waybill_id || trackingObj.courier_tracking_id || order.trackingNumber || "-",
+        waybillId: realWaybill,
         biteshipId: biteshipId || trackingObj.id,
         currentStatus: currentStatusCode,
         currentStatusLabel: currentMeta.label,
@@ -1860,7 +1964,7 @@ export async function cancelBiteshipOrder(orderId: string, reason?: string) {
 
     const order = await (db.order as any).findUnique({
       where: { id: orderId },
-      select: { biteshipOrderId: true },
+      select: { biteshipOrderId: true, shippingCost: true, orderNumber: true },
     });
 
     if (!order || !(order as any).biteshipOrderId) {
@@ -1872,6 +1976,10 @@ export async function cancelBiteshipOrder(orderId: string, reason?: string) {
     if (!cancelRes.success) {
       return cancelRes;
     }
+
+    const shippingFee = (order as any).shippingCost || 0;
+    const { refundBiteshipShippingFee } = await import("@/app/actions/biteship");
+    await refundBiteshipShippingFee(shippingFee, (order as any).orderNumber).catch(() => {});
 
     revalidatePath("/admin/dashboard");
     revalidatePath("/customer/dashboard");
@@ -2129,10 +2237,30 @@ export async function pushOrderToBiteship(orderId: string) {
       courier_company: courierCompany,
       courier_type: courierType,
       delivery_type: "now",
-      reference_id: order.orderNumber,
+      reference_id: `${order.orderNumber}-${Date.now().toString().slice(-6)}`,
       items: orderItems,
       order_note: `Pesanan SP: ${order.orderNumber}`
     };
+
+    // Check Saldo Deposit Biteship
+    const { getBiteshipApiTransactions } = await import("@/app/actions/biteship");
+    const txData = await getBiteshipApiTransactions();
+    const currentBalance = txData.remainingBalance ?? 0;
+    const actualShippingFee = (order as any).shippingCost || 0;
+
+    if (currentBalance <= 0) {
+      return {
+        success: false,
+        error: `[SALDO TIDAK CUKUP]: Sisa Saldo API Deposit Anda (Rp. ${currentBalance.toLocaleString("id-ID")}) telah habis (Rp. 0). Silakan lakukan pengiriman secara MANUAL (input resi sendiri dari counter logistik) atau lakukan isi ulang (top-up) saldo deposit API Biteship Anda.`
+      };
+    }
+
+    if (actualShippingFee > 0 && currentBalance < actualShippingFee) {
+      return {
+        success: false,
+        error: `[SALDO TIDAK CUKUP]: Sisa Saldo API Deposit Anda (Rp. ${currentBalance.toLocaleString("id-ID")}) kurang dari biaya pengiriman (Rp. ${actualShippingFee.toLocaleString("id-ID")}). Silakan lakukan pengiriman secara MANUAL (input resi sendiri dari counter logistik) atau lakukan isi ulang (top-up) saldo deposit API Biteship Anda.`
+      };
+    }
 
     const biteshipOrderRes = await fetch("https://api.biteship.com/v1/orders", {
       method: "POST",
@@ -2145,6 +2273,12 @@ export async function pushOrderToBiteship(orderId: string) {
 
     if (biteshipOrderRes.ok) {
       const bData = await biteshipOrderRes.json();
+      const shippingFee = (order as any).shippingCost || bData.price || bData.shipping_fee || bData.courier?.price || 0;
+
+      // Record Order API call & shipping fee balance deduction
+      const { recordBiteshipApiCall } = await import("@/app/actions/biteship");
+      await recordBiteshipApiCall("order", 1, shippingFee).catch(() => { });
+
       const newWaybill = bData.courier?.waybill_id || bData.courier?.tracking_id || bData.id || `WYB-${Date.now()}`;
       await db.order.update({
         where: { id: orderId },

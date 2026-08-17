@@ -16,14 +16,10 @@ function numberToWords(n: number): string {
   return n.toString(); // Fallback for very large quantities
 }
 
-export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JALAN") {
+export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JALAN", forceDownload: boolean = false) {
   if (typeof window === "undefined") return;
 
-  const w = window.open("", "_blank");
-  if (!w) {
-    alert("Pop-up diblokir. Harap izinkan pop-up untuk mencetak dokumen CDOB.");
-    return;
-  }
+  const isMobile = forceDownload || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
   // Calculate order totals
   const subtotal = order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
@@ -444,8 +440,8 @@ export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JA
     `;
   }
 
-  // Write content, load styling, and print!
-  w.document.write(`
+  // Build full HTML content
+  const fullHtml = `
     <!DOCTYPE html>
     <html lang="id">
     <head>
@@ -534,6 +530,34 @@ export function printCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JA
       </script>
     </body>
     </html>
-  `);
+  `;
+
+  // On Mobile / Android, directly trigger file download to device's Download folder without opening pop-up preview tab!
+  if (isMobile) {
+    const docLabel = type === "SP" ? "Surat-Pesanan-CDOB" : type === "INVOICE" ? "eFaktur-Invoice-CDOB" : "Surat-Jalan-CDOB";
+    const fileName = `${docLabel}-${order.orderNumber}.html`;
+
+    const blob = new Blob([fullHtml], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    return;
+  }
+
+  const w = window.open("", "_blank");
+  if (!w) {
+    alert("Pop-up diblokir. Harap izinkan pop-up untuk mencetak dokumen CDOB.");
+    return;
+  }
+  w.document.write(fullHtml);
   w.document.close();
+}
+
+export function downloadCDOBDocument(order: any, type: "SP" | "INVOICE" | "SURAT_JALAN") {
+  printCDOBDocument(order, type, true);
 }

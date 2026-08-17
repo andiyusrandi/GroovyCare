@@ -243,20 +243,15 @@ export function formatWaybillNumber(trackingNumber?: string | null, biteshipOrde
   const raw = (trackingNumber || "").trim();
   const secondary = (biteshipOrderId || "").trim();
 
-  // If trackingNumber is already a valid waybill number like WYB-1786383783281 or courier AWB
-  if (raw && !raw.startsWith("6g") && raw.length !== 24 && raw !== secondary) {
-    if (raw.startsWith("WYB-") || raw.startsWith("JNE") || raw.startsWith("JNT") || raw.startsWith("BT-") || raw.startsWith("SIC") || raw.startsWith("ANT")) {
-      return raw;
-    }
-    return `WYB-${raw}`;
+  if (raw && !raw.startsWith("6g") && raw.length !== 24) {
+    return raw;
   }
 
-  // If raw is Biteship internal 24-character ID like '6gRhc75EzG9YQiUDvMwX9gkh'
-  const idToHash = (raw.startsWith("6g") || raw.length === 24) ? raw : (secondary || orderId || "6gRhc75EzG9YQiUDvMwX9gkh");
-  const charCodeSum = Array.from(idToHash).reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const waybillDigits = (1786380000000 + (charCodeSum * 1234567) % 900000000).toString();
+  if (secondary) {
+    return secondary;
+  }
 
-  return `WYB-${waybillDigits}`;
+  return raw || "-";
 }
 
 export function parseDriverInfo(

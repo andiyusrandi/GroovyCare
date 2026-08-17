@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Bell, History, ArrowRight, UserCheck } from "lucide-react";
+import Link from "next/link";
+import { Search, Bell, History, ArrowRight, UserCheck, BookOpen } from "lucide-react";
 
 interface AdminTopBarProps {
   adminName: string;
@@ -26,7 +27,17 @@ export default function AdminTopBar({ adminName, pendingPartnersCount, setActive
         </div>
       </div>
 
-      <div className="flex items-center gap-4 relative">
+      <div className="flex items-center gap-3 relative">
+        {/* Link Panduan & Dokumentasi Admin */}
+        <Link
+          href="/admin/docs"
+          target="_blank"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-200 transition shadow-2xs"
+          title="Buka Halaman Panduan & Dokumentasi Fitur Admin PBF"
+        >
+          <BookOpen className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span className="hidden md:inline">Panduan &amp; Dok</span>
+        </Link>
         {/* Notification Bell Button */}
         <div className="relative">
           <button

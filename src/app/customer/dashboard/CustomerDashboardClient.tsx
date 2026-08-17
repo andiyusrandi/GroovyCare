@@ -1234,10 +1234,9 @@ export default function CustomerDashboardClient({
 
           <div className="pt-2">
             <a
-              href="https://play.google.com/store"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 px-5 py-2.5 bg-slate-950 text-white rounded-2xl hover:bg-slate-900 active:scale-[0.98] transition-all shadow-md text-left cursor-pointer mx-auto border border-slate-800"
+              href="/downloads/groovycare.apk"
+              download="GroovyCare-PBF-Online.apk"
+              className="inline-flex items-center gap-3 px-5 py-2.5 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-md text-left cursor-pointer mx-auto border border-emerald-500"
             >
               <svg viewBox="0 0 512 512" width="24" height="24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M32.05 16.5C30.2 18.9 29.1 22.4 29.1 26.9v458.2c0 4.5 1.1 8 2.95 10.4l1.55 1.4L261.25 269v-5.25L33.6 15.1l-1.55 1.4z" fill="#00f0ff" />
@@ -1246,8 +1245,8 @@ export default function CustomerDashboardClient({
                 <path d="M263.15 271.65L340.25 348l-291.8 167c-7.3 4.2-13.2 2.2-16.4-1.2L186.85 348l76.3-76.35z" fill="#00e756" />
               </svg>
               <div>
-                <p className="text-[9px] uppercase tracking-widest text-slate-400 font-bold leading-none">Get it on</p>
-                <p className="text-xs font-bold font-heading leading-tight mt-0.5">Google Play</p>
+                <p className="text-[9px] uppercase tracking-widest text-emerald-100 font-bold leading-none">Unduh Langsung</p>
+                <p className="text-xs font-bold font-heading leading-tight mt-0.5">Download APK Android</p>
               </div>
             </a>
           </div>

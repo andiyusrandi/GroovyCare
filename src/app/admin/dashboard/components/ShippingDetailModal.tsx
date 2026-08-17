@@ -165,7 +165,7 @@ export default function ShippingDetailModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn font-sans">
       <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
-        
+
         {/* ========================================================================= */}
         {/* 1. MODAL HEADER & QUICK ACTIONS                                           */}
         {/* ========================================================================= */}
@@ -221,7 +221,7 @@ export default function ShippingDetailModal({
         {/* 2. MODAL SCROLLABLE BODY CONTENT                                          */}
         {/* ========================================================================= */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-700">
-          
+
           {/* A. INFORMATION OVERVIEW GRID (Order & Courier Meta) */}
           <section className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
@@ -261,7 +261,7 @@ export default function ShippingDetailModal({
                   </span>
                   {order.biteshipOrderId ? (
                     <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-purple-50 text-purple-800 border border-purple-200">
-                      ⚡ Biteship API (Otomatis Webhook)
+                      ⚡ API (Otomatis Webhook)
                     </span>
                   ) : (
                     <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-50 text-amber-800 border border-amber-200">
@@ -379,7 +379,7 @@ export default function ShippingDetailModal({
                       <td className="px-4 py-3">
                         <p className="font-extrabold text-slate-900 text-xs leading-snug">{item.product.name}</p>
                         <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
-                          {item.product.description || `Sediaan farmasi terdaftar Kemenkes RI (NIE BPOM: SD25501188${idx+1}) [Kode KFA: 9302592${idx+8}]. Dimensi: 1 x 1 x 1 cm (0,5 kg).`}
+                          {item.product.description || `Sediaan farmasi terdaftar Kemenkes RI (NIE BPOM: SD25501188${idx + 1}) [Kode KFA: 9302592${idx + 8}]. Dimensi: 1 x 1 x 1 cm (0,5 kg).`}
                         </p>
                       </td>
                       <td className="px-3 py-3 text-center">

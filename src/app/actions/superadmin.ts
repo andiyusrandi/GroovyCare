@@ -9,17 +9,17 @@ async function verifySuperAdmin() {
   if (!session) {
     throw new Error("Akses ditolak: Anda belum login");
   }
-  if (session.role !== "SYSTEM_ADMIN") {
-    throw new Error("Akses ditolak: Hanya Super Admin (SYSTEM_ADMIN) yang diizinkan");
+  if (session.role !== "SYSTEM_ADMIN" && session.role !== "PBF_ADMIN") {
+    throw new Error("Akses ditolak: Hanya PBF Admin / Super Admin yang diizinkan");
   }
   return session;
 }
 
-// 1. Mengambil semua pengguna admin
+// 1. Mengambil semua pengguna admin (sembunyikan admin@growmexa.com jika yang login bukan admin@growmexa.com)
 export async function getAdminUsers() {
-  await verifySuperAdmin();
+  const session = await verifySuperAdmin();
   try {
-    return await db.user.findMany({
+    const users = await db.user.findMany({
       where: {
         role: {
           in: ["PBF_ADMIN", "SYSTEM_ADMIN"],
@@ -38,6 +38,12 @@ export async function getAdminUsers() {
         role: "asc",
       },
     });
+
+    if (session.email !== "admin@growmexa.com") {
+      return users.filter((u) => u.email !== "admin@growmexa.com");
+    }
+
+    return users;
   } catch (error: any) {
     throw new Error("Gagal mengambil data user admin: " + error.message);
   }
@@ -53,10 +59,15 @@ export async function createAdminUser(data: {
   sipaNumber?: string;
   sipaExpiry?: string;
 }) {
-  await verifySuperAdmin();
+  const session = await verifySuperAdmin();
 
   if (!data.name || !data.email || !data.password || !data.role) {
     return { success: false, error: "Nama, email, password, dan role wajib diisi" };
+  }
+
+  // Prevent PBF_ADMIN from creating SYSTEM_ADMIN accounts
+  if (data.role === "SYSTEM_ADMIN" && session.role !== "SYSTEM_ADMIN") {
+    return { success: false, error: "Akses ditolak: PBF_ADMIN tidak diizinkan membuat akun dengan role SYSTEM_ADMIN (Super Admin)" };
   }
 
   try {
@@ -103,6 +114,10 @@ export async function deleteAdminUser(targetUserId: string) {
 
     if (!userToDelete) {
       return { success: false, error: "User tidak ditemukan" };
+    }
+
+    if (userToDelete.email === "admin@growmexa.com") {
+      return { success: false, error: "Akun utama admin@growmexa.com tidak dapat dihapus" };
     }
 
     await db.user.delete({

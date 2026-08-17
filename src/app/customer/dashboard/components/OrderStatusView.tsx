@@ -253,91 +253,106 @@ export default function OrderStatusView({
 
                   {/* Expanded Content Wrapper */}
                   {isExpanded && (
-                    <div className="pt-4 border-t border-outline-variant/20 space-y-6 animate-fadeIn">
+                    <div className="pt-4 border-t border-slate-200/80 space-y-4 animate-fadeIn">
                       
-                      {/* Clean Stepper Tracking */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50/50 p-4 rounded-2xl border border-outline-variant/10 text-xs">
-                        
+                      {/* --- 2. PROGRESS STEPPER (Responsive Timeline) --- */}
+                      <div className="rounded-2xl bg-slate-50 p-3.5 sm:p-4 border border-slate-200/80 space-y-3.5 text-xs">
                         {/* Step 1 */}
-                        <div className="flex items-center gap-3">
-                          <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center font-bold text-[10px]">
+                        <div className="flex items-start gap-3 relative">
+                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold z-10 shadow-2xs">
                             ✓
                           </div>
-                          <div>
-                            <p className="font-bold text-foreground">1. Diterima</p>
-                            <p className="text-[9px] text-on-surface-variant mt-0.5">Order terdaftar</p>
+                          <div className={`absolute left-[9px] top-5 bottom-0 w-[2px] h-6 -z-0 ${order.spSignature ? "bg-emerald-500" : "bg-slate-200"}`} />
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-800">1. Diterima</p>
+                            <p className="text-[10px] text-slate-400">Order terdaftar di sistem PBF</p>
                           </div>
                         </div>
 
                         {/* Step 2 */}
-                        <div className={`flex items-center gap-3 ${order.spSignature ? "opacity-100" : "opacity-40"}`}>
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] ${order.spSignature ? "bg-primary text-white" : "bg-surface-container-highest text-on-surface-variant"}`}>
+                        <div className={`flex items-start gap-3 relative ${order.spSignature ? "opacity-100" : "opacity-50"}`}>
+                          <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold z-10 shadow-2xs ${order.spSignature ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-600"}`}>
                             {order.spSignature ? "✓" : "2"}
                           </div>
-                          <div>
-                            <p className="font-bold text-foreground">2. APJ Sign</p>
-                            <p className="text-[9px] text-on-surface-variant mt-0.5">{order.spSignature ? "SP Tertanda" : "Belum Sign"}</p>
+                          <div className={`absolute left-[9px] top-5 bottom-0 w-[2px] h-6 -z-0 ${(order.status === "PENDING_SHIPPING" || order.status === "SHIPPED" || order.status === "DELIVERED") ? "bg-emerald-500" : "bg-slate-200"}`} />
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-800">2. APJ Sign</p>
+                            <p className="text-[10px] text-slate-400">{order.spSignature ? "SP digital tertanda sah" : "Menunggu e-Sign SP"}</p>
                           </div>
                         </div>
 
                         {/* Step 3 */}
-                        <div className={`flex items-center gap-3 ${(order.status === "PENDING_SHIPPING" || order.status === "SHIPPED") ? "opacity-100" : "opacity-40"}`}>
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] ${(order.status === "PENDING_SHIPPING" || order.status === "SHIPPED") ? "bg-primary text-white" : "bg-surface-container-highest text-on-surface-variant"}`}>
-                            {(order.status === "PENDING_SHIPPING" || order.status === "SHIPPED") ? "✓" : "3"}
+                        <div className={`flex items-start gap-3 relative ${(order.status === "PENDING_SHIPPING" || order.status === "SHIPPED" || order.status === "DELIVERED") ? "opacity-100" : "opacity-50"}`}>
+                          <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold z-10 shadow-2xs ${(order.status === "PENDING_SHIPPING" || order.status === "SHIPPED" || order.status === "DELIVERED") ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-600"}`}>
+                            {(order.status === "PENDING_SHIPPING" || order.status === "SHIPPED" || order.status === "DELIVERED") ? "✓" : "3"}
                           </div>
-                          <div>
-                            <p className="font-bold text-foreground">3. Gudang</p>
-                            <p className="text-[9px] text-on-surface-variant mt-0.5">Picking & Packing</p>
+                          <div className={`absolute left-[9px] top-5 bottom-0 w-[2px] h-6 -z-0 ${order.status === "SHIPPED" || order.status === "DELIVERED" ? "bg-emerald-500" : "bg-slate-200"}`} />
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-800">3. Gudang PBF</p>
+                            <p className="text-[10px] text-slate-400">Picking FEFO &amp; Packing Karet/Box</p>
                           </div>
                         </div>
 
-                        {/* Step 4 */}
-                        <div className={`flex items-center gap-3 ${order.status === "SHIPPED" ? "opacity-100" : "opacity-40"}`}>
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] ${order.status === "SHIPPED" ? "bg-primary text-white ring-4 ring-primary/10" : "bg-surface-container-highest text-on-surface-variant"}`}>
-                            {order.status === "SHIPPED" ? "🚚" : "4"}
+                        {/* Step 4 (Active Step) */}
+                        <div className={`flex items-start gap-3 ${order.status === "SHIPPED" || order.status === "DELIVERED" ? "opacity-100" : "opacity-50"}`}>
+                          <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold z-10 shadow-2xs ${
+                            order.status === "DELIVERED"
+                              ? "bg-emerald-600 text-white"
+                              : order.status === "SHIPPED"
+                                ? "bg-blue-600 text-white ring-4 ring-blue-100"
+                                : "bg-slate-200 text-slate-600"
+                          }`}>
+                            {order.status === "DELIVERED" ? "✓" : "🚚"}
                           </div>
-                          <div>
-                            <p className="font-bold text-foreground">4. {getBiteshipStatusMeta((order as any).biteshipStatus, order.status).label}</p>
-                            <p className="text-[9px] text-on-surface-variant mt-0.5 font-medium">
+                          <div className="min-w-0">
+                            <p className={`text-xs font-bold ${order.status === "SHIPPED" ? "text-blue-700" : "text-slate-800"}`}>
+                              4. {getBiteshipStatusMeta((order as any).biteshipStatus, order.status).label}
+                            </p>
+                            <p className="text-[10px] text-slate-500 leading-snug mt-0.5 font-medium">
                               {(order as any).biteshipStatusLabel || getBiteshipStatusMeta((order as any).biteshipStatus, order.status).description}
                             </p>
                           </div>
                         </div>
-
                       </div>
 
                       {/* Cold Chain Sensor Simulation Box */}
                       {order.status === "SHIPPED" && isColdChain && (
-                        <div className="bg-gradient-to-r from-blue-50 to-teal-50/30 rounded-2xl p-4 border border-blue-100 flex flex-col md:flex-row justify-between gap-4 text-xs">
-                          <div className="flex items-start gap-3">
-                            <span className="material-symbols-outlined text-blue-600 text-[20px] mt-0.5">thermostat</span>
+                        <div className="bg-gradient-to-r from-blue-50 to-teal-50/40 rounded-2xl p-3.5 border border-blue-200/80 flex flex-col md:flex-row justify-between gap-3 text-xs">
+                          <div className="flex items-start gap-2.5">
+                            <span className="material-symbols-outlined text-blue-600 text-[20px] shrink-0">thermostat</span>
                             <div>
-                              <p className="font-bold text-blue-900 font-heading">Sensor Suhu Aktif (CDOB Smart Control)</p>
-                              <p className="text-[10px] text-blue-800/80 mt-0.5">Obat rantai dingin dijaga otomatis pada suhu standar BPOM.</p>
+                              <p className="font-bold text-blue-950 font-heading">Sensor Suhu Aktif (CDOB Smart Control)</p>
+                              <p className="text-[10px] text-blue-800 mt-0.5 font-medium">Obat rantai dingin dijaga otomatis pada suhu standar BPOM.</p>
                             </div>
                           </div>
-                          <div className="flex gap-4 self-end md:self-center font-mono shrink-0">
+                          <div className="flex gap-3 self-start md:self-center font-mono shrink-0">
                             <div className="bg-white border border-blue-200 px-3 py-1 rounded-xl text-center">
-                              <p className="text-[8px] text-on-surface-variant">Suhu Box</p>
+                              <p className="text-[8px] text-slate-400 font-bold uppercase">Suhu Box</p>
                               <p className="text-xs font-extrabold text-blue-700">4.5 °C</p>
                             </div>
                             <div className="bg-white border border-blue-200 px-3 py-1 rounded-xl text-center">
-                              <p className="text-[8px] text-on-surface-variant">Status</p>
+                              <p className="text-[8px] text-slate-400 font-bold uppercase">Status</p>
                               <p className="text-xs font-extrabold text-emerald-600">STABIL</p>
                             </div>
                           </div>
                         </div>
                       )}
 
-                      {/* Info Resi Kurir & Expedisi */}
+                      {/* --- 3. EXPEDISI & BITESHIP ACTIONS (Desktop Only) --- */}
                       {(order.trackingNumber || order.biteshipOrderId) && (
-                        <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
-                          <div className="flex items-center gap-2">
-                            <Truck className="w-4 h-4 text-primary shrink-0" />
-                            <span className="text-[11px] font-bold text-slate-800">Resi Expedisi: {formatWaybillNumber(order.trackingNumber, order.biteshipOrderId, order.id)}</span>
+                        <div className="hidden md:block rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3 sm:p-3.5 space-y-2.5">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Truck className="w-4 h-4 text-emerald-700 shrink-0" />
+                              <span className="text-[11px] font-bold text-slate-700">Resi Expedisi:</span>
+                            </div>
+                            <span className="font-mono text-xs font-extrabold text-slate-900 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs truncate">
+                              {formatWaybillNumber(order.trackingNumber, order.biteshipOrderId, order.id)}
+                            </span>
                           </div>
+
                           {order.biteshipOrderId ? (
-                            <div className="flex items-center gap-1.5">
+                            <div className="grid grid-cols-2 gap-2 pt-1">
                               <button
                                 type="button"
                                 onClick={async () => {
@@ -353,45 +368,52 @@ export default function OrderStatusView({
                                     alert("Error: " + err.message);
                                   }
                                 }}
-                                className="text-[9px] text-primary font-bold bg-white hover:bg-slate-100 border border-primary/30 px-2.5 py-1 rounded-full uppercase flex items-center gap-1 cursor-pointer transition-colors"
+                                className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200/90 bg-white py-2 text-[10px] font-extrabold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all cursor-pointer shadow-2xs"
                                 title="Sinkronkan status terbaru dari Biteship API"
                               >
-                                <span className="material-symbols-outlined text-[11px]">sync</span> Sync Biteship
+                                <span className="material-symbols-outlined text-[13px] text-emerald-600">sync</span>
+                                Sync Biteship
                               </button>
+
                               <button
                                 type="button"
                                 onClick={() => setTrackingModalOrderId(order.id)}
-                                className="text-[9px] text-white font-extrabold bg-primary hover:bg-primary/90 px-3 py-1 rounded-full uppercase flex items-center gap-1 no-underline shadow-sm border-none cursor-pointer"
+                                className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 py-2 text-[10px] font-extrabold text-white shadow-2xs active:scale-95 transition-all cursor-pointer border-none"
                               >
-                                <span className="material-symbols-outlined text-[11px]">radar</span> Live Tracking In-App
+                                <span className="material-symbols-outlined text-[13px]">radar</span>
+                                Live Tracking
                               </button>
                             </div>
                           ) : (
-                            <span className="text-[9px] text-emerald-800 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full uppercase">
+                            <span className="inline-block text-[9px] text-emerald-800 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full uppercase">
                               Kurir Logistik PBF
                             </span>
                           )}
                         </div>
                       )}
 
-                      {/* Footer Actions */}
-                      <div className="flex flex-wrap justify-between items-center gap-3 pt-2 text-xs">
-                        <button
-                          type="button"
-                          onClick={() => setViewingDetailOrder(order)}
-                          className="text-primary hover:underline font-bold flex items-center gap-1 cursor-pointer border-none bg-transparent"
-                        >
-                          Detail Progress <span className="material-symbols-outlined text-sm">chevron_right</span>
-                        </button>
+                      {/* --- 4. BOTTOM ACTION BUTTONS --- */}
+                      <div className="space-y-2.5 pt-1 text-xs">
+                        <div className="flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={() => setViewingDetailOrder(order)}
+                            className="text-emerald-700 hover:text-emerald-800 font-extrabold flex items-center gap-1 cursor-pointer border-none bg-transparent text-xs"
+                          >
+                            <span>Detail Progress Pesanan</span>
+                            <span className="material-symbols-outlined text-sm">chevron_right</span>
+                          </button>
+                        </div>
 
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="hidden md:grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {(order.status === "SHIPPED" || order.status === "DELIVERED") && (
                             <button
                               type="button"
                               onClick={() => printCDOBDocument(order, "SURAT_JALAN")}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-outline-variant/30 text-on-surface-variant hover:text-foreground font-bold rounded-xl text-[10px] shadow-sm cursor-pointer"
+                              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-white hover:bg-slate-50 border border-slate-200/90 text-slate-700 font-bold rounded-xl text-xs shadow-2xs active:scale-95 transition-all cursor-pointer"
                             >
-                              <span className="material-symbols-outlined text-[14px]">description</span> Cetak BAST CDOB
+                              <span className="material-symbols-outlined text-[15px]">description</span>
+                              <span>Cetak BAST CDOB</span>
                             </button>
                           )}
 
@@ -416,9 +438,10 @@ export default function OrderStatusView({
                                 setIsCheckoutOpen(true);
                                 setCheckoutError(null);
                               }}
-                              className="px-4 py-2 bg-primary text-white hover:bg-primary/95 font-bold rounded-xl shadow-sm cursor-pointer flex items-center gap-1.5 transition-transform active:scale-[0.98]"
+                              className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs cursor-pointer active:scale-95 transition-all"
                             >
-                              <PenTool className="w-3.5 h-3.5" /> Tanda Tangan SP
+                              <PenTool className="w-4 h-4" />
+                              <span>Tanda Tangan SP</span>
                             </button>
                           )}
 
@@ -426,23 +449,24 @@ export default function OrderStatusView({
                             <button
                               type="button"
                               onClick={() => setCancelingOrder(order)}
-                              className="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl border border-red-200 cursor-pointer flex items-center gap-1 transition-all active:scale-[0.98]"
+                              className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl border border-rose-200 cursor-pointer active:scale-95 transition-all"
                             >
-                              <span className="material-symbols-outlined text-[16px]">cancel</span> Batalkan Pesanan
+                              <span className="material-symbols-outlined text-[16px]">cancel</span>
+                              <span>Batalkan Pesanan</span>
                             </button>
                           )}
 
                           {order.status === "SHIPPED" && (
-                            <div className="flex flex-col items-end gap-1">
+                            <div className="sm:col-span-2 flex flex-col items-center gap-1.5 w-full">
                               <button
                                 type="button"
                                 onClick={() => handleConfirmDelivery(order.id)}
-                                className="px-4 py-2 bg-primary hover:bg-primary/95 text-white font-bold rounded-xl shadow-sm cursor-pointer transition-transform active:scale-[0.98]"
+                                className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold rounded-2xl shadow-xs cursor-pointer transition-all active:scale-[0.98] text-xs flex items-center justify-center gap-1.5"
                               >
-                                Konfirmasi Terima Barang
+                                <span>Konfirmasi Terima Barang</span>
                               </button>
-                              <span className="text-[9px] text-on-surface-variant/70 italic">
-                                Selesai otomatis via Biteship / SLA 1x24 jam
+                              <span className="text-[10px] text-slate-400 italic">
+                                Selesai otomatis via webhook Biteship / SLA 1x24 jam
                               </span>
                             </div>
                           )}

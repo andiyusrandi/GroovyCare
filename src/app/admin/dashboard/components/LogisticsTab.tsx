@@ -187,8 +187,8 @@ export default function LogisticsTab({
     subTab === "ready"
       ? readyToPackOrders
       : subTab === "in_transit"
-      ? inTransitOrders
-      : finishedOrders;
+        ? inTransitOrders
+        : finishedOrders;
 
   const filteredOrders = currentList.filter(
     (o) =>
@@ -247,7 +247,7 @@ export default function LogisticsTab({
         <div className="flex items-center gap-2 text-xs shrink-0">
           <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-extrabold rounded-xl border border-emerald-200/80 flex items-center gap-1.5 shadow-2xs">
             <Truck className="w-4 h-4 text-emerald-600" />
-            <span>Biteship Logistik Integrated</span>
+            <span>Logistik Integrated</span>
           </span>
         </div>
       </div>
@@ -256,11 +256,10 @@ export default function LogisticsTab({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         <div
           onClick={() => setSubTab("ready")}
-          className={`p-3.5 px-4 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${
-            subTab === "ready"
-              ? "bg-blue-50/70 border-blue-300 shadow-xs ring-2 ring-blue-500/20"
-              : "bg-white border-slate-200/80 hover:border-slate-300 shadow-2xs"
-          }`}
+          className={`p-3.5 px-4 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${subTab === "ready"
+            ? "bg-blue-50/70 border-blue-300 shadow-xs ring-2 ring-blue-500/20"
+            : "bg-white border-slate-200/80 hover:border-slate-300 shadow-2xs"
+            }`}
         >
           <div className="p-2.5 bg-blue-500 text-white rounded-xl shadow-xs shrink-0">
             <Package className="w-5 h-5" />
@@ -277,11 +276,10 @@ export default function LogisticsTab({
 
         <div
           onClick={() => setSubTab("in_transit")}
-          className={`p-3.5 px-4 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${
-            subTab === "in_transit"
-              ? "bg-emerald-50/70 border-emerald-300 shadow-xs ring-2 ring-emerald-500/20"
-              : "bg-white border-slate-200/80 hover:border-slate-300 shadow-2xs"
-          }`}
+          className={`p-3.5 px-4 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${subTab === "in_transit"
+            ? "bg-emerald-50/70 border-emerald-300 shadow-xs ring-2 ring-emerald-500/20"
+            : "bg-white border-slate-200/80 hover:border-slate-300 shadow-2xs"
+            }`}
         >
           <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-xs shrink-0">
             <Truck className="w-5 h-5" />
@@ -298,11 +296,10 @@ export default function LogisticsTab({
 
         <div
           onClick={() => setSubTab("finished")}
-          className={`p-3.5 px-4 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${
-            subTab === "finished"
-              ? "bg-indigo-50/70 border-indigo-300 shadow-xs ring-2 ring-indigo-500/20"
-              : "bg-white border-slate-200/80 hover:border-slate-300 shadow-2xs"
-          }`}
+          className={`p-3.5 px-4 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${subTab === "finished"
+            ? "bg-indigo-50/70 border-indigo-300 shadow-xs ring-2 ring-indigo-500/20"
+            : "bg-white border-slate-200/80 hover:border-slate-300 shadow-2xs"
+            }`}
         >
           <div className="p-2.5 bg-indigo-600 text-white rounded-xl shadow-xs shrink-0">
             <CheckCircle2 className="w-5 h-5" />
@@ -333,11 +330,10 @@ export default function LogisticsTab({
         <button
           type="button"
           onClick={() => setSubTab("ready")}
-          className={`pb-3 px-4 text-xs font-extrabold transition-all border-b-2 cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-            subTab === "ready"
-              ? "border-blue-600 text-blue-700 bg-blue-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-900"
-          }`}
+          className={`pb-3 px-4 text-xs font-extrabold transition-all border-b-2 cursor-pointer flex items-center gap-2 whitespace-nowrap ${subTab === "ready"
+            ? "border-blue-600 text-blue-700 bg-blue-50/50 rounded-t-xl"
+            : "border-transparent text-slate-500 hover:text-slate-900"
+            }`}
         >
           <Package className="w-4 h-4" />
           <span>Siap Dikemas (Ready to Pack)</span>
@@ -349,11 +345,10 @@ export default function LogisticsTab({
         <button
           type="button"
           onClick={() => setSubTab("in_transit")}
-          className={`pb-3 px-4 text-xs font-extrabold transition-all border-b-2 cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-            subTab === "in_transit"
-              ? "border-emerald-600 text-emerald-700 bg-emerald-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-900"
-          }`}
+          className={`pb-3 px-4 text-xs font-extrabold transition-all border-b-2 cursor-pointer flex items-center gap-2 whitespace-nowrap ${subTab === "in_transit"
+            ? "border-emerald-600 text-emerald-700 bg-emerald-50/50 rounded-t-xl"
+            : "border-transparent text-slate-500 hover:text-slate-900"
+            }`}
         >
           <Truck className="w-4 h-4" />
           <span>Sedang Dikirim (In Transit)</span>
@@ -365,11 +360,10 @@ export default function LogisticsTab({
         <button
           type="button"
           onClick={() => setSubTab("finished")}
-          className={`pb-3 px-4 text-xs font-extrabold transition-all border-b-2 cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-            subTab === "finished"
-              ? "border-indigo-600 text-indigo-700 bg-indigo-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-900"
-          }`}
+          className={`pb-3 px-4 text-xs font-extrabold transition-all border-b-2 cursor-pointer flex items-center gap-2 whitespace-nowrap ${subTab === "finished"
+            ? "border-indigo-600 text-indigo-700 bg-indigo-50/50 rounded-t-xl"
+            : "border-transparent text-slate-500 hover:text-slate-900"
+            }`}
         >
           <CheckCircle2 className="w-4 h-4" />
           <span>Selesai &amp; Dibatalkan (Delivered / Cancelled)</span>
@@ -436,8 +430,8 @@ export default function LogisticsTab({
                     {subTab === "ready"
                       ? "Tidak ada pesanan yang siap dikemas saat ini."
                       : subTab === "in_transit"
-                      ? "Belum ada pesanan aktif yang sedang dalam proses pengiriman kurir."
-                      : "Belum ada pesanan yang selesai atau dibatalkan."}
+                        ? "Belum ada pesanan aktif yang sedang dalam proses pengiriman kurir."
+                        : "Belum ada pesanan yang selesai atau dibatalkan."}
                   </td>
                 </tr>
               ) : (
@@ -775,7 +769,7 @@ export default function LogisticsTab({
                         🚚 Input Nomor Resi Fisik Struk Konter / Armada PBF
                       </span>
                       <span className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">
-                        Bypass Biteship API
+                        Bypass API
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-500 leading-tight">
@@ -794,8 +788,8 @@ export default function LogisticsTab({
                     </p>
                   </div>
 
-                  <div className="p-2.5 bg-blue-50/60 border border-blue-200/80 rounded-xl text-[11px] text-blue-900 font-medium">
-                    ⚡ <strong>Tips Auto-Booking Biteship:</strong> Jika field resi di atas <u>dikosongkan</u>, sistem akan otomatis melakukan booking kurir via API Biteship dan menerbitkan AWB digital secara otomatis.
+                  <div className="p-2.5 bg-blue-50/60 border border-blue-200/80 rounded-xl text-[11px] text-blue-900 font-medium leading-relaxed">
+                    ⚡ <strong>Tips Auto-Booking:</strong> Jika field resi di atas <u>dikosongkan</u>, sistem akan otomatis melakukan booking kurir via API Logistik dan menerbitkan AWB digital secara otomatis (memotong Saldo Deposit). Jika Saldo Deposit kurang dari ongkos kirim pesanan, sistem akan mewajibkan <strong>Top-Up Saldo Deposit</strong> atau mengisi Nomor Resi secara <strong>Manual</strong>.
                   </div>
                 </div>
               </div>

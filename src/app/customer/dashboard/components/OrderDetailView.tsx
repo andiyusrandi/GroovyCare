@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { printCDOBDocument } from "@/lib/pdf-generator";
+import { printCDOBDocument, downloadCDOBDocument } from "@/lib/pdf-generator";
 import BiteshipTrackingModal from "@/app/components/BiteshipTrackingModal";
 import CdobDocumentModal from "@/components/CdobDocumentModal";
 import { formatDisplayAddress } from "@/lib/address-parser";
@@ -525,7 +525,7 @@ export default function OrderDetailView({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setDocModalType("SP")}
+                    onClick={() => downloadCDOBDocument(order, "SP")}
                     className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer border-none bg-transparent flex items-center p-1"
                     title="Download Surat Pesanan"
                   >
@@ -547,7 +547,7 @@ export default function OrderDetailView({
                   {!isPendingApproval && !isRejected && canOpenEFaktur(order) ? (
                     <button
                       type="button"
-                      onClick={() => setDocModalType("INVOICE")}
+                      onClick={() => downloadCDOBDocument(order, "INVOICE")}
                       className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer border-none bg-transparent flex items-center p-1"
                       title="Download Invoice"
                     >
@@ -574,7 +574,7 @@ export default function OrderDetailView({
                   {!isPendingApproval && !isRejected ? (
                     <button
                       type="button"
-                      onClick={() => setDocModalType("SURAT_JALAN")}
+                      onClick={() => downloadCDOBDocument(order, "SURAT_JALAN")}
                       className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer border-none bg-transparent flex items-center p-1"
                       title="Download Surat Jalan"
                     >
@@ -628,10 +628,14 @@ export default function OrderDetailView({
                 triggerHapticImpact();
                 setIsTrackingModalOpen(true);
               }}
-              className="mt-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-2xl transition-all text-xs font-black shadow-sm shadow-emerald-600/20 cursor-pointer flex items-center justify-center gap-2 border-none"
+              className="mt-3 flex h-11 w-full items-center justify-center gap-2.5 rounded-xl bg-emerald-600 px-4 text-xs font-bold text-white shadow-md shadow-emerald-700/20 transition active:scale-[0.98] active:bg-emerald-700 active:shadow-none border-none cursor-pointer"
             >
-              <Radar className="w-4 h-4 animate-spin" />
-              Lacak Live GPS (Biteship)
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-white"></span>
+              </span>
+              <MapPin className="w-4 h-4 stroke-[2.5]" />
+              <span>Lacak Live GPS Biteship</span>
             </button>
           )}
         </section>
@@ -802,7 +806,7 @@ export default function OrderDetailView({
               type="button"
               onClick={() => {
                 triggerHapticImpact();
-                setDocModalType("SP");
+                downloadCDOBDocument(order, "SP");
               }}
               className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 active:scale-95 border border-slate-200 flex flex-col gap-1 items-start cursor-pointer transition-all"
             >
@@ -817,7 +821,7 @@ export default function OrderDetailView({
                 type="button"
                 onClick={() => {
                   triggerHapticImpact();
-                  setDocModalType("INVOICE");
+                  downloadCDOBDocument(order, "INVOICE");
                 }}
                 className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 active:scale-95 border border-slate-200 flex flex-col gap-1 items-start cursor-pointer transition-all"
               >
@@ -869,7 +873,7 @@ export default function OrderDetailView({
                 type="button"
                 onClick={() => {
                   triggerHapticImpact();
-                  setDocModalType("SURAT_JALAN");
+                  downloadCDOBDocument(order, "SURAT_JALAN");
                 }}
                 className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 active:scale-95 border border-slate-200 flex flex-col gap-1 items-start cursor-pointer transition-all"
               >

@@ -59,7 +59,7 @@ export default function BiteshipTrackingModal({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200 font-sans">
       <div className="bg-white border border-slate-200/80 rounded-3xl max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-4 sm:space-y-5 relative animate-in zoom-in-95 duration-200 text-xs max-h-[92vh] overflow-y-auto">
-        
+
         {/* Modal Header */}
         <div className="flex justify-between items-start border-b border-slate-100 pb-4">
           <div className="space-y-1">
@@ -68,7 +68,7 @@ export default function BiteshipTrackingModal({
                 {trackingData?.orderNumber || orderNumber || "Pelacakan Pesanan"}
               </span>
               <span className="bg-blue-50 text-blue-700 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase border border-blue-200 flex items-center gap-1">
-                <span className="material-symbols-outlined text-[10px] animate-pulse">radar</span> Biteship Live
+                <span className="material-symbols-outlined text-[10px] animate-pulse">radar</span> Live
               </span>
             </div>
             <p className="text-[11px] text-slate-500 font-medium">
@@ -171,11 +171,10 @@ export default function BiteshipTrackingModal({
 
                         {/* Status Icon Indicator */}
                         <div
-                          className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[12px] shrink-0 z-10 ${
-                            isLatest
+                          className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[12px] shrink-0 z-10 ${isLatest
                               ? "bg-emerald-600 text-white ring-4 ring-emerald-100"
                               : "bg-slate-100 text-slate-500 border border-slate-200"
-                          }`}
+                            }`}
                         >
                           <span className="material-symbols-outlined text-[15px]">{statusMeta.iconName || step.icon || "schedule"}</span>
                         </div>

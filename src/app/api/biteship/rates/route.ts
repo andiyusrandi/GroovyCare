@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import { recordBiteshipApiCall } from "@/app/actions/biteship";
 
 export async function POST(request: Request) {
   try {
+    // Record Rates API call count & pricing
+    recordBiteshipApiCall("rates", 1).catch(() => {});
+
     const body = await request.json();
     const { destination_province, destination_city, destination_district, destination_village, destination_postal_code, weight } = body;
     console.log("BiteShip rates request body:", { destination_province, destination_city, destination_district, destination_village, destination_postal_code, weight });
@@ -13,7 +17,14 @@ export async function POST(request: Request) {
     const village = (destination_village || "").trim();
     const totalWeight = weight || 1000;
 
-    const apiKey = process.env.BITESHIP_API_KEY;
+    let apiKey = process.env.BITESHIP_API_KEY;
+    try {
+      const { db } = await import("@/lib/db");
+      const dbKey = await db.systemSetting.findUnique({ where: { key: "biteship_api_key" } });
+      if (dbKey && dbKey.value && dbKey.value.trim().length > 0) {
+        apiKey = dbKey.value.trim();
+      }
+    } catch (e) {}
 
     // Helper fallback list of realistic Biteship courier options
     const getFallbackPricing = () => {

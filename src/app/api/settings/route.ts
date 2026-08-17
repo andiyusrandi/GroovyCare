@@ -17,6 +17,9 @@ export async function GET() {
     if (!settingsMap.app_name) {
       settingsMap.app_name = "GroovyCare";
     }
+    if (!settingsMap.favicon_url) {
+      settingsMap.favicon_url = "/favicon/favicon.ico";
+    }
 
     return NextResponse.json({
       success: true,
@@ -28,7 +31,8 @@ export async function GET() {
       success: true,
       settings: {
         logo_url: "https://res.cloudinary.com/rumahhostcom/image/upload/v1785321525/logo_care_fcfgwq.png",
-        app_name: "GroovyCare"
+        app_name: "GroovyCare",
+        favicon_url: "/favicon/favicon.ico",
       }
     });
   }

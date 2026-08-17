@@ -87,6 +87,10 @@ export async function POST(request: Request) {
           const reasonText = `Dibatalkan oleh Ekspedisi Biteship: ${statusMeta.description || status}`;
           if (order.status !== "REJECTED") {
             await rejectOrder(order.id, reasonText);
+          } else {
+            const shippingFee = (order as any).shippingCost || 0;
+            const { refundBiteshipShippingFee } = await import("@/app/actions/biteship");
+            await refundBiteshipShippingFee(shippingFee, order.orderNumber).catch(() => {});
           }
           await db.order.update({
             where: { id: order.id },
@@ -95,7 +99,7 @@ export async function POST(request: Request) {
               biteshipStatusLabel: statusFullText,
             } as any,
           });
-          console.log(`Order ${order.orderNumber} status updated to REJECTED (Biteship Cancellation) via BiteShip webhook.`);
+          console.log(`Order ${order.orderNumber} status updated to REJECTED (Biteship Cancellation) & Saldo Refunded via BiteShip webhook.`);
         }
 
         // Trigger UI cache revalidation for real-time update

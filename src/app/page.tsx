@@ -78,7 +78,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
       {/* Desktop Floating Glassmorphism Navbar */}
       <nav className="hidden md:block fixed top-4 left-0 right-0 w-[calc(100%-2rem)] max-w-7xl mx-auto z-50 bg-white/75 backdrop-blur-xl rounded-2xl border border-slate-200/80 shadow-sm shadow-slate-900/5 transition-all duration-300">
         <div className="flex justify-between items-center px-6 py-2.5 w-full">
-          
+
           {/* Left Side: Logo & Main Navigation Links */}
           <div className="flex items-center gap-8">
             <Link
@@ -91,7 +91,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
                 className="h-8 w-auto object-contain"
               />
             </Link>
-            
+
             {/* Links Navigasi Segmented Controls Sleek */}
             <div className="hidden md:flex items-center gap-1.5 bg-slate-100/70 p-1 rounded-xl border border-slate-200/60">
               <Link
@@ -262,7 +262,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
                     <div className="bg-[#f0f8ffba] p-5 rounded-3xl border border-outline-variant/25 shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center justify-between gap-4 ml-6 lg:ml-8 animate-float-medium">
                       <div className="space-y-1.5 flex-1">
                         <div className="flex justify-between items-center">
-                          <p className="text-[10px] text-on-surface-variant/80 font-bold uppercase tracking-wider">Logistik BiteShip</p>
+                          <p className="text-[10px] text-on-surface-variant/80 font-bold uppercase tracking-wider">Logistik</p>
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[8px] font-extrabold bg-blue-50 text-blue-600 border border-blue-250 uppercase animate-pulse">
                             Dalam Perjalanan
                           </span>
@@ -499,12 +499,12 @@ export default async function LandingPage({ searchParams }: PageProps) {
 
         {/* Interactive Trust Wall & Live Compliance Status (Unified Emerald & Tech-Clean) */}
         <section id="compliance" className="hidden md:block py-12 relative overflow-hidden bg-slate-50/70 border-y border-slate-200/70">
-          
+
           {/* Pattern Dot Background Minimalis */}
           <div className="absolute inset-0 opacity-[0.25] pointer-events-none" style={{ backgroundImage: `radial-gradient(#059669 0.75px, transparent 0.75px)`, backgroundSize: '24px 24px' }}></div>
 
           <div className="max-w-6xl mx-auto px-6 space-y-5 relative z-10">
-            
+
             {/* Header Banner - Glassmorphism Style */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/90 backdrop-blur-md p-4 px-6 rounded-2xl border border-slate-200/80 shadow-2xs">
               <div className="flex items-center gap-3">
@@ -530,7 +530,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
 
             {/* Grid Sertifikat (4 Cards - Unified Emerald Theme) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              
+
               {/* 1. Kemenkes RI */}
               <div className="bg-white p-4 rounded-2xl border border-slate-200/80 hover:border-emerald-400 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between space-y-3">
                 <div className="flex items-center justify-between">
@@ -680,7 +680,7 @@ export default async function LandingPage({ searchParams }: PageProps) {
         {/* Public Catalog Preview (Mobile Native & High-Usability Style) */}
         <section id="catalog" className="py-6 sm:py-10 bg-slate-50/60 border-y border-slate-200/60 selection:bg-emerald-500/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 font-sans">
-            
+
             {/* Section Header */}
             <div className="flex items-end justify-between border-b border-slate-200/80 pb-3">
               <div>
@@ -692,8 +692,8 @@ export default async function LandingPage({ searchParams }: PageProps) {
                 </h2>
               </div>
 
-              <Link 
-                href="/login" 
+              <Link
+                href="/login"
                 className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors flex items-center gap-1 group shrink-0"
               >
                 <span>Lihat Semua</span>
